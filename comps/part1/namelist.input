@@ -1,7 +1,7 @@
  &time_control
  run_days                            = 0,
  run_hours                           = 0,
- run_minutes                         = 60,
+ run_minutes                         = 90,
  run_seconds                         = 0,
  start_year                          = 0000,
  start_month                         = 01,
@@ -12,11 +12,11 @@
  end_year                            = 0000,
  end_month                           = 01,
  end_day                             = 01, 
- end_hour                            = 02,
- end_minute                          = 00,
+ end_hour                            = 01,
+ end_minute                          = 30,
  end_second                          = 0,
  history_interval_s                  = 30,
- frames_per_outfile                  = 120,
+ frames_per_outfile                  = 200,
  restart                             = .false.,
  restart_interval                    = 120,  
  io_form_history                     = 2,
@@ -94,7 +94,7 @@
  time_step_sound                     = 20,
  moist_adv_opt                       = 1,
  scalar_adv_opt                      = 1,
- tke_heat_flux						 = 0.24,
+ tke_heat_flux						 = 0.3,
  /
 
  &bdy_control
