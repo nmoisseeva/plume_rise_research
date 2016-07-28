@@ -1,0 +1,27 @@
+A. Convective PBL:
+
+1) Create a WRF-fire LES domain that has two parallel mountain ridges running across the whole model.  Use cyclic lateral boundary conditions.
+
+  a) Run WRF-fire in LES mode with no fire, but with zero imposed geostrophic wind, and with "sunshine" turned on to create surface heating and a convective mixed layer.   
+
+Describe the interaction between the growing convective mixed layer and cross-valley anabatic circulations.  Describe how the PBL top varies in height and strength (delta theta) across the mountain ranges, and how TKE varies across the mountain ranges.  
+
+  b) Repeat with light synoptic-scale imposed winds across the mountains, and (3m/s)
+
+  c) again for moderate winds across the mountains (6 m/s), and describe the changes to the PBL.
+
+
+2) Re-do (1abc), but with a fire on one of the mountain slopes that faces your central valley.  
+
+Describe the changes to the PBL.
+
+
+3) If a medium-resolution WRF were run using a PBL parameterization, which PBL parameterization would best describe:
+  a) the PBL far away from the fire, as found from your LES runs.
+  b) close to, or above, the fire, as found from your LES runs.
+
+
+B. Stable PBL. 
+
+   Same as (A), but for nighttime with radiative cooling of the land surface.
+

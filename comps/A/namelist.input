@@ -1,7 +1,7 @@
- &time_control
+&time_control
  run_days                            = 0,
  run_hours                           = 0,
- run_minutes                         = 90,
+ run_minutes                         = 180,
  run_seconds                         = 0,
  start_year                          = 0000,
  start_month                         = 01,
@@ -12,10 +12,10 @@
  end_year                            = 0000,
  end_month                           = 01,
  end_day                             = 01, 
- end_hour                            = 01,
- end_minute                          = 30,
+ end_hour                            = 03,
+ end_minute                          = 00,
  end_second                          = 0,
- history_interval_s                  = 30,
+ history_interval_s                  = 60,
  frames_per_outfile                  = 200,
  restart                             = .false.,
  restart_interval                    = 120,  
