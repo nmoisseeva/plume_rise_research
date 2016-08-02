@@ -131,25 +131,25 @@
  fire_ignition_ros3 =  0.1,        ! rate of spread during ignition, m/s  
  fire_ignition_ros4 =  0.1,        ! rate of spread during ignition, m/s  
 
- fire_ignition_start_x1 = 3400.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_start_x2 = 3200.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_start_x3 = 2600.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_start_x4 = 2500.,     ! start points of ignition lines, in m from lower left corner
+ fire_ignition_end_x1 = 3400.,     ! start points of ignition lines, in m from lower left corner
+ fire_ignition_end_x2 = 3200.,     ! start points of ignition lines, in m from lower left corner
+ fire_ignition_end_x3 = 2600.,     ! start points of ignition lines, in m from lower left corner
+ fire_ignition_end_x4 = 2500.,     ! start points of ignition lines, in m from lower left corner
 
- fire_ignition_start_y1 = 1000.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_start_y2 = 1200.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_start_y3 = 500.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_start_y4 = 700.,     ! start points of ignition lines, in m from lower left corner
+ fire_ignition_end_y1 = 1000.,     ! start points of ignition lines, in m from lower left corner
+ fire_ignition_end_y2 = 1200.,     ! start points of ignition lines, in m from lower left corner
+ fire_ignition_end_y3 = 500.,     ! start points of ignition lines, in m from lower left corner
+ fire_ignition_end_y4 = 700.,     ! start points of ignition lines, in m from lower left corner
 
- fire_ignition_end_x1 =   2600.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_end_x2 =   2500.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_end_x3 =   2200.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_end_x4 =   2100.,     ! end points of ignition lines, in m from lower left corner
+ fire_ignition_start_x1 =   2600.,     ! end points of ignition lines, in m from lower left corner
+ fire_ignition_start_x2 =   2500.,     ! end points of ignition lines, in m from lower left corner
+ fire_ignition_start_x3 =   2200.,     ! end points of ignition lines, in m from lower left corner
+ fire_ignition_start_x4 =   2100.,     ! end points of ignition lines, in m from lower left corner
 
- fire_ignition_end_y1 =   500.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_end_y2 =   700.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_end_y3 =   200.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_end_y4 =   400.,     ! end points of ignition lines, in m from lower left corner
+ fire_ignition_start_y1 =   500.,     ! end points of ignition lines, in m from lower left corner
+ fire_ignition_start_y2 =   700.,     ! end points of ignition lines, in m from lower left corner
+ fire_ignition_start_y3 =   200.,     ! end points of ignition lines, in m from lower left corner
+ fire_ignition_start_y4 =   400.,     ! end points of ignition lines, in m from lower left corner
 
  fire_ignition_radius1 =    5,     ! all within this radius will ignite, > fire mesh step
  fire_ignition_radius2 =    5,     ! all within this radius will ignite, > fire mesh step
