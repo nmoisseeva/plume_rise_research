@@ -19,7 +19,7 @@ echo "==========================================================="
 
 #local dir
 local=${pwd}
-
+source ~/.profile
 
 
 #loop through all subsections
