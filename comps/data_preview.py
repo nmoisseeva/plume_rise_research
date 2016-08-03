@@ -7,7 +7,7 @@ from scipy import interpolate
 import matplotlib.animation as animation
 
 
-wrfdata = '/Users/nadya2/data/plume/comps/part1/wrfout_3'
+wrfdata = '/Users/nadya2/data/plume/comps/wrfout'
 vert_levels = np.arange(0,1500,50)
 wrfinterp = '/Users/nadya2/code/plume/comps/interpT.nc'
 
@@ -49,44 +49,44 @@ dims = np.shape(lvlhgt)
 # # 			T_agl[nTime,:,nY,nX] = interp_func(vert_levels)
 # #===========vertical interpolation done in ncl===================
 
-ttest= 170
+# ttest= 170
 
-print("plotting....")
-plt.figure()
-plt.pcolormesh(nc_data.variables['T'][ttest,0:20,75,:]+300,vmin=300, vmax=310)
-plt.colorbar()
-plt.show()
-plt.close()
+# print("plotting....")
+# plt.figure()
+# plt.pcolormesh(nc_data.variables['T'][ttest,0:20,75,:]+300,vmin=300, vmax=310)
+# plt.colorbar()
+# plt.show()
+# plt.close()
 
-plt.figure()
-nc_interp_data = netcdf.netcdf_file(wrfinterp, mode ='r') 
-interpT = np.copy(nc_interp_data.variables['T'][:,:,:,:])
-interpT[interpT>100] = np.nan
-plt.pcolormesh(interpT[ttest,:,75,:]+300,vmin=300, vmax=310)
-plt.colorbar()
-plt.show()
-plt.close()
-
-
-#sanity check: plot vertical column of temperatures for raw and interp dataset
-plt.figure()
-plt.subplot(2,1,1)
-plt.plot(lvlhgt[ttest,:23,75,75],nc_data.variables['T'][ttest,:23,75,75]+300,'k')
-plt.subplot(2,1,2)
-plt.plot(np.arange(0,1.5,0.02)[3:]*1000,interpT[ttest,:,75,75][3:]+300,'r')
-plt.show()
-plt.close()
+# plt.figure()
+# nc_interp_data = netcdf.netcdf_file(wrfinterp, mode ='r') 
+# interpT = np.copy(nc_interp_data.variables['T'][:,:,:,:])
+# interpT[interpT>100] = np.nan
+# plt.pcolormesh(interpT[ttest,:,75,:]+300,vmin=300, vmax=310)
+# plt.colorbar()
+# plt.show()
+# plt.close()
 
 
-#animation of BL growth
-fig = plt.figure()
-ims = []
-for i in range(len(interpT[:,0,75,0])):
-    t_step = int(i)
-    im = plt.pcolormesh(interpT[i,:,75,:]+300, vmin=300, vmax=310)
-    ims.append([im])
+# #sanity check: plot vertical column of temperatures for raw and interp dataset
+# plt.figure()
+# plt.subplot(2,1,1)
+# plt.plot(lvlhgt[ttest,:23,75,75],nc_data.variables['T'][ttest,:23,75,75]+300,'k')
+# plt.subplot(2,1,2)
+# plt.plot(np.arange(0,1.5,0.02)[3:]*1000,interpT[ttest,:,75,75][3:]+300,'r')
+# plt.show()
+# plt.close()
 
-ani = animation.ArtistAnimation(fig, ims, interval=120, blit=False,repeat_delay=1000)
-plt.colorbar()
 
-plt.show()
+# #animation of BL growth
+# fig = plt.figure()
+# ims = []
+# for i in range(len(interpT[:,0,75,0])):
+#     t_step = int(i)
+#     im = plt.pcolormesh(interpT[i,:,75,:]+300, vmin=300, vmax=310)
+#     ims.append([im])
+
+# ani = animation.ArtistAnimation(fig, ims, interval=120, blit=False,repeat_delay=1000)
+# plt.colorbar()
+
+# plt.show()
