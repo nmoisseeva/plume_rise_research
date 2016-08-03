@@ -3,3 +3,4 @@
 *.nc
 */interp/*
 */comps/westgrid/*
+*wrfout*
