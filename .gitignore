@@ -2,3 +2,4 @@
 *.npy
 *.nc
 */interp/*
+*/comps/westgrid/*
