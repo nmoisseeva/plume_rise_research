@@ -7,47 +7,41 @@ from scipy import interpolate
 import matplotlib.animation as animation
 
 
-wrfdata = '/Users/nadya2/data/plume/comps/wrfout'
-vert_levels = np.arange(0,1500,50)
-wrfinterp = '/Users/nadya2/code/plume/comps/interpT.nc'
+wrfpath = '/Users/nadya2/data/plume/comps/'
+fig_dir = 
+part = 'A'
+section = ['a_Aug2', 'a_Aug2', 'a_Aug2']
 
-# vars_4d = ['U','V','QVAPOR']
-# vars_3d = ['HGT','GRNHFX','AVG_FUEL_FRAC','GRNQFX']
+#-----------------------end of input-------------------------
 
-print('Extracting NetCDF data from %s ' %wrfdata)
-nc_data = netcdf.netcdf_file(wrfdata, mode ='r')             
-# fc_data = {}
+plot_data = {'animation':{}}
+for nTest,test in enumerate(section):
+	wrfdata = wrfpath + part + '/wrfout_' + test
+	wrfinterp = wrfpath + part + '/interp/wrfinterp_' + test
+	print('Extracting NetCDF data from %s ' %wrfdata)
+	nc_data = netcdf.netcdf_file(wrfdata, mode ='r')    
 
-# #copy variables of interest into a dictionary
-# for var4 in vars_4d:
-# 	print('......... %s' %var4)
-# 	fc_data[var4] = nc_data.variables[var4][:,:,:,:]
+	# #sanity check: level height data (otherwise interpolated with ncl)
+	# print('Calculating vertical level heights for the domain')
+	# lvlhgt = (nc_data.variables['PH'][:,:,:,:] + nc_data.variables['PHB'][:,:,:,:]) / 9.81
+	# nc_data.variables['LVLHGT'] = lvlhgt
+	# dims = np.shape(lvlhgt)
 
-# for var3 in vars_3d:
-#     print('......... %s' %var3)
-#     fc_data[var3] = nc_data.variables[var3][:,:,:]
+	interp_data = netcdf.netcdf_file(wrfinterp, mode ='r') 
+	interpT = np.copy(interp_data.variables['T'][:,:,:,:])
+	interpT[interpT>100] = np.nan
 
-# # ===========vertical interpolation done in ncl===================
-#add level height data
-print('Calculating vertical level heights for the domain')
-# nc_data.createVariable('LVLHGT', float, ('Time', 'bottom_top_stag', 'south_north', 'west_east'))
-lvlhgt = (nc_data.variables['PH'][:,:,:,:] + nc_data.variables['PHB'][:,:,:,:]) / 9.81
-nc_data.variables['LVLHGT'] = lvlhgt
-dims = np.shape(lvlhgt)
+	plot_data['animation'][test] = interpT
+	nc_data.close()
+	interp_data.close()
 
 
-# # #interpolate to vertical height levels
-# # print('Performing vertical interpolation of model data')
-# # T_agl = np.empty((dims[0],len(vert_levels),dims[2],dims[3]))
-# # for nTime in range(dims[0]):
-# # 	print('.....timestep since simulation start: %smin' %nc_data.variables['XTIME'][nTime])
-# # 	for nY in range(dims[2]):
-# # 		for nX in range(dims[3]):
-# # 			eta =  lvlhgt[nTime,:-1,nY,nX]
-# # 			interp_func = interpolate.interp1d(eta, nc_data.variables['T'][nTime,:,nY,nX],\
-# # 						 'cubic', bounds_error=False, fill_value=np.nan)
-# # 			T_agl[nTime,:,nY,nX] = interp_func(vert_levels)
-# #===========vertical interpolation done in ncl===================
+
+#==========================plotting===========================
+
+#create subplot of animations
+
+
 
 # ttest= 170
 
@@ -67,7 +61,6 @@ dims = np.shape(lvlhgt)
 # plt.show()
 # plt.close()
 
-
 # #sanity check: plot vertical column of temperatures for raw and interp dataset
 # plt.figure()
 # plt.subplot(2,1,1)
@@ -77,16 +70,49 @@ dims = np.shape(lvlhgt)
 # plt.show()
 # plt.close()
 
+tdim,zdim,ydim,xdim = np.shape(interpT)
 
-# #animation of BL growth
-# fig = plt.figure()
-# ims = []
-# for i in range(len(interpT[:,0,75,0])):
-#     t_step = int(i)
-#     im = plt.pcolormesh(interpT[i,:,75,:]+300, vmin=300, vmax=310)
-#     ims.append([im])
+#animation of BL growth - manual
+fig = plt.figure(figsize=(9,12))
+plt.suptitle('BL GROWTH | PART %s ' %part, fontsize=16, fontweight='bold')
+ax1 = fig.add_subplot(3,1,1)
+ax2 = fig.add_subplot(3,1,2)
+ax3 = fig.add_subplot(3,1,3)
 
-# ani = animation.ArtistAnimation(fig, ims, interval=120, blit=False,repeat_delay=1000)
-# plt.colorbar()
+ax1.set_title('CALM', fontsize=13)
+ax2.set_title('LIGHT WINDS (3 m/s)', fontsize=13)
+ax3.set_title('MODERATE WINDS (6 m/s)', fontsize=13)
 
-# plt.show()
+ax1.set_xlim([0,xdim])
+ax1.set_ylim([0,zdim])
+ax2.set_xlim([0,xdim])
+ax2.set_ylim([0,zdim])
+ax3.set_xlim([0,xdim])
+ax3.set_ylim([0,zdim])
+
+sub_frm = []
+for ti in range(tdim):
+	sub1 = ax1.pcolormesh(plot_data['animation']['a_Aug2'][ti,:,75,:]+300, vmin=300, vmax=310)
+	ax1.autoscale_view()
+	sub2 = ax2.pcolormesh(plot_data['animation']['a_Aug2'][ti,:,75,:]+300, vmin=300, vmax=310)
+	sub3 = ax3.pcolormesh(plot_data['animation']['a_Aug2'][ti,:,75,:]+300, vmin=300, vmax=310)
+	sub_frm.append([sub1,sub2,sub3])
+ani = animation.ArtistAnimation(fig, sub_frm, interval=120, blit=False)
+
+fig.subplots_adjust(right=0.85, bottom=0.05, left=0.08,top=0.92)
+cax = fig.add_axes([0.88, 0.1, 0.02, 0.8]) #[left, bottom, width, height]
+fig.colorbar(sub1,cax=cax,label='Potential temperature [K]')
+
+plt.show()
+fig_path = fig_dir + part + '/BL_animation.gif'
+ani.save(fig_path)
+
+
+
+
+
+
+# plt.savefig(fig_path)
+# plt.close()
+# print('.....QVAPOR departure (individual subplots) saved as: %s' %fig_path)
+# nc_data.close()
