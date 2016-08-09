@@ -6,10 +6,10 @@
 #this script is a wrapper for performing performing Rolands comps subsections
 
 #input-----------------------------
-part="B"
+part="C"
 section=(a b c)
 input_dir="/home/moisseev/plume/comps/"
-data_dir="/home/moisseev/plume/comps/westgrid/"
+data_dir="/home/moisseev/data/plume/comps/"
 
 #----------------------------------
 
@@ -32,21 +32,23 @@ do
     rm ${WRFRUNDIR}input_sounding
     rm ${WRFRUNDIR}namelist.input
     rm ${WRFRUNDIR}namelist.fire
+    rm ${WRFRUNDIR}wrfrst\_d01\_0000\-01\-01\_01:00:00
 
     echo "..... subsection $nRun"
     #symlink the proper setting files
     ln -s ${input_dir}${part}/namelist.fire $WRFRUNDIR
     ln -s ${input_dir}${part}/namelist.input $WRFRUNDIR
     ln -s ${input_dir}${part}/input\_sounding\_${nRun} ${WRFRUNDIR}input\_sounding
+    ln -s ${data_dir}restart/wrfrst\_d01\_0000\-01\-01\_01:00:00\_${nRun} wrfrst\_d01\_0000\-01\-01\_01:00:00
     echo "Running WRF for case: $nRun"
-    ${WRFRUNDIR}ideal.exe
-    echo ".....IDEAL.EXE complete"
+    #${WRFRUNDIR}ideal.exe
+    #echo ".....IDEAL.EXE complete"
     ${WRFRUNDIR}wrf.exe 
     echo ".....WRF.EXE complete: $date"
 
     #rename and move the results to a data directory
     mkdir -p ${data_dir}${part}/ 
-    mv ${WRFRUNDIR}wrfout\_d01\_0000\-01\-01\_00:00:00 ${data_dir}${part}/wrfout\_$nRun
+    mv ${WRFRUNDIR}wrfout\_d01\_0000\-01\-01\_01:00:00 ${data_dir}${part}/wrfout\_$nRun
 
     ##run interpolation code
     #echo "Running NCL for data interpolation: $nRun"
