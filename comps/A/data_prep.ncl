@@ -2,10 +2,11 @@ load "$NCARG_ROOT/ncarg6.3/lib/ncarg/nclscripts/csm/gsn_code.ncl"
 load "$NCARG_ROOT/ncarg6.3/lib/ncarg/nclscripts/wrf/WRFUserARW.ncl"
 
 ;interpolate data in the vertical
-filename = "/Users/nadya2/data/plume/comps/A/interp/wrfout_temp"
+filename = "/Users/nadya2/data/plume/comps/A/wrfout_c"
+savedir = "/Users/nadya2/data/plume/comps/A/interp/"
 
-fout = "interp_wrf.nc"
-system("rm -f interpT.nc")
+fout = "wrfinterp.nc"
+system("rm -f wrfinterp.nc")
 fin      = addfile(filename,"r")
 fld = wrf_user_getvar(fin,"T",-1)     ; The variable to interpolate
 

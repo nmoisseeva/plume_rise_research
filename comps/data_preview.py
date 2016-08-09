@@ -7,18 +7,19 @@ from scipy import interpolate
 import matplotlib.animation as animation
 import numpy.ma as ma
 import matplotlib as mpl 
+import warnings
+warnings.filterwarnings("ignore")
 
 
 
 wrfpath = '/Users/nadya2/data/plume/comps/'
-fig_dir = '/Users/nadya2/data/plume/figs/comps/'
+fig_dir = '/Users/nadya2/code/plume/figs/comps/'
 part = 'A'
-section = ['a_Aug2', 'a_Aug2', 'a_Aug2']
+section = ['a', 'b', 'c']
 sec_tags = ['CALM', 'LIGHT WINDS', 'MODERATE WINDS']
-rx1 = [30,60] 	#averaging grids for ridge 1
-rx2 = [90,120]	#averaging grids for ridge 2
-fx = [5,20] 		#averaging grids for "flat area"
-t_ave = 30 			#averaging window for BL top
+t_ave = 45 										#averaging window for BL top
+interp_lvl = [0,1500,20] 						#interpolation intervals from ncl (m) [min,max,step]
+BLi = 500 										#intial residual level height (m)
 profile_data = {'r1':{'tag':'Ridge 1', 'xi':30, 'xf':60}, \
 				'r2':{'tag':'Ridge 2', 'xi':90, 'xf':120},\
 				'f':{'tag':'flat', 'xi':5, 'xf':20}}
@@ -26,7 +27,16 @@ profile_data = {'r1':{'tag':'Ridge 1', 'xi':30, 'xf':60}, \
 
 #-----------------------end of input-------------------------
 
+print('========COMPS DATA ANALYSIS==========')
+print('Performing anlsysis for: PART %s' %part)
+print('=====================================')
+
 plot_data = {}
+
+#get initial residual level
+lvl_hgt = np.arange(interp_lvl[0],interp_lvl[1],interp_lvl[2])
+zi = np.argmin(abs(lvl_hgt - BLi))
+
 for nTest,test in enumerate(section):
 	plot_data[test] = {}
 	plot_data[test]['tag'] = sec_tags[nTest]
@@ -34,12 +44,6 @@ for nTest,test in enumerate(section):
 	wrfinterp = wrfpath + part + '/interp/wrfinterp_' + test
 	print('Extracting NetCDF data from %s ' %wrfdata)
 	nc_data = netcdf.netcdf_file(wrfdata, mode ='r')    
-
-	# #sanity check: level height data (otherwise interpolated with ncl)
-	# print('Calculating vertical level heights for the domain')
-	# lvlhgt = (nc_data.variables['PH'][:,:,:,:] + nc_data.variables['PHB'][:,:,:,:]) / 9.81
-	# nc_data.variables['LVLHGT'] = lvlhgt
-	# dims = np.shape(lvlhgt)
 
 	#get PT data, mask and save for animation
 	interp_data = netcdf.netcdf_file(wrfinterp, mode ='r') 
@@ -63,11 +67,11 @@ for nTest,test in enumerate(section):
  	
 		for nTime in range(tdim):
 			delT[nTime,:] = profile[nTime,1:] - profile[nTime,0:-1]
-			BLz[nTime] = np.argmax(abs(delT[nTime,50:]))
-			BLdT[nTime] = delT[nTime,BLz[nTime]]
+			BLz[nTime] = np.argmax(abs(delT[nTime,zi:]))
+			BLdT[nTime] = delT[nTime,zi+BLz[nTime]]
 
  		# do temporal averaging
-	 	weights = np.repeat(1.0, t_ave)/t_ave
+	 	weights = np.hanning(t_ave)/sum(np.hanning(t_ave)) 	#create a tapered averaging window
 	 	BLH = np.convolve(BLz,weights)
 	 	BLT = np.convolve(BLdT,weights)
 	 	plot_data[test]['BLheight'][location] = BLH
@@ -88,14 +92,44 @@ for nTest, test in enumerate(section):
 	plt.title(plot_data[test]['tag'])
 	for loc in plot_data[test]['BLtemp']:
 		plt.plot(plot_data[test]['BLheight'][loc],label=loc)
-	plt.legend()
-plt.suptitle('BOUNDARY LAYER HEIGHT')
-plt.show()
+		plt.xlim([0,tdim])
+		plt.xlabel('time [min]')
+		plt.ylabel('height MSL [m]')
+		ax = plt.gca()
+		ax.set_yticks(np.arange(0,zdim-zi,10))
+		ax.set_yticklabels(np.arange(BLi,interp_lvl[1],10*interp_lvl[2]))
+	plt.legend(loc='lower right')
+plt.suptitle('BOUNDARY LAYER HEIGHT| t_ave = %s' %t_ave,fontweight='bold',fontsize=16)
+plt.tight_layout()
+plt.subplots_adjust(top=0.92, bottom=0.1)
+fig_path = fig_dir + part + '/BL_height.pdf'
+plt.savefig(fig_path)
+# plt.show()
+plt.close()
+print('.....BL height timeseries saved as: %s' %fig_path)
 
 
 
-
-
+fig = plt.figure(figsize=(9,12))
+for nTest, test in enumerate(section):
+	fig.add_subplot(3,1,nTest+1)
+	plt.title(plot_data[test]['tag'])
+	for loc in plot_data[test]['BLtemp']:
+		plt.plot(plot_data[test]['BLtemp'][loc],label=loc)
+		plt.xlim([0,tdim])
+		plt.xlabel('time [min]')
+		plt.ylabel('inversion strength [K/100m]')
+		ax = plt.gca()
+		ax.set_yticks(np.arange(0,0.5,0.1))
+	plt.legend(loc='lower right')
+plt.suptitle('BOUNDARY LAYER STRENGTH | t_ave = %s' %t_ave,fontweight='bold',fontsize=16)
+plt.tight_layout()
+plt.subplots_adjust(top=0.92, bottom=0.1)
+fig_path = fig_dir + part + '/BL_strength.pdf'
+plt.savefig(fig_path)
+# plt.show()
+plt.close()
+print('.....BL strength timeseries saved as: %s' %fig_path)
 
 
 
@@ -121,19 +155,19 @@ ax3.set_ylim([0,zdim])
 #animate plots
 sub_frm = []
 for ti in range(tdim):
-	sub1 = ax1.pcolormesh(plot_data['a_Aug2']['animation'][ti,:,75,:]+300, vmin=300, vmax=310, cmap=cm)
+	sub1 = ax1.pcolormesh(plot_data[section[0]]['animation'][ti,:,75,:]+300, vmin=300, vmax=310, cmap=cm)
 	ax1.autoscale_view()
-	sub2 = ax2.pcolormesh(plot_data['a_Aug2']['animation'][ti,:,75,:]+300, vmin=300, vmax=310, cmap=cm)
-	sub3 = ax3.pcolormesh(plot_data['a_Aug2']['animation'][ti,:,75,:]+300, vmin=300, vmax=310, cmap=cm)
-	sub_frm.append([sub1,sub2,sub3])
+	sub2 = ax2.pcolormesh(plot_data[section[1]]['animation'][ti,:,75,:]+300, vmin=300, vmax=310, cmap=cm)
+	sub3 = ax3.pcolormesh(plot_data[section[2]]['animation'][ti,:,75,:]+300, vmin=300, vmax=310, cmap=cm)
+	ttl = ax3.annotate('t = %s min' %(ti), xy=(0.5, -0.2), xycoords='axes fraction',fontsize=14, fontweight='bold')
+	sub_frm.append([sub1,sub2,sub3,ttl])
 ani = animation.ArtistAnimation(fig, sub_frm, interval=120, blit=False)
 #cosmetics and saving
-fig.subplots_adjust(right=0.85, bottom=0.05, left=0.08,top=0.92)
+fig.subplots_adjust(right=0.85, bottom=0.07, left=0.08,top=0.92)
 cax = fig.add_axes([0.88, 0.1, 0.02, 0.8]) #[left, bottom, width, height]
 fig.colorbar(sub1,cax=cax,label='Potential temperature [K]')
 fig_path = fig_dir + part + '/BL_animation.gif'
-ani.save(fig_path)
-plt.close()
+ani.save(fig_path, writer='imagemagick',fps=120)
 print('.....BL growth animation saved as: %s' %fig_path)
 
 
