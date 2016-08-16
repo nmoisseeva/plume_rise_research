@@ -7,7 +7,7 @@
 #assumes restart run
 
 #input-----------------------------
-part="C"
+part="B"
 section=(a b c)
 input_dir="/Users/nadya2/code/plume/comps/"
 data_dir="/Users/nadya2/data/plume/comps/"

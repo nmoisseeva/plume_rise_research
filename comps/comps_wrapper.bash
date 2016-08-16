@@ -6,7 +6,7 @@
 #this script is a wrapper for performing performing Rolands comps subsections
 
 #input-----------------------------
-part="A"
+part="B"
 section=(a b c)
 input_dir="/Users/nadya2/code/plume/comps/"
 data_dir="/Users/nadya2/data/plume/comps/"
@@ -48,13 +48,13 @@ do
     mkdir -p ${data_dir}${part}/ 
     mv wrfout\_d01\_0000\-01\-01\_00:00:00 ${data_dir}${part}/wrfout\_$nRun
 
-    #run interpolation code
-    echo "Running NCL for data interpolation: $nRun"
-    cd ${input_dir}${part}/
-    mkdir -p interp
-    ln -s  ${data_dir}${part}/wrfout\_$nRun ./interp/wrfout\_temp
-    ncl63 data_prep.ncl 
-    mv intperp\_wrf.nc ./intperp/intperp\_wrf\_${nRun}
+   # #run interpolation code
+   # echo "Running NCL for data interpolation: $nRun"
+   # cd ${input_dir}${part}/
+   # mkdir -p interp
+   # ln -s  ${data_dir}${part}/wrfout\_$nRun ./interp/wrfout\_temp
+   # ncl63 data_prep.ncl 
+   # mv intperp\_wrf.nc ./intperp/intperp\_wrf\_${nRun}
     
 done
 
