@@ -6,9 +6,9 @@
 #this script calls ncl to interpolate a set of data
 
 #input-----------------------------
-part="C"
+part="B"
 # section=(a b c)
-section=(b)
+section=(c)
 input_dir="/Users/nadya2/code/plume/comps/"
 data_dir="/Users/nadya2/data/plume/comps/"
 

@@ -14,8 +14,8 @@ warnings.filterwarnings("ignore")
 
 wrfpath = '/Users/nadya2/data/plume/comps/'
 fig_dir = '/Users/nadya2/code/plume/figs/comps/'
-part = 'C'
-section = ['b', 'b', 'b']
+part = 'B'
+section = ['c', 'c', 'c']
 sec_tags = ['CALM', 'LIGHT WINDS', 'MODERATE WINDS']
 t_ave = 45 										#averaging window for BL top
 interp_lvl = [0,1500] 						#interpolation intervals from ncl (m) [min,max]
