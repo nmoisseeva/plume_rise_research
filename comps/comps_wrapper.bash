@@ -7,7 +7,7 @@
 
 #input-----------------------------
 part="B"
-section=(a b c)
+section=(a b)
 input_dir="/Users/nadya2/code/plume/comps/"
 data_dir="/Users/nadya2/data/plume/comps/"
 
@@ -32,6 +32,7 @@ do
     rm input_sounding
     rm namelist.input
     rm namelist.fire
+    rm wrfrst*
 
     echo "..... subsection $nRun"
     #symlink the proper setting files
@@ -47,7 +48,7 @@ do
     #rename and move the results to a data directory
     mkdir -p ${data_dir}${part}/ 
     mv wrfout\_d01\_0000\-01\-01\_00:00:00 ${data_dir}${part}/wrfout\_$nRun
-
+    mv wrfrst\_d01\_0000\-01\-01\_01:00:00 ${data_dir}${part}/restart/wrfrst\_$nRun
    # #run interpolation code
    # echo "Running NCL for data interpolation: $nRun"
    # cd ${input_dir}${part}/
