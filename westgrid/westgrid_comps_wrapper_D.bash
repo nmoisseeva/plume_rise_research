@@ -6,10 +6,11 @@
 #this script is a wrapper for performing performing Rolands comps subsections
 
 #input-----------------------------
-part="A"
-section=(c)
+part="D"
+section=(a b c)
 input_dir="/home/moisseev/plume/comps/"
 data_dir="/home/moisseev/data/plume/comps/"
+wrf_dir="/home/moisseev/WRFV3D/"
 
 #----------------------------------
 
@@ -26,29 +27,29 @@ source ~/.profile
 for nRun in "${section[@]}"
 do
     #switch into wrf-fire directory
-    cd $WRFRUNDIR
+    cd ${wrf_dir}
 
     #clean up original settings files
-    rm ${WRFRUNDIR}input_sounding
-    rm ${WRFRUNDIR}namelist.input
-    rm ${WRFRUNDIR}namelist.fire
-    rm ${WRFRUNDIR}wrfrst\_d01\_0000\-01\-01\_01:00:00
+    rm ${wrf_dir}input_sounding
+    rm ${wrf_dir}namelist.input
+    rm ${wrf_dir}namelist.fire
+    rm ${wrf_dir}wrfrst\_d01\_0000\-01\-01\_01:00:00
 
     echo "..... subsection $nRun"
     #symlink the proper setting files
-    ln -s ${input_dir}${part}/namelist.fire $WRFRUNDIR
-    ln -s ${input_dir}${part}/namelist.input $WRFRUNDIR
-    ln -s ${input_dir}${part}/input\_sounding\_${nRun} ${WRFRUNDIR}input\_sounding
+    ln -s ${input_dir}${part}/namelist.fire ${wrf_dir}
+    ln -s ${input_dir}${part}/namelist.input ${wrf_dir}
+    ln -s ${input_dir}${part}/input\_sounding\_${nRun} ${wrf_dir}input\_sounding
     ln -s ${data_dir}restart/wrfrst_${nRun} wrfrst\_d01\_0000\-01\-01\_01:00:00
     echo "Running WRF for case: $nRun"
-    #${WRFRUNDIR}ideal.exe
+    #${wrf_dir}ideal.exe
     #echo ".....IDEAL.EXE complete"
-    ${WRFRUNDIR}wrf.exe 
+    ${wrf_dir}wrf.exe 
     echo ".....WRF.EXE complete: $date"
 
     #rename and move the results to a data directory
     mkdir -p ${data_dir}${part}/ 
-    mv ${WRFRUNDIR}wrfout\_d01\_0000\-01\-01\_01:01:00 ${data_dir}${part}/wrfout\_$nRun
+    mv ${wrf_dir}wrfout\_d01\_0000\-01\-01\_01:01:00 ${data_dir}${part}/wrfout\_$nRun
 
     ##run interpolation code
     #echo "Running NCL for data interpolation: $nRun"

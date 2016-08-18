@@ -1,7 +1,7 @@
 #!/bin/bash
 #Script for running wrf
 
-#PBS -N CompAc
+#PBS -N CompC
 #PBS -S /bin/bash
 #PBS -l nodes=1:ppn=8
 #PBS -m bea
@@ -13,6 +13,6 @@ echo "Running on `hostname`"
 export OMP_NUM_THREADS=$PBS_NUM_PPN
 echo "Starting run at: `date`"
 #ulimit -uvs unlimited
-bash westgrid_comps_wrapper.bash  > log.txt
+bash westgrid_comps_wrapper_C.bash  > log_C.txt
 echo "Program finished with exit code $? at: `date`"
 
