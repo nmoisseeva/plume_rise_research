@@ -94,7 +94,7 @@
  time_step_sound                     = 20,
  moist_adv_opt                       = 1,
  scalar_adv_opt                      = 1,
- tke_heat_flux						 = 0.3,
+ tke_heat_flux			     = -0.3,
  /
 
  &bdy_control
