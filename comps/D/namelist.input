@@ -1,12 +1,12 @@
 &time_control
  run_days                            = 0,
  run_hours                           = 0,
- run_minutes                         = 180,
+ run_minutes                         = 120,
  run_seconds                         = 0,
  start_year                          = 0000,
  start_month                         = 01,
  start_day                           = 01,
- start_hour                          = 00,
+ start_hour                          = 01,
  start_minute                        = 00,
  start_second                        = 00,
  end_year                            = 0000,
@@ -17,8 +17,8 @@
  end_second                          = 0,
  history_interval_s                  = 60,
  frames_per_outfile                  = 200,
- restart                             = .false.,
- restart_interval                    = 60,  
+ restart                             = .true.,
+ restart_interval                    = 200,  
  io_form_history                     = 2,
  io_form_restart                     = 2,
  io_form_input                       = 2,
@@ -94,7 +94,7 @@
  time_step_sound                     = 20,
  moist_adv_opt                       = 1,
  scalar_adv_opt                      = 1,
- tke_heat_flux						 = -0.3,
+ tke_heat_flux			    = -0.3,
  /
 
  &bdy_control
@@ -120,7 +120,7 @@
  /
 
  &fire ! be sure to set sr_x,sr_y in domains-namelist (to set refinement in x,y)
- ifire              = 2,               ! integer, = 0: no fire, 2=turn on fire model
+ ifire              = 22,               ! integer, = 0: no fire, 2=turn on fire model
  fire_fuel_read     = 0,               ! integer, -1: from WPS, 0= use fire_fuel_cat, 1= by altitude, 2=from file input_fc
  fire_fuel_cat      = 3,               ! integer, fuel category if constant
 ! ignition 
