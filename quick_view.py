@@ -6,6 +6,8 @@ import matplotlib as mpl
 import warnings
 warnings.filterwarnings("ignore")
 
-wrfdata='/Users/nadya2/data/plume/comps/B/wrfout_a'
+# wrfdata='/Users/nadya2/data/plume/comps/D/wrfout_b'
+# wrfdata='/Users/nadya2/data/plume/sensitivity/wind/wrfout_6v'
+
 
 nc_data = netcdf.netcdf_file(wrfdata, mode ='r')   

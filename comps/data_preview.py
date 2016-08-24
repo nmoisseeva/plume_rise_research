@@ -14,15 +14,15 @@ warnings.filterwarnings("ignore")
 
 wrfpath = '/Users/nadya2/data/plume/comps/'
 fig_dir = '/Users/nadya2/code/plume/figs/comps/'
-part = 'B'
-section = ['c', 'c', 'c']
+part = 'D'
+section = ['a', 'b', 'c']
 sec_tags = ['CALM', 'LIGHT WINDS', 'MODERATE WINDS']
 t_ave = 45 										#averaging window for BL top
-interp_lvl = [0,1500] 						#interpolation intervals from ncl (m) [min,max]
-interp_step = 20
+interp_lvl = [0,2000] 						#interpolation intervals from ncl (m) [min,max]
+interp_step = 30
 BLi = 500 										#intial residual level height (m)
-profile_data = {'r1':{'tag':'Ridge 1', 'xi':30, 'xf':60}, \
-				'r2':{'tag':'Ridge 2', 'xi':90, 'xf':120},\
+profile_data = {'r1':{'tag':'Ridge 1', 'xi':55, 'xf':70}, \
+				'r2':{'tag':'Ridge 2', 'xi':95, 'xf':110},\
 				'f':{'tag':'flat', 'xi':5, 'xf':20}}
 
 
@@ -58,30 +58,45 @@ for nTest,test in enumerate(section):
 	plot_data[test]['TKEanim'] = interpTKE_masked
 	terrain = nc_data.variables['HGT'][0,slice_y,:]
 	terrain = terrain/interp_step
+	print('Calculating cross-wind averages')
+	plot_data[test]['cwTKE'] = np.nanmean(plot_data[test]['TKEanim'][:,:,:,:],2)
+	plot_data[test]['cwT'] = np.nanmean(plot_data[test]['Tanim'][:,:,:,:],2)
 
 	#create spacially averaged profiles for specified locations
 	plot_data[test]['BLheight'], plot_data[test]['BLtemp'] = {}, {}
+	plot_data[test]['cwBLheight'], plot_data[test]['cwBLtemp'] = {}, {}
 	for location in profile_data:
 		xi = profile_data[location]['xi']
 		xf = profile_data[location]['xf']
 		profile = np.nanmean(interpT[:,:,slice_y,xi:xf],2)
+		cw_profile = np.nanmean(np.nanmean(interpT[:,:,:,xi:xf],2),2)
 
  		#find height and strength of bl top
  		delT = np.empty((tdim,zdim-1))
  		BLz = np.empty((tdim))
  		BLdT = np.empty((tdim))
+ 		cw_delT = np.empty((tdim,zdim-1))
+ 		cwBLz = np.empty((tdim))
+ 		cwBLdT = np.empty((tdim))
  	
 		for nTime in range(tdim):
 			delT[nTime,:] = profile[nTime,1:] - profile[nTime,0:-1]
 			BLz[nTime] = np.argmax(abs(delT[nTime,zi:]))
 			BLdT[nTime] = delT[nTime,zi+BLz[nTime]]
+			cw_delT[nTime,:] = cw_profile[nTime,1:] - cw_profile[nTime,0:-1]
+			cwBLz[nTime] = np.argmax(abs(cw_delT[nTime,zi:]))
+			cwBLdT[nTime] = cw_delT[nTime,zi+cwBLz[nTime]]
 
  		# do temporal averaging
 	 	weights = np.hanning(t_ave)/sum(np.hanning(t_ave)) 	#create a tapered averaging window
 	 	BLH = np.convolve(BLz,weights)
 	 	BLT = np.convolve(BLdT,weights)
+	 	cwBLH = np.convolve(cwBLz,weights)
+	 	cwBLT = np.convolve(cwBLdT,weights)
 	 	plot_data[test]['BLheight'][location] = BLH
 	 	plot_data[test]['BLtemp'][location] = BLT
+	 	plot_data[test]['cwBLheight'][location] = cwBLH
+	 	plot_data[test]['cwBLtemp'][location] = cwBLT
 
 	nc_data.close()
 	interp_data.close()
@@ -137,6 +152,80 @@ print('.....BL strength timeseries saved as: %s' %fig_path)
 
 
 
+fig = plt.figure(figsize=(9,12))
+for nTest, test in enumerate(section):
+	fig.add_subplot(3,1,nTest+1)
+	plt.title(plot_data[test]['tag'])
+	for loc in plot_data[test]['cwBLtemp']:
+		plt.plot(plot_data[test]['cwBLheight'][loc],label=loc)
+		plt.xlim([0,tdim])
+		plt.xlabel('time [min]')
+		plt.ylabel('height MSL [m]')
+		ax = plt.gca()
+		ax.set_yticks(np.arange(0,zdim-zi,10))
+		ax.set_yticklabels(np.arange(BLi,interp_lvl[1],10*interp_step))
+	plt.legend(loc='lower right')
+plt.suptitle('CROSSWIND BOUNDARY LAYER HEIGHT| t_ave = %s' %t_ave,fontweight='bold',fontsize=16)
+plt.tight_layout()
+plt.subplots_adjust(top=0.92, bottom=0.1)
+fig_path = fig_dir + part + '/cwBL_height.pdf'
+plt.savefig(fig_path)
+# plt.show()
+plt.close()
+print('.....Crosswind BL height timeseries saved as: %s' %fig_path)
+
+fig = plt.figure(figsize=(9,12))
+for nTest, test in enumerate(section):
+	fig.add_subplot(3,1,nTest+1)
+	plt.title(plot_data[test]['tag'])
+	for loc in plot_data[test]['cwBLtemp']:
+		plt.plot(plot_data[test]['cwBLtemp'][loc],label=loc)
+		plt.xlim([0,tdim])
+		plt.xlabel('time [min]')
+		plt.ylabel('inversion strength [K/100m]')
+		ax = plt.gca()
+		ax.set_yticks(np.arange(0,0.5,0.1))
+	plt.legend(loc='lower right')
+plt.suptitle('CROSSWIND BOUNDARY LAYER STRENGTH | t_ave = %s' %t_ave,fontweight='bold',fontsize=16)
+plt.tight_layout()
+plt.subplots_adjust(top=0.92, bottom=0.1)
+fig_path = fig_dir + part + '/cwBL_strength.pdf'
+plt.savefig(fig_path)
+# plt.show()
+plt.close()
+print('.....Crosswind BL strength timeseries saved as: %s' %fig_path)
+
+
+
+
+
+#time averaged TKE
+fig = plt.figure(figsize=(9,12))
+for nTest, test in enumerate(section):
+	fig.add_subplot(3,1,nTest+1)
+	plt.title(plot_data[test]['tag'])
+	# plt.pcolormesh(np.nanmean(plot_data[test]['TKEanim'][:,:,slice_y,:],0), vmin=0, vmax=1, cmap=plt.cm.cubehelix_r)
+	pl = plt.pcolormesh(np.nanmean(plot_data[test]['cwTKE'],0), vmin=0, vmax=0.8, cmap=plt.cm.cubehelix_r)
+	# plt.plot(np.arange(0,xdim),terrain,c='w',linewidth=20)
+	ax = plt.gca()
+	ax.set_yticks(np.arange(0,zdim,10))
+	ax.set_yticklabels(lvl_hgt[::10])
+	ax.set_ylabel('MSL height [m]')
+	ax.set_xlim([0,xdim])
+	ax.set_ylim([0,zdim])
+plt.suptitle('CROSSWIND TIME-AVERAGED TKE',fontweight='bold',fontsize=16)
+plt.tight_layout()
+fig.subplots_adjust(right=0.85, bottom=0.07, left=0.1,top=0.92)
+cax = fig.add_axes([0.88, 0.1, 0.02, 0.8]) #[left, bottom, width, height]
+fig.colorbar(pl,cax=cax,label='TKE [m2/s2]')
+fig_path = fig_dir + part + '/TKE_cw_ave.pdf'
+plt.savefig(fig_path)
+# plt.show()
+plt.close()
+print('.....Crosswind time-averaged TKE saved as: %s' %fig_path)
+
+
+
 #animation of BL growth - manual
 fig = plt.figure(figsize=(9,12))
 plt.suptitle('BL GROWTH | PART %s ' %part, fontsize=16, fontweight='bold')
@@ -163,7 +252,7 @@ ani = animation.ArtistAnimation(fig, sub_frm, interval=120, blit=False)
 #cosmetics and saving
 axes = [ax1, ax2, ax3]
 for nAx in axes:
-	nAx.plot(np.arange(0,xdim),terrain,c='w',linewidth=10)
+	# nAx.plot(np.arange(0,xdim),terrain,c='w',linewidth=10)
 	nAx.set_yticks(np.arange(0,zdim,10))
 	nAx.set_yticklabels(lvl_hgt[::10])
 	nAx.set_ylabel('MSL height [m]')
@@ -190,17 +279,17 @@ ax3.set_title('MODERATE WINDS (6 m/s)', fontsize=13)
 #animate plots
 sub_frm = []
 for ti in range(tdim):
-	sub1 = ax1.pcolormesh(plot_data[section[0]]['TKEanim'][ti,:,slice_y,:], vmin=0, vmax=0.5, cmap=plt.cm.cubehelix_r)
+	sub1 = ax1.pcolormesh(plot_data[section[0]]['TKEanim'][ti,:,slice_y,:], vmin=0, vmax=0.8, cmap=plt.cm.cubehelix_r)
 	ax1.autoscale_view()
-	sub2 = ax2.pcolormesh(plot_data[section[1]]['TKEanim'][ti,:,slice_y,:], vmin=0, vmax=0.5, cmap=plt.cm.cubehelix_r)
-	sub3 = ax3.pcolormesh(plot_data[section[2]]['TKEanim'][ti,:,slice_y,:], vmin=0, vmax=0.5, cmap=plt.cm.cubehelix_r)
+	sub2 = ax2.pcolormesh(plot_data[section[1]]['TKEanim'][ti,:,slice_y,:], vmin=0, vmax=0.8, cmap=plt.cm.cubehelix_r)
+	sub3 = ax3.pcolormesh(plot_data[section[2]]['TKEanim'][ti,:,slice_y,:], vmin=0, vmax=0.8, cmap=plt.cm.cubehelix_r)
 	ttl = ax3.annotate('t = %s min' %(ti), xy=(0.5, -0.2), xycoords='axes fraction',fontsize=14, fontweight='bold')
 	sub_frm.append([sub1,sub2,sub3,ttl])
 ani = animation.ArtistAnimation(fig, sub_frm, interval=120, blit=False)
 #cosmetics and saving
 axes = [ax1, ax2, ax3]
 for nAx in axes:
-	nAx.plot(np.arange(0,xdim),terrain,c='w',linewidth=10)
+	# nAx.plot(np.arange(0,xdim),terrain,c='w',linewidth=10)
 	nAx.set_yticks(np.arange(0,zdim,10))
 	nAx.set_yticklabels(lvl_hgt[::10])
 	nAx.set_ylabel('MSL height [m]')

@@ -7,7 +7,7 @@
 #assumes restart run
 
 #input-----------------------------
-part="B"
+part="D"
 section=(a b c)
 input_dir="/Users/nadya2/code/plume/comps/"
 data_dir="/Users/nadya2/data/plume/comps/"
@@ -32,20 +32,21 @@ do
     rm input_sounding
     rm namelist.input
     rm namelist.fire
+   rm wrfrst* 
 
     echo "..... subsection $nRun"
     #symlink the proper setting files
     ln -s ${input_dir}${part}/namelist.fire ./
     ln -s ${input_dir}${part}/namelist.input ./
     ln -s ${input_dir}${part}/input\_sounding\_${nRun} ./input\_sounding
-    ln -s ${data_dir}${part}/restart/wrfrst\_${nRun} ./wrfrst_d01_0000-01-01_01:00:00
+    ln -s ${data_dir}B/restart/wrfrst_${nRun} ./wrfrst_d01_0000-01-01_01:00:00
     echo "Running WRF for restart case: $nRun"
     ./wrf.exe 
     echo ".....WRF.EXE complete: $date"
 
     #rename and move the results to a data directory
     mkdir -p ${data_dir}${part}/ 
-    mv wrfout\_d01\_0000\-01\-01\_00:00:00 ${data_dir}${part}/wrfout\_$nRun
+    mv wrfout\_d01\_0000\-01\-01\_01:01:00 ${data_dir}${part}/wrfout\_$nRun
 
     # # #run interpolation code
     # echo "Running NCL for data interpolation: $nRun"

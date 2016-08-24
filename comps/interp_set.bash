@@ -6,9 +6,9 @@
 #this script calls ncl to interpolate a set of data
 
 #input-----------------------------
-part="B"
+part="D"
 # section=(a b c)
-section=(c)
+section=(a)
 input_dir="/Users/nadya2/code/plume/comps/"
 data_dir="/Users/nadya2/data/plume/comps/"
 
@@ -32,7 +32,8 @@ do
    mkdir -p ${data_dir}${part}/interp
    rm ./interp_temp/wrfout
    ln -s ${data_dir}${part}/wrfout_${nRun} ./interp_temp/wrfout
-   $NCARG_ROOT/ncarg6.3/bin/ncl interp.ncl
+   # $NCARG_ROOT/ncarg6.3/bin/ncl interp.ncl
+   $NCARG_ROOT/ncarg6.3/bin/ncl interp_vdf.ncl
    mv wrfinterp.nc ${data_dir}${part}/interp/wrfinterp_${nRun}   
    rm -R ./interp_temp
 done
