@@ -14,9 +14,9 @@ warnings.filterwarnings("ignore")
 
 wrfpath = '/Users/nadya2/data/plume/comps/'
 fig_dir = '/Users/nadya2/code/plume/figs/comps/'
-part = 'D'
+part = 'B'
 section = ['a', 'b', 'c']
-sec_tags = ['CALM', 'LIGHT WINDS', 'MODERATE WINDS']
+sec_tags = ['CALM (a)', 'LIGHT WINDS (b)', 'MODERATE WINDS (c)']
 t_ave = 45 										#averaging window for BL top
 interp_lvl = [0,2000] 						#interpolation intervals from ncl (m) [min,max]
 interp_step = 30
@@ -37,6 +37,7 @@ plot_data = {}
 #get initial residual level
 lvl_hgt = np.arange(interp_lvl[0],interp_lvl[1],interp_step)
 zi = np.argmin(abs(lvl_hgt - BLi))
+shade = []interp_lvl[1]] * t_ave 			#variable for plot shading
 
 for nTest,test in enumerate(section):
 	plot_data[test] = {}
@@ -164,6 +165,7 @@ for nTest, test in enumerate(section):
 		ax = plt.gca()
 		ax.set_yticks(np.arange(0,zdim-zi,10))
 		ax.set_yticklabels(np.arange(BLi,interp_lvl[1],10*interp_step))
+		ax.fill_between(shade, 0, facecolor='gray', alpha=0.5)
 	plt.legend(loc='lower right')
 plt.suptitle('CROSSWIND BOUNDARY LAYER HEIGHT| t_ave = %s' %t_ave,fontweight='bold',fontsize=16)
 plt.tight_layout()
