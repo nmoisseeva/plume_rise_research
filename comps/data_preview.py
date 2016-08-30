@@ -37,7 +37,6 @@ plot_data = {}
 #get initial residual level
 lvl_hgt = np.arange(interp_lvl[0],interp_lvl[1],interp_step)
 zi = np.argmin(abs(lvl_hgt - BLi))
-shade = []interp_lvl[1]] * t_ave 			#variable for plot shading
 
 for nTest,test in enumerate(section):
 	plot_data[test] = {}
@@ -45,7 +44,8 @@ for nTest,test in enumerate(section):
 	wrfdata = wrfpath + part + '/wrfout_' + test
 	wrfinterp = wrfpath + part + '/interp/wrfinterp_' + test
 	print('Extracting NetCDF data from %s ' %wrfdata)
-	nc_data = netcdf.netcdf_file(wrfdata, mode ='r')   
+	nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
+	xstep = int(nc_data.DX)
 
 	#get PT data, mask and save for animation
 	interp_data = netcdf.netcdf_file(wrfinterp, mode ='r') 
@@ -53,10 +53,32 @@ for nTest,test in enumerate(section):
 	interpTKE = np.copy(interp_data.variables['TKE'][:,:,:,:])
 	tdim,zdim,ydim,xdim = np.shape(interpT)
 	slice_y = int(ydim/2)
+
+	#get the first shared 60 min from part B
+	if part=='B':
+		np.save('./npy/spingupT%s.npy' %test,interpT[:60,:,:,:])
+		np.save('./npy/spinupTKE%s.npy'%test,interpTKE[:60,:,:,:])
+	else:
+		spinupT = np.load('./npy/spingupT%s.npy' %test)
+		spinupTKE = np.load('./npy/spinupTKE%s.npy' %test)
+		tdim = tdim + 60
+		interpT = np.concatenate([spinupT,interpT])
+		interpTKE = np.concatenate([spinupTKE,interpTKE])
 	interpT[interpT>100], interpTKE[interpTKE>100] = np.nan, np.nan
 	interpT_masked, interpTKE_masked = ma.masked_invalid(interpT), ma.masked_invalid(interpTKE)
 	plot_data[test]['Tanim'] = interpT_masked
 	plot_data[test]['TKEanim'] = interpTKE_masked
+
+	#test for anabatic circulation
+	if part=='B' and test=='a':
+		interpU = np.copy(interp_data.variables['U'][:,:,:,:])
+		interpW = np.copy(interp_data.variables['W'][:,:,:,:])
+		interpU[interpU>100], interpW[interpW>100] = np.nan, np.nan
+		interpU_masked, interpW_masked = ma.masked_invalid(interpU), ma.masked_invalid(interpW)
+		plot_data[test]['cwU'] = np.nanmean(interpU_masked[:,:,:,:],2)
+		plot_data[test]['cwW'] = np.nanmean(interpW_masked[:,:,:,:],2)
+
+	# plot_data[test]['TKEanim'] = interpTKE_masked
 	terrain = nc_data.variables['HGT'][0,slice_y,:]
 	terrain = terrain/interp_step
 	print('Calculating cross-wind averages')
@@ -107,19 +129,27 @@ for nTest,test in enumerate(section):
 #==========================plotting===========================
 
 print('Plotting data:')
+if part=='B':
+	tstart = 0
+else:
+	tstart = 60
+shade = np.arange(0,t_ave)
+
+
 
 fig = plt.figure(figsize=(9,12))
 for nTest, test in enumerate(section):
 	fig.add_subplot(3,1,nTest+1)
 	plt.title(plot_data[test]['tag'])
 	for loc in plot_data[test]['BLtemp']:
-		plt.plot(plot_data[test]['BLheight'][loc],label=loc)
+		plt.plot(plot_data[test]['BLheight'][loc],label=profile_data[loc]['tag'])
 		plt.xlim([0,tdim])
 		plt.xlabel('time [min]')
 		plt.ylabel('height MSL [m]')
 		ax = plt.gca()
 		ax.set_yticks(np.arange(0,zdim-zi,10))
 		ax.set_yticklabels(np.arange(BLi,interp_lvl[1],10*interp_step))
+		ax.fill_between(shade, 0,t_ave, facecolor='gray', alpha=0.05, edgecolor='w')
 	plt.legend(loc='lower right')
 plt.suptitle('BOUNDARY LAYER HEIGHT| t_ave = %s' %t_ave,fontweight='bold',fontsize=16)
 plt.tight_layout()
@@ -135,12 +165,14 @@ for nTest, test in enumerate(section):
 	fig.add_subplot(3,1,nTest+1)
 	plt.title(plot_data[test]['tag'])
 	for loc in plot_data[test]['BLtemp']:
-		plt.plot(plot_data[test]['BLtemp'][loc],label=loc)
+		plt.plot(plot_data[test]['BLtemp'][loc],label=profile_data[loc]['tag'])
 		plt.xlim([0,tdim])
+		plt.ylim([0,0.6])
 		plt.xlabel('time [min]')
 		plt.ylabel('inversion strength [K/100m]')
 		ax = plt.gca()
-		ax.set_yticks(np.arange(0,0.5,0.1))
+		ax.set_yticks(np.arange(0,0.6,0.1))
+		ax.fill_between(shade, 0,t_ave, facecolor='gray', alpha=0.05, edgecolor='w')
 	plt.legend(loc='lower right')
 plt.suptitle('BOUNDARY LAYER STRENGTH | t_ave = %s' %t_ave,fontweight='bold',fontsize=16)
 plt.tight_layout()
@@ -158,14 +190,16 @@ for nTest, test in enumerate(section):
 	fig.add_subplot(3,1,nTest+1)
 	plt.title(plot_data[test]['tag'])
 	for loc in plot_data[test]['cwBLtemp']:
-		plt.plot(plot_data[test]['cwBLheight'][loc],label=loc)
+		plt.plot(plot_data[test]['cwBLheight'][loc],label=profile_data[loc]['tag'])
 		plt.xlim([0,tdim])
 		plt.xlabel('time [min]')
 		plt.ylabel('height MSL [m]')
 		ax = plt.gca()
 		ax.set_yticks(np.arange(0,zdim-zi,10))
 		ax.set_yticklabels(np.arange(BLi,interp_lvl[1],10*interp_step))
-		ax.fill_between(shade, 0, facecolor='gray', alpha=0.5)
+		ax.fill_between(shade, 0,50, facecolor='gray', alpha=0.05, edgecolor='w')
+		if part=='B' or part=='D':
+			plt.axvline(60, c='r', linestyle='--')
 	plt.legend(loc='lower right')
 plt.suptitle('CROSSWIND BOUNDARY LAYER HEIGHT| t_ave = %s' %t_ave,fontweight='bold',fontsize=16)
 plt.tight_layout()
@@ -181,12 +215,16 @@ for nTest, test in enumerate(section):
 	fig.add_subplot(3,1,nTest+1)
 	plt.title(plot_data[test]['tag'])
 	for loc in plot_data[test]['cwBLtemp']:
-		plt.plot(plot_data[test]['cwBLtemp'][loc],label=loc)
+		plt.plot(plot_data[test]['cwBLtemp'][loc],label=profile_data[loc]['tag'])
 		plt.xlim([0,tdim])
+		plt.ylim([0,0.6])
 		plt.xlabel('time [min]')
 		plt.ylabel('inversion strength [K/100m]')
 		ax = plt.gca()
-		ax.set_yticks(np.arange(0,0.5,0.1))
+		ax.set_yticks(np.arange(0,0.6,0.1))
+		ax.fill_between(shade, 0,50, facecolor='gray', alpha=0.05, edgecolor='w')
+		if part=='B' or part=='D':
+			plt.axvline(60, c='r', linestyle='--')
 	plt.legend(loc='lower right')
 plt.suptitle('CROSSWIND BOUNDARY LAYER STRENGTH | t_ave = %s' %t_ave,fontweight='bold',fontsize=16)
 plt.tight_layout()
@@ -198,16 +236,13 @@ plt.close()
 print('.....Crosswind BL strength timeseries saved as: %s' %fig_path)
 
 
-
-
-
 #time averaged TKE
 fig = plt.figure(figsize=(9,12))
 for nTest, test in enumerate(section):
 	fig.add_subplot(3,1,nTest+1)
 	plt.title(plot_data[test]['tag'])
 	# plt.pcolormesh(np.nanmean(plot_data[test]['TKEanim'][:,:,slice_y,:],0), vmin=0, vmax=1, cmap=plt.cm.cubehelix_r)
-	pl = plt.pcolormesh(np.nanmean(plot_data[test]['cwTKE'],0), vmin=0, vmax=0.8, cmap=plt.cm.cubehelix_r)
+	pl = plt.pcolormesh(np.nanmean(plot_data[test]['cwTKE'][tstart:,:,:],0), vmin=0, vmax=0.8, cmap=plt.cm.cubehelix_r)
 	# plt.plot(np.arange(0,xdim),terrain,c='w',linewidth=20)
 	ax = plt.gca()
 	ax.set_yticks(np.arange(0,zdim,10))
@@ -215,6 +250,8 @@ for nTest, test in enumerate(section):
 	ax.set_ylabel('MSL height [m]')
 	ax.set_xlim([0,xdim])
 	ax.set_ylim([0,zdim])
+	ax.set_xticks(np.arange(0,xdim,20))
+	ax.set_xticklabels(np.arange(0,xdim*xstep,20*xstep))
 plt.suptitle('CROSSWIND TIME-AVERAGED TKE',fontweight='bold',fontsize=16)
 plt.tight_layout()
 fig.subplots_adjust(right=0.85, bottom=0.07, left=0.1,top=0.92)
@@ -248,7 +285,7 @@ for ti in range(tdim):
 	ax1.autoscale_view()
 	sub2 = ax2.pcolormesh(plot_data[section[1]]['Tanim'][ti,:,slice_y,:]+300, vmin=300, vmax=310, cmap=cm)
 	sub3 = ax3.pcolormesh(plot_data[section[2]]['Tanim'][ti,:,slice_y,:]+300, vmin=300, vmax=310, cmap=cm)
-	ttl = ax3.annotate('t = %s min' %(ti), xy=(0.5, -0.2), xycoords='axes fraction',fontsize=14, fontweight='bold')
+	ttl = ax3.annotate('t = %s min' %(ti), xy=(0.45, -0.2), xycoords='axes fraction',fontsize=14, fontweight='bold')
 	sub_frm.append([sub1,sub2,sub3,ttl])
 ani = animation.ArtistAnimation(fig, sub_frm, interval=120, blit=False)
 #cosmetics and saving
@@ -260,6 +297,8 @@ for nAx in axes:
 	nAx.set_ylabel('MSL height [m]')
 	nAx.set_xlim([0,xdim])
 	nAx.set_ylim([0,zdim])
+	nAx.set_xticks(np.arange(0,xdim,20))
+	nAx.set_xticklabels(np.arange(0,xdim*xstep,20*xstep))
 fig.subplots_adjust(right=0.85, bottom=0.07, left=0.1,top=0.92)
 cax = fig.add_axes([0.88, 0.1, 0.02, 0.8]) #[left, bottom, width, height]
 fig.colorbar(sub1,cax=cax,label='Potential temperature [K]')
@@ -285,7 +324,7 @@ for ti in range(tdim):
 	ax1.autoscale_view()
 	sub2 = ax2.pcolormesh(plot_data[section[1]]['TKEanim'][ti,:,slice_y,:], vmin=0, vmax=0.8, cmap=plt.cm.cubehelix_r)
 	sub3 = ax3.pcolormesh(plot_data[section[2]]['TKEanim'][ti,:,slice_y,:], vmin=0, vmax=0.8, cmap=plt.cm.cubehelix_r)
-	ttl = ax3.annotate('t = %s min' %(ti), xy=(0.5, -0.2), xycoords='axes fraction',fontsize=14, fontweight='bold')
+	ttl = ax3.annotate('t = %s min' %(ti), xy=(0.45, -0.2), xycoords='axes fraction',fontsize=14, fontweight='bold')
 	sub_frm.append([sub1,sub2,sub3,ttl])
 ani = animation.ArtistAnimation(fig, sub_frm, interval=120, blit=False)
 #cosmetics and saving
@@ -297,6 +336,8 @@ for nAx in axes:
 	nAx.set_ylabel('MSL height [m]')
 	nAx.set_xlim([0,xdim])
 	nAx.set_ylim([0,zdim])
+	nAx.set_xticks(np.arange(0,xdim,20))
+	nAx.set_xticklabels(np.arange(0,xdim*xstep,20*xstep))
 fig.subplots_adjust(right=0.85, bottom=0.07, left=0.1,top=0.92)
 cax = fig.add_axes([0.88, 0.1, 0.02, 0.8]) #[left, bottom, width, height]
 fig.colorbar(sub1,cax=cax,label='TKE [m2/s2]')
@@ -305,3 +346,56 @@ ani.save(fig_path, writer='imagemagick',fps=120)
 print('.....TKE animation saved as: %s' %fig_path)
 plt.close()
 
+#time averaged U and W
+if part=='B':
+	fig = plt.figure(figsize=(9,12))
+	for nVel, vel in enumerate(['U','W']):
+		fig.add_subplot(2,1,nVel+1)
+		tag = 'cw' + vel
+		plt.title(vel)
+		pl = plt.pcolormesh(np.nanmean(plot_data['a'][tag][:60,:,:],0),vmin=-2,vmax=2, cmap=plt.cm.coolwarm)
+		# plt.plot(np.arange(0,xdim),terrain,c='w',linewidth=20)
+		ax = plt.gca()
+		ax.set_yticks(np.arange(0,zdim,10))
+		ax.set_yticklabels(lvl_hgt[::10])
+		ax.set_ylabel('MSL height [m]')
+		ax.set_xlim([0,xdim])
+		ax.set_ylim([0,zdim])
+		ax.set_xticks(np.arange(0,xdim,20))
+		ax.set_xticklabels(np.arange(0,xdim*xstep,20*xstep))
+	plt.suptitle('CROSSWIND TIME-AVERAGED PRE-FIRE VELOCITIES',fontweight='bold',fontsize=16)
+	plt.tight_layout()
+	fig.subplots_adjust(right=0.85, bottom=0.07, left=0.1,top=0.92)
+	cax = fig.add_axes([0.88, 0.1, 0.02, 0.8]) #[left, bottom, width, height]
+	fig.colorbar(pl,cax=cax,label='velocity [m/s]')
+	fig_path = fig_dir + part + '/VEL_cw_ave_pre.pdf'
+	plt.savefig(fig_path)
+	# plt.show()
+	plt.close()
+	print('.....Crosswind time-averaged pre-fire velocities saved as: %s' %fig_path)
+
+	fig = plt.figure(figsize=(9,12))
+	for nVel, vel in enumerate(['U','W']):
+		fig.add_subplot(2,1,nVel+1)
+		tag = 'cw' + vel
+		plt.title(vel)
+		pl = plt.pcolormesh(np.nanmean(plot_data['a'][tag][60:,:,:],0),vmin=-2,vmax=2, cmap=plt.cm.coolwarm)
+		# plt.plot(np.arange(0,xdim),terrain,c='w',linewidth=20)
+		ax = plt.gca()
+		ax.set_yticks(np.arange(0,zdim,10))
+		ax.set_yticklabels(lvl_hgt[::10])
+		ax.set_ylabel('MSL height [m]')
+		ax.set_xlim([0,xdim])
+		ax.set_ylim([0,zdim])
+		ax.set_xticks(np.arange(0,xdim,20))
+		ax.set_xticklabels(np.arange(0,xdim*xstep,20*xstep))
+	plt.suptitle('CROSSWIND TIME-AVERAGED POST-IGNITION VELOCITIES',fontweight='bold',fontsize=16)
+	plt.tight_layout()
+	fig.subplots_adjust(right=0.85, bottom=0.07, left=0.1,top=0.92)
+	cax = fig.add_axes([0.88, 0.1, 0.02, 0.8]) #[left, bottom, width, height]
+	fig.colorbar(pl,cax=cax,label='velocity [m/s]')
+	fig_path = fig_dir + part + '/VEL_cw_ave_post.pdf'
+	plt.savefig(fig_path)
+	# plt.show()
+	plt.close()
+	print('.....Crosswind time-averaged fire velocities saved as: %s' %fig_path)

@@ -8,8 +8,8 @@ savedir = "/Users/nadya2/data/plume/comps/interp_temp/"
 fout = "wrfinterp.nc"
 system("rm -f wrfinterp.nc")
 fin      = addfile(filename,"r")
-;fld_T = wrf_user_getvar(fin,"T",-1)     ; The variable to interpolate
-;fld_TKE = wrf_user_getvar(fin,"TKE",-1)
+fld_T = wrf_user_getvar(fin,"T",-1)     ; The variable to interpolate
+fld_TKE = wrf_user_getvar(fin,"TKE",-1)
 fld_QVAPOR = wrf_user_getvar(fin,"QVAPOR",-1)
 fld_HGT = wrf_user_getvar(fin,"HGT",-1)
 fld_GRNHFX = wrf_user_getvar(fin,"GRNHFX",-1)
@@ -22,17 +22,18 @@ interp_levels    = (/0., 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, 0.24, 0.27, 0
   ;opts@extrapolate = False
   ;opts@field_type  = "t"
 
-;intrpT = wrf_user_vert_interp(fin,fld_T,vert_coord,interp_levels,opts)
-;printVarSummary(intrpT)
-;interpTKE = wrf_user_vert_interp(fin,fld_TKE,vert_coord,interp_levels,opts)
-;printVarSummary(interpTKE)
+intrpT = wrf_user_vert_interp(fin,fld_T,vert_coord,interp_levels,opts)
+printVarSummary(intrpT)
+interpTKE = wrf_user_vert_interp(fin,fld_TKE,vert_coord,interp_levels,opts)
+printVarSummary(interpTKE)
 interpQVAPOR = wrf_user_vert_interp(fin,fld_QVAPOR,vert_coord,interp_levels,opts)
 printVarSummary(interpQVAPOR)
 
 ;write to netcdf
+setfileoption("nc","Format","LargeFile")
 ncdfout = addfile(fout, "c")
-;ncdfout->T = intrpT
-;ncdfout->TKE = interpTKE
+ncdfout->T = intrpT
+ncdfout->TKE = interpTKE
 ncdfout->QVAPOR = interpQVAPOR
 
 ;scale height
