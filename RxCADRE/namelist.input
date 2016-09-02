@@ -15,7 +15,7 @@
  end_hour                            = 13,   
  end_minute                          = 00,  
  end_second                          = 00,   
- history_interval_s                  = 60,
+ history_interval_s                  = 30,
  frames_per_outfile                  = 100,
  restart                             = .false.,
  io_form_history                     = 2,
@@ -35,10 +35,10 @@
  s_sn                                = 1,   
  e_sn                                = 200,   
  s_vert                              = 1,    
- e_vert                              = 50,   
- dx                                  = 20,    
- dy                                  = 20,   
- ztop                                = 3000, 
+ e_vert                              = 51,   
+ dx                                  = 30,    
+ dy                                  = 30,   
+ ztop                                = 4000, 
  grid_id                             = 1,    
  parent_id                           = 0,    
  i_parent_start                      = 0,  
@@ -76,8 +76,8 @@
  rk_ord                              = 3,
  diff_opt                            = 2,   
  km_opt                              = 2,  
- damp_opt                            = 0,
- zdamp                               = 500.,  
+ damp_opt                            = 2,
+ zdamp                               = 800.,  
  dampcoef                            = 0.2,   
  khdif                               = 0.05,  
  kvdif                               = 0.05,   
@@ -117,19 +117,20 @@
  nio_groups = 1,
  /
 
- &fire ! be sure to set sr_x,sr_y in domains-namelist (to set refinement in x,y)
+ &fire 
+! be sure to set sr_x,sr_y in domains-namelist (to set refinement in x,y)
  ifire              = 2,    ! integer, = 0: no fire, 2=turn on fire model
- fire_fuel_read     = 0,    ! integer, -1: from WPS, 0= use fire_fuel_cat, 1= by altitude
+ fire_fuel_read     = -1,    ! integer, -1: from WPS, 0= use fire_fuel_cat, 1= by altitude
  fire_fuel_cat      = 3,    ! integer, if specified which fuel category?
+
 ! ignition 
  fire_num_ignitions = 4,            ! integer, only the first fire_num_ignition used, up to 5 allowed
  fire_wind_height = 1.,             ! height to interpolate winds to for calculating fire spread rate 
-
  
- fire_ignition_ros1 = 0.1 ,        ! rate of spread during ignition, m/s  
- fire_ignition_ros2 =  0.1,        ! rate of spread during ignition, m/s  
- fire_ignition_ros3 =  0.1,        ! rate of spread during ignition, m/s  
- fire_ignition_ros4 =  0.1,        ! rate of spread during ignition, m/s  
+ fire_ignition_ros1 = 1. ,        ! rate of spread during ignition, m/s  
+ fire_ignition_ros2 =  1.,        ! rate of spread during ignition, m/s  
+ fire_ignition_ros3 =  1.,        ! rate of spread during ignition, m/s  
+ fire_ignition_ros4 =  1.,        ! rate of spread during ignition, m/s  
 
  fire_ignition_end_x1 = 3400.,     ! start points of ignition lines, in m from lower left corner
  fire_ignition_end_x2 = 3200.,     ! start points of ignition lines, in m from lower left corner
@@ -164,14 +165,17 @@
  fire_ignition_end_time2  =125.,     ! sec for ignition from the start
  fire_ignition_end_time3  =665.,     ! sec for ignition from the start
  fire_ignition_end_time4  =665.,     ! sec for ignition from the start
- 
-!
+
+! stretched grid variables
+ !stretch_grd = .true.,
+ !stretch_hyp = .true.,
+ !z_grd_scale = 1.2, 
+
 ! verbosity
  fire_print_msg     = 1,        ! 1 print fire debugging messages
  fire_print_file    = 0,        ! 1 write files for matlab
-!
+
 ! experiments
-!
 ! fire_const_time = -1.,         ! (s) if >0, time from start to stop fire evolution and keep heat output constant
 ! fire_const_grnhfx = -1,        ! (W/s) if both >=0, use this flux (meant to be used when fire_const_time=ignition time) 
 ! fire_const_grnqfx = -1,        ! (W/s) if both >=0, use this flux (meant to be used when fire_const_time=ignition time) 
@@ -188,9 +192,8 @@
  !yrad_perturbation = 10000.0,   ! Horizontal radius of the bubble in N-S direction [m]
  !zrad_perturbation = 1500.0,    ! Vertical radius of the bubble [m]
  !hght_perturbation = 1500.0,    ! Perturbation height - height at which the warm/cold bubble will be suspended [m]
-!
+
 ! method switches for developers only, do not change!
-!
  fire_boundary_guard = -1,      ! integer, number of cells to stop when fire close to the domain boundary, -1 turn off
  fire_fuel_left_irl=2,          ! refinement to integrate fuel_left, must be even
  fire_fuel_left_jrl=2,          ! refinement to integrate fuel_left, must be even
