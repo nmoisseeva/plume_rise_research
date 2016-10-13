@@ -55,7 +55,7 @@ for nTest, test in enumerate(test_range):
 
 	#plotting
 	plt.subplot(2,3,nTest+1)
-	im = plt.pcolormesh(row_int_q[nTest].T, vmin=-0.1, vmax=0.3)
+	im = plt.pcolormesh(row_int_q[nTest].T, vmin=-0.3, vmax=0.3, cmap=plt.cm.Spectral_r)
 	plt.title('%s: %s' %(sens_var,suffix), fontsize = 12)
 	plt.xlabel('time since start [min]')
 	plt.ylabel('height [m]')

@@ -12,8 +12,13 @@ warnings.filterwarnings("ignore")
 
 wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
 
-ll_utm = (521620,3376766)
+ll_utm = np.array([521620,3376766])
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
+
+fire_dict_utm = {'fireline1':{'start':np.array([525823,3379005]), 'end':np.array([525151,3378271])},\
+				'fireline2':{'start':np.array([525625,3379182]), 'end':np.array([525005,3378787])},\
+				'fireline3':{'start':np.array([525151,3378571]), 'end':np.array([524564,3378184])},\
+				'fireline4':{'start':np.array([525005,3378787]), 'end':np.array([524415,3378389])} }
 
 #======================end of input=======================
 print('Extracting NetCDF data from %s ' %wrfinput)
@@ -65,6 +70,12 @@ plt.show()
 nc_data.variables['NFUEL_CAT'][0,:,:] = fuel
 nc_data.close()
 
+#convert fireline cooredinate to WRF input
+print('..... converting fireline cooredinates to WRF input')
+for key in fire_dict_utm:
+	fstart = fire_dict_utm[key]['start'][:] - ll_utm[:]
+	fend = fire_dict_utm[key]['end'][:] - ll_utm[:]
+	print'     ..... %s: start (%sm, %sm) - end (%sm, %sm)' %(key, fstart[0],fstart[1],fend[0],fend[1])
 
 
 
