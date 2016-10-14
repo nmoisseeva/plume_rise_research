@@ -24,13 +24,13 @@ local=${pwd}
 #run interpolation code
 cd $datadir
 echo ".....copying data from wrf directory"
-cp ${wrfdir}${wrfout} ${datadir}${wrfout}
+# cp ${wrfdir}${wrfout} ${datadir}${wrfout}
 
 echo ".....converting data to vdf"
 # ncdfvdfcreate -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars U:V:W:T:QVAPOR:GRNHFX:AVG_FUEL_FRAC:HGT wrfout\_$nRun vapor_$nRun.vdf
 # ncdf2vdf -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars U:V:W:T:QVAPOR:GRNHFX:AVG_FUEL_FRAC:HGT wrfout\_$nRun vapor_$nRun.vdf
-ncdfvdfcreate -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars QVAPOR:GRNHFX:HGT $wrfout firename.vdf
-ncdf2vdf -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars QVAPOR:GRNHFX:HGT $wrfout firename.vdf
+ncdfvdfcreate -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars QVAPOR:GRNHFX:HGT: $wrfout $firename.vdf
+ncdf2vdf -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars QVAPOR:GRNHFX:HGT $wrfout $firename.vdf
 
 cd ${local}
 echo "COMPLETE"
