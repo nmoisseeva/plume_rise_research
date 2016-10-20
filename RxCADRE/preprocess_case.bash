@@ -20,17 +20,18 @@ echo "==========================================================="
 
 #local dir
 local=${pwd}
+newname=wrfout_${firename}
 
 #run interpolation code
 cd $datadir
 echo ".....copying data from wrf directory"
-# cp ${wrfdir}${wrfout} ${datadir}${wrfout}
+mv ${wrfdir}${wrfout} ${datadir}${newname}
 
 echo ".....converting data to vdf"
 # ncdfvdfcreate -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars U:V:W:T:QVAPOR:GRNHFX:AVG_FUEL_FRAC:HGT wrfout\_$nRun vapor_$nRun.vdf
 # ncdf2vdf -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars U:V:W:T:QVAPOR:GRNHFX:AVG_FUEL_FRAC:HGT wrfout\_$nRun vapor_$nRun.vdf
-ncdfvdfcreate -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars QVAPOR:GRNHFX:HGT: $wrfout $firename.vdf
-ncdf2vdf -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars QVAPOR:GRNHFX:HGT $wrfout $firename.vdf
+ncdfvdfcreate -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars QVAPOR:GRNHFX:HGT: $newname $firename.vdf
+ncdf2vdf -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars QVAPOR:GRNHFX:HGT $newname $firename.vdf
 
 cd ${local}
 echo "COMPLETE"

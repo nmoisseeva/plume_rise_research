@@ -1,7 +1,7 @@
 &fuel_scalars                      ! scalar fuel constants
 cmbcnst  = 17.433e+06,             ! J/kg heat of combustion of dry fuel
 hfgl     = 17.e4 ,                 ! W/m^2 threshold heat flux required to ignite canopy
-fuelmc_g = 0.10,                   ! surface dead fuel moisture, set = 0 for dry    
+fuelmc_g = 0.50,                   ! surface dead fuel moisture, set = 0 for dry    
 fuelmc_c = 1.00,                   ! canopy fuel moisture, set = 0 for dry
 nfuelcats = 13,                    ! number of fuel categories used
 no_fuel_cat = 14                   ! extra category for no fuel

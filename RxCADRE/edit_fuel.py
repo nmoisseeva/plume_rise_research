@@ -28,7 +28,7 @@ nc_data = NetCDF.NetCDFFile(wrfinput, 'a')
 #get dimensions of the data
 nT,nY,nX = np.shape(nc_data.variables['XLONG'])
 
-#construct KDtree from idealized grid
+#construct grid
 grid_coord = zip(nc_data.variables['XLONG'][0].ravel(),nc_data.variables['XLAT'][0].ravel())
 fire_grid_coord = zip(nc_data.variables['FXLONG'][0].ravel(),nc_data.variables['FXLAT'][0].ravel())
 
@@ -62,6 +62,7 @@ l2g_mask = l2g.contains_points(zip(WGSfx,WGSfy))
 l2g_mask = np.reshape(l2g_mask, np.shape(UTMfx))
 fuel = nc_data.variables['NFUEL_CAT'][0,:,:]
 fuel[l2g_mask] = 3
+fuel[fuel!=3] = 14
 
 plt.contourf(fuel)
 plt.colorbar()
