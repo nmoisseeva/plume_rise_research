@@ -4,6 +4,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import netcdf
+from scipy import interpolate
 from scipy.spatial import KDTree
 import matplotlib.animation as animation
 from matplotlib import path 
@@ -28,7 +29,7 @@ emis_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.c
 ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm.npy' %(ll_utm[0],ll_utm[1])
 lvl = np.arange(0,2000,50) 				#
-emis_excl = 4 							#number of samples to excluded (from the END!)
+emis_excl = 0 							#number of samples to excluded (from the END!)
 #=================end of input===============
 
 
@@ -72,13 +73,12 @@ runstart = nc_data.START_DATE[-8:]
 tsec = nc_data.variables['XTIME'][:] * 60 		#get time in seconds since run start
 model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
 
-
 #================================DISPERSION==================================
 #extract and format dispersion data
 disp_dict = {}
 disp_array = np.genfromtxt(disp_data, skip_header=1, usecols = [1,2,3,4,5,7,8,9], delimiter=',')
 
-start_idx = np.argmin(abs(disp_array[:,0] - model_ssm))
+start_idx = np.argmin(abs(disp_array[:,0] - model_ssm))  #find simulation start time index
 disp_dict['time']= disp_array[start_idx:,0] - model_ssm +1
 disp_dict['time'] = disp_dict['time'].astype(int)
 disp_dict['CO'] = disp_array[start_idx:,1]
@@ -86,7 +86,6 @@ disp_dict['CO2'] = disp_array[start_idx:,2]
 disp_dict['CH4'] = disp_array[start_idx:,3]
 disp_dict['H2O'] = disp_array[start_idx:,4]
 disp_dict['lcn'] = np.array(zip(disp_array[start_idx:,5],disp_array[start_idx:,6],disp_array[start_idx:,7]))
-# disp_dict['lcn'] = zip(disp_array[start_idx:,5],disp_array[start_idx:,6])
 disp_dict['meta']= 'time: seconds since model start run | \
 					CO: Mixing ratio of carbon monoxide in units of parts per million by volume (ppmv) in dry air. | \
 					CO2: Mixing ratio of carbon dioxide in units of ppmv in dry air. | \
@@ -95,12 +94,11 @@ disp_dict['meta']= 'time: seconds since model start run | \
 					lcn: (lat, lon, elevation) - coords in WGS84, elevation MSL'
 
 
-#construct KDtree from idealized grid
-# Z = (nc_data.variables['PH'][:,:,:,:] + nc_data.variables['PHB'][:,:,:,:])/9.81 
-tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec]
-dt = disp_dict['time'][1] - disp_dict['time'][0]
+#get indecies of samples corresponding to model output times
+tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec] 
+dt = disp_dict['time'][1] - disp_dict['time'][0] 	#times since start
 
-# grid_coord = zip(WGSy,WGSx)
+#construct KDtree from idealized grid
 grid_coord = zip(WGSy,WGSx,lvl)
 gridTree = KDTree(grid_coord)
 dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx])
@@ -139,6 +137,7 @@ emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation 
 
 #plot of CO2 slices
 plt.figure()
+plt.title('CO2 anomalies')
 plt.scatter(disp_dict['time'],disp_dict['CO2'])
 ax = plt.gca()
 for nSlice in range(len(emis_dict['smoke'])):
@@ -151,6 +150,7 @@ plt.show()
 
 #plot of H2O slices
 plt.figure()
+plt.title('H2O anomalies')
 plt.scatter(disp_dict['time'],disp_dict['H2O'])
 ax = plt.gca()
 for nSlice in range(len(emis_dict['smoke'])):
@@ -165,14 +165,10 @@ plt.show()
 fig = plt.figure()
 ax = p3.Axes3D(fig)
 
-# create the first plot
+# create initial frame
 point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
-ax.plot3D(WLAT[0,:],WLONG[0,:],0, 'k--', lw=2)
-ax.plot3D(WLAT[-1,:],WLONG[-1,:],0, 'k--', lw=2)
-ax.plot3D(WLAT[:,0],WLONG[:,0],0, 'k--', lw=2)
-ax.plot3D(WLAT[:,-1],WLONG[:,-1],0, 'k--', lw=2)
-
-# line, = ax.plot([disp_dict['lcn'][:][0]], [disp_dict['lcn'][:][1]], [disp_dict['lcn'][:][2]], label='parametric curve', color='blue', alpha=0.5)
+ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
+line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='parametric curve', color='gray', alpha=0.3)
 ax.legend()
 ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
 ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
@@ -183,7 +179,6 @@ time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignme
 smoky = []
 for item in emis_dict['smoke']:
 	smoky.extend(np.arange(item[0],item[1]))
-
 
 # second option - move the point position at every frame
 def update_point(n, disp_dict,smoky,point):
@@ -200,3 +195,9 @@ def update_point(n, disp_dict,smoky,point):
 ani=animation.FuncAnimation(fig, update_point, 2200, fargs=(disp_dict,smoky,point), interval=1)
 # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
 plt.show()
+
+
+
+
+
+
