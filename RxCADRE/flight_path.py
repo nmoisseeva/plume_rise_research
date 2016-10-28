@@ -30,6 +30,7 @@ ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm.npy' %(ll_utm[0],ll_utm[1])
 lvl = np.arange(0,2000,50) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)
+sfc_hgt = 62
 #=================end of input===============
 
 
@@ -85,7 +86,7 @@ disp_dict['CO'] = disp_array[start_idx:,1]
 disp_dict['CO2'] = disp_array[start_idx:,2]
 disp_dict['CH4'] = disp_array[start_idx:,3]
 disp_dict['H2O'] = disp_array[start_idx:,4]
-disp_dict['lcn'] = np.array(zip(disp_array[start_idx:,5],disp_array[start_idx:,6],disp_array[start_idx:,7]))
+disp_dict['lcn'] = np.array(zip(disp_array[start_idx:,5],disp_array[start_idx:,6],disp_array[start_idx:,7]-sfc_hgt))
 disp_dict['meta']= 'time: seconds since model start run | \
 					CO: Mixing ratio of carbon monoxide in units of parts per million by volume (ppmv) in dry air. | \
 					CO2: Mixing ratio of carbon dioxide in units of ppmv in dry air. | \
@@ -197,7 +198,13 @@ ani=animation.FuncAnimation(fig, update_point, 2200, fargs=(disp_dict,smoky,poin
 plt.show()
 
 
-
+#================================VIRTICAL PROFILE==================================
+#define start and end of the corkscrew in sec from beginning of simulation
+csStart = 2500
+csEnd = 2800
+s = np.argmin(abs(disp_dict['time']-csStart))
+f = np.argmin(abs(disp_dict['time']-csEnd))
+plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2] )
 
 
 

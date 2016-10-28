@@ -130,40 +130,44 @@
  fire_ignition_ros1 = 0.2,        ! rate of spread during ignition, m/s  
  fire_ignition_ros2 = 0.2,        ! rate of spread during ignition, m/s  
  fire_ignition_ros3 = 0.2,        ! rate of spread during ignition, m/s  
+ fire_ignition_ros4 = 0.2,        ! rate of spread during ignition, m/s 
 
- fire_ignition_end_x1 = 3485.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_end_x2 = 3342.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_end_x3 = 2945.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_end_x4 = 2801.,     ! start points of ignition lines, in m from lower left corner
+! start points of ignition lines, in m from lower left corner
+ fire_ignition_start_x1 =   4208.,     
+ fire_ignition_start_x2 =   4109.,     
+ fire_ignition_start_x3 =   3992.,     
+ fire_ignition_start_x4 =   3918.,    
 
- fire_ignition_end_y1 = 1778.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_end_y2 = 1998.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_end_y3 = 1418.,     ! start points of ignition lines, in m from lower left corner
- fire_ignition_end_y4 = 1623.,     ! start points of ignition lines, in m from lower left corner
+ fire_ignition_start_y1 =   2245.,    
+ fire_ignition_start_y2 =   2309.,    
+ fire_ignition_start_y3 =   2415.,    
+ fire_ignition_start_y4 =   2478.,    
 
- fire_ignition_start_x1 =   4193.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_start_x2 =   3994.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_start_x3 =   3495.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_start_x4 =   3305.,     ! end points of ignition lines, in m from lower left corner
+! end points of ignition lines, in m from lower left corner
+ fire_ignition_end_x1 = 2931.,     
+ fire_ignition_end_x2 = 2867.,     
+ fire_ignition_end_x3 = 2789.,     
+ fire_ignition_end_x4 = 2711.,     
 
- fire_ignition_start_y1 =   2238.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_start_y2 =   2415.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_start_y3 =   1780.,     ! end points of ignition lines, in m from lower left corner
- fire_ignition_start_y4 =   1959.,     ! end points of ignition lines, in m from lower left corner
+ fire_ignition_end_y1 = 1413.,     
+ fire_ignition_end_y2 = 1509.,    
+ fire_ignition_end_y3 = 1622.,     
+ fire_ignition_end_y4 = 1714.,   
 
- fire_ignition_radius1 =    7,     ! all within this radius will ignite, > fire mesh step
- fire_ignition_radius2 =    7,     ! all within this radius will ignite, > fire mesh step
- fire_ignition_radius3 =    7,     ! all within this radius will ignite, > fire mesh step
- fire_ignition_radius4 =    7,     ! all within this radius will ignite, > fire mesh step
+! all within this radius will ignite, > fire mesh step
+ fire_ignition_radius1 =    10,     
+ fire_ignition_radius2 =    10,     
+ fire_ignition_radius3 =    10,    
+ fire_ignition_radius4 =    10,   
 
  fire_ignition_start_time1 = 133.,    ! sec for ignition from the start
  fire_ignition_start_time2 = 133.,    ! sec for ignition from the start
- fire_ignition_start_time3 = 679.,    ! sec for ignition from the start
- fire_ignition_start_time4 = 679.,    ! sec for ignition from the start
- fire_ignition_end_time1  =135.,     ! sec for ignition from the start
- fire_ignition_end_time2  =135.,     ! sec for ignition from the start
- fire_ignition_end_time3  =682.,     ! sec for ignition from the start
- fire_ignition_end_time4  =682.,     ! sec for ignition from the start
+ fire_ignition_start_time3 = 133.,    ! sec for ignition from the start
+ fire_ignition_start_time4 = 133.,    ! sec for ignition from the start
+ fire_ignition_end_time1  =673.,     ! sec for ignition from the start
+ fire_ignition_end_time2  =673.,     ! sec for ignition from the start
+ fire_ignition_end_time3  =673.,     ! sec for ignition from the start
+ fire_ignition_end_time4  =673.,     ! sec for ignition from the start
 
 ! stretched grid variables
  !stretch_grd = .true.,

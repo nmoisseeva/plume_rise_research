@@ -15,11 +15,17 @@ wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
 ll_utm = np.array([521620,3376766])
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 
-#fourlines 1/2 length of plot (every other real ignition line, changed from 1/3 length each time)
-fire_dict_utm = {'fireline1':{'start':np.array([525813,3379004]), 'end':np.array([525105,3378544])},\
-				'fireline2':{'start':np.array([525614,3379181]), 'end':np.array([524962,3378764])},\
-				'fireline3':{'start':np.array([525115,3378546]), 'end':np.array([524565,3378184])},\
-				'fireline4':{'start':np.array([524925,3378725]), 'end':np.array([524421,3378389])} }
+# #fourlines 1/2 length of plot (every other real ignition line, changed from 1/3 length each time)
+# fire_dict_utm = {'fireline1':{'start':np.array([525813,3379004]), 'end':np.array([525105,3378544])},\
+# 				'fireline2':{'start':np.array([525614,3379181]), 'end':np.array([524962,3378764])},\
+# 				'fireline3':{'start':np.array([525115,3378546]), 'end':np.array([524565,3378184])},\
+# 				'fireline4':{'start':np.array([524925,3378725]), 'end':np.array([524421,3378389])} }
+
+#four lines (strip headfire method) walking ignition
+fire_dict_utm = {'fireline1':{'start':np.array([525828,3379011]), 'end':np.array([524551,3378179])},\
+				'fireline2':{'start':np.array([525729,3379075]), 'end':np.array([524487,3378275])},\
+				'fireline3':{'start':np.array([525612,3379181]), 'end':np.array([524409,3378388])},\
+				'fireline4':{'start':np.array([525538,3379244]), 'end':np.array([524331,3378480])} }
 
 #======================end of input=======================
 print('Extracting NetCDF data from %s ' %wrfinput)

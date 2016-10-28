@@ -1,4 +1,4 @@
-# evaluation of fire spread 
+# evaluation of fire spread and heat flux
 
 
 import numpy as np
@@ -27,7 +27,6 @@ target_ros = {'HIP1':0.225, 'HIP2':0.443,'HIP3':0.233} 	#rates of spread from Bu
 ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 #=================end of input===============
-
 
 print('Extracting NetCDF data from %s ' %wrfdata)
 nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
@@ -59,10 +58,31 @@ else:
 
 # Sanity check: import shape file : ADD FUEL DATA HERE
 polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
-rosim = nc_data.variables['ROS'][100,:,:]
-bm.imshow(rosim)
+
+
+#calculate average rate of spread
+ros = np.copy(nc_data.variables['ROS'][:,:,:])
+rosnan = ros	
+rosnan[rosnan==0] = np.nan 			#set all nonfire cells to nan
+rosnan = np.nanmean(rosnan,0)		#git time averaged values
+im = plt.contourf(rosnan) 			
 plt.colorbar()
 plt.show()
+l2g_ros = np.nanmean(np.nanmean(rosnan,0)) #get average value for the entire fire
+print('Average ROS of the fire: %.2f m/s' %l2g_ros)
+
+
+#calculate peak heat flux
+hfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
+hfxnan = hfx 	
+hfxnan[hfxnan==0] = np.nan 			#set all nonfire cells to nan
+hfxnan = np.nanmax(hfxnan,0)/1000 	#get peak value in kW/m2
+im = plt.contourf(hfxnan) 			#plot
+plt.colorbar()
+plt.show()
+l2g_hfx = np.nanmean(np.nanmean(hfxnan,1)) #get average value for the entire fire
+print('Average heat flux of the fire: %.2f kW m-2' %l2g_hfx)
+
 
 # #extract model time info
 # runstart = nc_data.START_DATE[-8:]
