@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import netcdf
 from scipy import interpolate
+from scipy.ndimage.interpolation import rotate
 from scipy.spatial import KDTree
 import matplotlib.animation as animation
 from matplotlib import path 
@@ -30,7 +31,8 @@ ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm.npy' %(ll_utm[0],ll_utm[1])
 lvl = np.arange(0,2000,50) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)
-sfc_hgt = 62
+sfc_hgt = 62 							#surface height MSL (m)
+mean_wind = 130 						#degrees 
 #=================end of input===============
 
 
@@ -41,6 +43,9 @@ nc_inputdata = netcdf.netcdf_file(wrfinput, mode ='r')
 
 #get dimensions of the data
 nT,nY,nX = np.shape(nc_inputdata.variables['XLONG'])
+
+#get geopotential array and convrt to height
+# z = (nc_data.variables['PHB'][:,:,:,:] + nc_data.variables['PH'][:,:,:,:]) / 9.81
 
 #create a UTM grid
 UTMx = nc_inputdata.variables['XLONG'][0,:,:] + ll_utm[0]
@@ -65,9 +70,9 @@ else:
 
 # Sanity check: import shape file
 polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
-fireim = nc_data.variables['GRNHFX'][25,:,:]
-bm.imshow(fireim)
-plt.show()
+# fireim = nc_data.variables['GRNHFX'][25,:,:]
+# bm.imshow(fireim)
+# plt.show()
 
 #extract model time info
 runstart = nc_data.START_DATE[-8:]
@@ -92,31 +97,29 @@ disp_dict['meta']= 'time: seconds since model start run | \
 					CO2: Mixing ratio of carbon dioxide in units of ppmv in dry air. | \
 					CH4: Mixing ratio of methane in units of ppmv in dry air. | \
 					H2O: Mixing ratio of water vapor in percent by volume. | \
-					lcn: (lat, lon, elevation) - coords in WGS84, elevation MSL'
+					lcn: (lat, lon, elevation) - coords in WGS84, elevation AGL'
 
 
 #get indecies of samples corresponding to model output times
-tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec] 
-dt = disp_dict['time'][1] - disp_dict['time'][0] 	#times since start
+tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec] #times since start
+dt = disp_dict['time'][1] - disp_dict['time'][0] 	
 
 #construct KDtree from idealized grid
 grid_coord = zip(WGSy,WGSx,lvl)
 gridTree = KDTree(grid_coord)
 dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx])
 
-#calculate H20 MR departure and extract point locations
-qvapor = nc_interp.variables['QVAPOR'][:,:,:,:] - nc_interp.variables['QVAPOR'][0,:,:,:]
+#calculate H20 MR departure and extract point locations (assumes dry initial state)
+qvapor = np.copy(nc_interp.variables['QVAPOR'][:,:,:,:])
+qvapornan = np.copy(qvapor)
+qvapornan[qvapornan<1e-30] = np.nan
 mod_val = np.empty((len(tsec))) * np.nan
-obs_val = np.empty((len(tsec))) * np.nan
+# obs_val = np.empty((len(tsec))) * np.nan
 for nt in range(len(tsec)):
-	flatq = qvapor[nt,::-1,:,:].ravel()
+	flatq = qvapornan[nt,::-1,:,:].ravel()
 	mod_val[nt] = flatq[grid_id[nt]]
 	mv = disp_dict['H2O'][tidx[nt]]		#in percent by volume
-	obs_val[nt] = 0.622*mv/(100-mv)
-
-# plt.plot(mod_val)
-# plt.plot(obs_val)
-# plt.show()
+	# obs_val[nt] = 0.622*mv/(100-mv)
 
 # plt.scatter(disp_dict['time'],disp_dict['CO2'])
 plt.scatter(disp_array[:,0],disp_array[:,3])
@@ -136,6 +139,7 @@ emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation 
 
 
 
+#================================PLOTTING==================================
 #plot of CO2 slices
 plt.figure()
 plt.title('CO2 anomalies')
@@ -161,15 +165,24 @@ plt.ylim([0,1.5])
 plt.xlim([0,3000])
 plt.show()
 
+#plot of model H20 slices overlayed with real emissions
+plt.scatter(disp_dict['time'][tidx], mod_val)
+ax = plt.gca()
+for nSlice in range(len(emis_dict['smoke'])):
+	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
+	ax.fill_between(shade, 0,0.000002, facecolor='gray', alpha=0.1, edgecolor='w')
+plt.ylim([0,0.000002])
+plt.xlim([0,2100])
+plt.show()
 
-#================================FLIGHT INFO==================================
+#================================FLIGHT ANIMATION==================================
 fig = plt.figure()
 ax = p3.Axes3D(fig)
 
 # create initial frame
 point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
 ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
-line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='parametric curve', color='gray', alpha=0.3)
+line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
 ax.legend()
 ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
 ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
@@ -181,7 +194,7 @@ smoky = []
 for item in emis_dict['smoke']:
 	smoky.extend(np.arange(item[0],item[1]))
 
-# second option - move the point position at every frame
+# move the point position at every frame
 def update_point(n, disp_dict,smoky,point):
     point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
     point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
@@ -192,8 +205,8 @@ def update_point(n, disp_dict,smoky,point):
     	point.set_color('k')
     return point, time_text,
 
-#plot the first 2200 (~35min) - corresponding to length of simulation
-ani=animation.FuncAnimation(fig, update_point, 2200, fargs=(disp_dict,smoky,point), interval=1)
+#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+ani=animation.FuncAnimation(fig, update_point, 1500, fargs=(disp_dict,smoky,point), interval=1)
 # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
 plt.show()
 
@@ -202,9 +215,28 @@ plt.show()
 #define start and end of the corkscrew in sec from beginning of simulation
 csStart = 2500
 csEnd = 2800
+plt.title('Vertical Profile of CO2 Emissions (Extracted from Corkscrew )')
 s = np.argmin(abs(disp_dict['time']-csStart))
 f = np.argmin(abs(disp_dict['time']-csEnd))
 plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2] )
+plt.show()
 
+#create a horizontall averaged plume profile
+plume_profile = np.nansum(np.nansum(qvapor,2),2)
+plt.contourf(plume_profile.T)
+plt.colorbar()
+plt.show()
+
+
+# #plot test slice 
+# qtest = qvapor[100,3:,:,:]
+# qrot = rotate(qtest, mean_wind, axes=(1,2),reshape=True, mode='constant', cval=np.nan, prefilter=True)
+# qtot = np.nansum(qrot,2)
+# plt.contourf(qtot)
+# plt.colorbar()
+# plt.show()
+
+# #rotate qvapor grid onto mean wind direction
+# rot_QVAPOR = rotate(qvapor, mean_wind, axes=(2,3),reshape=True, mode='constant', cval=np.nan, prefilter=True)
 
 

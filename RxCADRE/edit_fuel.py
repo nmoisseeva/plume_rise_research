@@ -12,7 +12,9 @@ warnings.filterwarnings("ignore")
 
 wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
 
-ll_utm = np.array([521620,3376766])
+# ll_utm = np.array([521620,3376766])
+ll_utm = np.array([518317,3373798])
+
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 
 # #fourlines 1/2 length of plot (every other real ignition line, changed from 1/3 length each time)
@@ -26,6 +28,7 @@ fire_dict_utm = {'fireline1':{'start':np.array([525828,3379011]), 'end':np.array
 				'fireline2':{'start':np.array([525729,3379075]), 'end':np.array([524487,3378275])},\
 				'fireline3':{'start':np.array([525612,3379181]), 'end':np.array([524409,3378388])},\
 				'fireline4':{'start':np.array([525538,3379244]), 'end':np.array([524331,3378480])} }
+fuel_cat = 3
 
 #======================end of input=======================
 print('Extracting NetCDF data from %s ' %wrfinput)
@@ -67,8 +70,8 @@ l2g = path.Path(bm.fire_bounds[5])
 l2g_mask = l2g.contains_points(zip(WGSfx,WGSfy))
 l2g_mask = np.reshape(l2g_mask, np.shape(UTMfx))
 fuel = nc_data.variables['NFUEL_CAT'][0,:,:]
-fuel[l2g_mask] = 3
-fuel[fuel!=3] = 14
+fuel[l2g_mask] = fuel_cat
+fuel[fuel!=fuel_cat] = 14
 
 plt.contourf(fuel)
 plt.colorbar()

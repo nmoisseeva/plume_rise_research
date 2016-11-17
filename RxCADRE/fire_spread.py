@@ -15,14 +15,14 @@ import mpl_toolkits.mplot3d.axes3d as p3
 import mpl_toolkits.mplot3d as a3
 from matplotlib import animation
 
-
-
 #====================INPUT===================
 wrfdata = '/Users/nadya2/data/plume/RxCADRE/wrfout_LG2'
 wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
+instruments_shape = '/Users/nadya2/data/RxCADRE/instruments/HIP1'
 
 target_ros = {'HIP1':0.225, 'HIP2':0.443,'HIP3':0.233} 	#rates of spread from Butler2016 for L2G
+# HIP1_locs = '/Users/nadya2/data/RxCADRE/instruments/L2G_HIP1.csv'
 
 ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
@@ -32,18 +32,19 @@ print('Extracting NetCDF data from %s ' %wrfdata)
 nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
 nc_inputdata = netcdf.netcdf_file(wrfinput, mode ='r')
 
-#get dimensions of the data
-nT,nY,nX = np.shape(nc_inputdata.variables['FXLONG'])
-
 #create a UTM grid
-UTMx = nc_inputdata.variables['FXLONG'][0,:,:] + ll_utm[0]
-UTMy = nc_inputdata.variables['FXLAT'][0,:,:] + ll_utm[1]
+FUTMx = nc_inputdata.variables['FXLONG'][0,:,:] + ll_utm[0]
+FUTMy = nc_inputdata.variables['FXLAT'][0,:,:] + ll_utm[1]
+UTMx = nc_inputdata.variables['XLONG'][0,:,:] + ll_utm[0]
+UTMy = nc_inputdata.variables['XLAT'][0,:,:] + ll_utm[1]
 
 #convert coordinate systems to something basemaps can read
 wgs84=pyproj.Proj("+init=EPSG:4326")
 epsg26916=pyproj.Proj("+init=EPSG:26916")
 WGSx, WGSy= pyproj.transform(epsg26916,wgs84,UTMx.ravel(),UTMy.ravel())
 WLONG, WLAT = np.reshape(WGSx, np.shape(UTMx)), np.reshape(WGSy, np.shape(UTMy))
+FWGSx, FWGSy= pyproj.transform(epsg26916,wgs84,FUTMx.ravel(),FUTMy.ravel())
+FWLONG, FWLAT = np.reshape(FWGSx, np.shape(FUTMx)), np.reshape(FWGSy, np.shape(FUTMy))
 
 #open/generate basemap
 if os.path.isfile(basemap_path):
@@ -56,164 +57,105 @@ else:
 	pickle.dump(bm,open(basemap_path,'wb'),-1)  	# pickle the new map for later
 	print('.....New basemap instance saved as: %s' %basemap_path)
 
-# Sanity check: import shape file : ADD FUEL DATA HERE
-polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
+#read shapefiles
+plt.figure()
+polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)		
+instruments = bm.readshapefile(instruments_shape, name='hip1')
+hip1_lcn = []
+for nPt,item in enumerate(bm.hip1_info):
+	if item['Instrument'] == 'FireBehaviorPackage':
+		hip1_lcn.append(bm.hip1[nPt])
+	if item['Sensor_ID'] == 'FB22': 		#get index of fb22 for individual comparison 
+		fb22_idx = len(hip1_lcn)-1
+hip1_lcn = np.array(hip1_lcn)
+# bm.scatter(hip1_lcn[:,0],hip1_lcn[:,1])
+# plt.show()
+plt.close()
 
+#construct KDtree from idealized grid for fire and atmospheric mesh
+grid_coord_fire = zip(FWGSy,FWGSx)
+FgridTree = KDTree(grid_coord_fire)
+Fdist, Fgrid_id = FgridTree.query(hip1_lcn[:,::-1]) 	#reorder columnets to lat/lon
+grid_coord = zip(WGSy,WGSx)
+gridTree = KDTree(grid_coord)
+dist, grid_id = gridTree.query(hip1_lcn[:,::-1]) 	#reorder columnets to lat/lon
 
 #calculate average rate of spread
 ros = np.copy(nc_data.variables['ROS'][:,:,:])
 rosnan = ros	
-rosnan[rosnan==0] = np.nan 			#set all nonfire cells to nan
+rosnan[rosnan==0] = np.nan 			#mask all non-fire cells
 rosnan = np.nanmean(rosnan,0)		#git time averaged values
-im = plt.contourf(rosnan) 			
-plt.colorbar()
-plt.show()
 l2g_ros = np.nanmean(np.nanmean(rosnan,0)) #get average value for the entire fire
-print('Average ROS of the fire: %.2f m/s' %l2g_ros)
+print('Average ROS within fire area: %.2f m/s' %l2g_ros)
 
-
-#calculate peak heat flux
+#calculate average peak heat flux
 hfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
 hfxnan = hfx 	
-hfxnan[hfxnan==0] = np.nan 			#set all nonfire cells to nan
-hfxnan = np.nanmax(hfxnan,0)/1000 	#get peak value in kW/m2
-im = plt.contourf(hfxnan) 			#plot
-plt.colorbar()
-plt.show()
-l2g_hfx = np.nanmean(np.nanmean(hfxnan,1)) #get average value for the entire fire
+hfxnan[hfxnan<5] = np.nan 			#residence time defined as at least 5kW/m2 as per Butler2013
+hfxnanmax = np.nanmax(hfxnan,0)/1000 	#get peak value in kW/m2
+l2g_hfx_max = np.nanmean(np.nanmean(hfxnanmax,1)) #get average value for the entire fire
+print('Average peak heat flux of the fire: %.2f kW m-2' %l2g_hfx_max)
+
+#calculate average heat flux
+hfxnanmean = np.nanmean(hfxnan,0)/1000 	#get peak value in kW/m2
+l2g_hfx = np.nanmean(np.nanmean(hfxnanmean,1)) #get average value for the entire fire
 print('Average heat flux of the fire: %.2f kW m-2' %l2g_hfx)
 
 
-# #extract model time info
-# runstart = nc_data.START_DATE[-8:]
-# tsec = nc_data.variables['XTIME'][:] * 60 		#get time in seconds since run start
-# model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
+#calculate select values for HIP1
+print('Calculating values for HIP1...')
+ros_val, hfx_val, hfxmax_val = [],[],[]
+for pt in Fgrid_id:
+	flat_ros = rosnan.ravel() 
+	pt_ros = flat_ros[pt]
+	ros_val.append(pt_ros) 
+	print('---> Probe val: ROS = %s m/s' %(pt_ros))
+for nPt, pt in enumerate(grid_id):
+	flat_hfx = hfxnanmean.ravel()
+	flat_hfxmax = hfxnanmax.ravel()
+	pt_hfx = flat_hfx[pt]
+	pt_hfxmax = flat_hfxmax[pt]
+	hfx_val.append(pt_hfx)
+	hfxmax_val.append(pt_hfxmax)
+	print('---> Probe val:  HFX = %s kW/m2, HFXmax = %s kW/m2' %(pt_hfx,pt_hfxmax))
+	if nPt == fb22_idx:
+		fb22_coords = np.unravel_index(pt, np.shape(hfx[0,:,:]))
+		print('------> FB22 sensor: 3d grid IDs: y=%s x=%s' %fb22_coords )
+mean_hip1_ros = np.mean(ros_val)
+mean_hip1_hfx = np.mean(hfx_val)
+mean_hip1_hfxmax = np.mean(hfxmax_val)
+print('Averages for HIP1: ROS = %s m/s, HFX = %s kW/m2, HFXmax = %s kW/m2' %(mean_hip1_ros,mean_hip1_hfx,mean_hip1_hfxmax))
 
 
-# #================================DISPERSION==================================
-# #extract and format dispersion data
-# disp_dict = {}
-# disp_array = np.genfromtxt(disp_data, skip_header=1, usecols = [1,2,3,4,5,7,8,9], delimiter=',')
+# ------------------------------PLOTTING-----------------------------
+#plot mean ROS for the fire
+plt.figure()
+im = plt.contourf(rosnan) 	
+plt.colorbar()
+plt.title('ROS [m/s]')
+plt.show()
 
-# start_idx = np.argmin(abs(disp_array[:,0] - model_ssm))
-# disp_dict['time']= disp_array[start_idx:,0] - model_ssm +1
-# disp_dict['time'] = disp_dict['time'].astype(int)
-# disp_dict['CO'] = disp_array[start_idx:,1]
-# disp_dict['CO2'] = disp_array[start_idx:,2]
-# disp_dict['CH4'] = disp_array[start_idx:,3]
-# disp_dict['H2O'] = disp_array[start_idx:,4]
-# disp_dict['lcn'] = np.array(zip(disp_array[start_idx:,5],disp_array[start_idx:,6],disp_array[start_idx:,7]))
-# # disp_dict['lcn'] = zip(disp_array[start_idx:,5],disp_array[start_idx:,6])
-# disp_dict['meta']= 'time: seconds since model start run | \
-# 					CO: Mixing ratio of carbon monoxide in units of parts per million by volume (ppmv) in dry air. | \
-# 					CO2: Mixing ratio of carbon dioxide in units of ppmv in dry air. | \
-# 					CH4: Mixing ratio of methane in units of ppmv in dry air. | \
-# 					H2O: Mixing ratio of water vapor in percent by volume. | \
-# 					lcn: (lat, lon, elevation) - coords in WGS84, elevation MSL'
+#plot peak heat flux
+plt.figure()
+im = plt.contourf(hfxnanmax) 
+plt.title('PEAK HFX DURING FIRE')
+plt.colorbar()			
+plt.show()
 
+#plot average heat flux
+plt.figure()
+im = plt.contourf(hfxnanmean) 			
+plt.colorbar()
+plt.title('AVE HFX DURING FIRE')
+plt.show()
 
-# #construct KDtree from idealized grid
-# # Z = (nc_data.variables['PH'][:,:,:,:] + nc_data.variables['PHB'][:,:,:,:])/9.81 
-# tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec]
-# dt = disp_dict['time'][1] - disp_dict['time'][0]
-
-# # grid_coord = zip(WGSy,WGSx)
-# grid_coord = zip(WGSy,WGSx,lvl)
-# gridTree = KDTree(grid_coord)
-# dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx])
-
-# #calculate H20 MR departure and extract point locations
-# qvapor = nc_interp.variables['QVAPOR'][:,:,:,:] - nc_interp.variables['QVAPOR'][0,:,:,:]
-# mod_val = np.empty((len(tsec))) * np.nan
-# obs_val = np.empty((len(tsec))) * np.nan
-# for nt in range(len(tsec)):
-# 	flatq = qvapor[nt,::-1,:,:].ravel()
-# 	mod_val[nt] = flatq[grid_id[nt]]
-# 	mv = disp_dict['H2O'][tidx[nt]]		#in percent by volume
-# 	obs_val[nt] = 0.622*mv/(100-mv)
-
-# # plt.plot(mod_val)
-# # plt.plot(obs_val)
-# # plt.show()
-
-# # plt.scatter(disp_dict['time'],disp_dict['CO2'])
-# plt.scatter(disp_array[:,0],disp_array[:,3])
-# # plt.plot(tsec,mod_val)
-# plt.show()
-
-# #================================EMISSIONS==================================
-# #extract and format emissions data 
-# emis_dict = {}
-# emis_array = np.genfromtxt(emis_data, skip_header=1, usecols = [5,6,13,14], delimiter=',',skip_footer=emis_excl)
-
-# emis_dict['bkgd']= zip(emis_array[:,0] - model_ssm +1, emis_array[:,1] - model_ssm +1)
-# emis_dict['smoke'] = zip((emis_array[:,2] - model_ssm +1).astype(int), (emis_array[:,3] - model_ssm +1).astype(int))
-# emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation start | \
-# 					smoke: plume start and end in sec from simulation start | \
-# 					lcn: (lat, lon, elevation) - coords in WGS84, elevation MSL'
-
-
-
-# #plot of CO2 slices
-# plt.figure()
-# plt.title('CO2 anomalies')
-# plt.scatter(disp_dict['time'],disp_dict['CO2'])
-# ax = plt.gca()
-# for nSlice in range(len(emis_dict['smoke'])):
-# 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
-# 	ax.fill_between(shade, 390,440, facecolor='gray', alpha=0.1, edgecolor='w')
-# plt.ylim([390,440])
-# plt.xlim([0,3000])
-# plt.show()
-
-
-# #plot of H2O slices
-# plt.figure()
-# plt.title('H2O anomalies')
-# plt.scatter(disp_dict['time'],disp_dict['H2O'])
-# ax = plt.gca()
-# for nSlice in range(len(emis_dict['smoke'])):
-# 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
-# 	ax.fill_between(shade, 0,1.5, facecolor='gray', alpha=0.1, edgecolor='w')
-# plt.ylim([0,1.5])
-# plt.xlim([0,3000])
-# plt.show()
-
-
-# #================================FLIGHT INFO==================================
-# fig = plt.figure()
-# ax = p3.Axes3D(fig)
-
-# # create initial frame
-# point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
-# ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
-# line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='parametric curve', color='gray', alpha=0.3)
-# ax.legend()
-# ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
-# ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
-# ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
-# time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
-
-# #make a list of all times within plume from emissions
-# smoky = []
-# for item in emis_dict['smoke']:
-# 	smoky.extend(np.arange(item[0],item[1]))
-
-# # second option - move the point position at every frame
-# def update_point(n, disp_dict,smoky,point):
-#     point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
-#     point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
-#     time_text.set_text('Time (sec) = %s' %(n*dt))
-#     if disp_dict['time'][n] in smoky:
-#     	point.set_color('r')
-#     else:
-#     	point.set_color('k')
-#     return point, time_text,
-
-# #plot the first 2200 (~35min) - corresponding to length of simulation
-# ani=animation.FuncAnimation(fig, update_point, 2200, fargs=(disp_dict,smoky,point), interval=1)
-# # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
-# plt.show()
+#plot heat flux over FB22 sensor throughout the fire
+plt.figure()
+plt.plot(nc_data.variables['XTIME'][:],hfx[:,fb22_coords[0],fb22_coords[1]])
+plt.title('HEAT FLUX AT FB22 SENSOR')
+plt.xlabel('time [min]')
+plt.ylabel('heat flux [W/m2]')
+plt.show()
 
 
 
