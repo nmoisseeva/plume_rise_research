@@ -39,7 +39,7 @@
  e_vert                              = 51,   
  dx                                  = 40,   
  dy                                  = 40,
- ztop                                = 3000, 
+ ztop                                = 2000, 
  grid_id                             = 1,    
  parent_id                           = 0,    
  i_parent_start                      = 0,  
@@ -57,8 +57,8 @@
  ra_lw_physics                       = 0,    
  ra_sw_physics                       = 0,    
  radt                                = 30,   
- sf_sfclay_physics                   = 0,   
- sf_surface_physics                  = 0,    
+ sf_sfclay_physics                   = 1,   
+ sf_surface_physics                  = 1,    
  bl_pbl_physics                      = 0,    
  bldt                                = 0,   
  cu_physics                          = 0,    
@@ -94,7 +94,7 @@
  time_step_sound                     = 20, 
  moist_adv_opt                       = 1,   
  scalar_adv_opt                      = 1,  
- !w_damping                           = 0,
+ w_damping                           = 0,
  /
 
  &bdy_control
@@ -126,36 +126,50 @@
  fire_fuel_cat      = 3,    ! integer, if specified which fuel category?
 
 ! ignition 
- fire_num_ignitions = 2,            ! integer, only the first fire_num_ignition used, up to 5 allowed
+ fire_num_ignitions = 4,            ! integer, only the first fire_num_ignition used, up to 5 allowed
  !fire_wind_height = 5.,             ! height to interpolate winds to for calculating fire spread rate 
  
- fire_ignition_ros1 = 0.1,        ! rate of spread during ignition, m/s  
- fire_ignition_ros2 = 0.1,        ! rate of spread during ignition, m/s  
+ fire_ignition_ros1 = 0.02,        ! rate of spread during ignition, m/s  
+ fire_ignition_ros2 = 0.02,        ! rate of spread during ignition, m/s  
+ fire_ignition_ros3 = 0.02,        ! rate of spread during ignition, m/s  
+ fire_ignition_ros4 = 0.02,        ! rate of spread during ignition, m/s 
 
 ! start points of ignition lines, in m from lower left corner
  fire_ignition_start_x1 =   5511.,     
- fire_ignition_start_x2 =   5295.,     
+ fire_ignition_start_x2 =   5412.,     
+ fire_ignition_start_x3 =   5295.,     
+ fire_ignition_start_x4 =   5221.,    
 
  fire_ignition_start_y1 =   3213.,    
- fire_ignition_start_y2 =   3383.,    
- 
+ fire_ignition_start_y2 =   3277.,    
+ fire_ignition_start_y3 =   3383.,    
+ fire_ignition_start_y4 =   3446.,    
 
 ! end points of ignition lines, in m from lower left corner
- fire_ignition_end_x1 = 4234.,      
- fire_ignition_end_x2 = 4092.,      
+ fire_ignition_end_x1 = 4234.,     
+ fire_ignition_end_x2 = 4170.,     
+ fire_ignition_end_x3 = 4092.,     
+ fire_ignition_end_x4 = 4014.,     
 
  fire_ignition_end_y1 = 2381.,     
- fire_ignition_end_y2 = 2590.,     
+ fire_ignition_end_y2 = 2477.,    
+ fire_ignition_end_y3 = 2590.,     
+ fire_ignition_end_y4 = 2682.,   
 
 ! all within this radius will ignite, > fire mesh step
  fire_ignition_radius1 =    10,     
  fire_ignition_radius2 =    10,     
+ fire_ignition_radius3 =    10,    
+ fire_ignition_radius4 =    10,   
 
  fire_ignition_start_time1 = 13.,    ! sec for ignition from the start
  fire_ignition_start_time2 = 13.,    ! sec for ignition from the start
-
+ fire_ignition_start_time3 = 13.,    ! sec for ignition from the start
+ fire_ignition_start_time4 = 13.,    ! sec for ignition from the start
  fire_ignition_end_time1  =553.,     ! sec for ignition from the start
  fire_ignition_end_time2  =553.,     ! sec for ignition from the start
+ fire_ignition_end_time3  =553.,     ! sec for ignition from the start
+ fire_ignition_end_time4  =553.,     ! sec for ignition from the start
 
 ! stretched grid variables
 stretch_grd = .true.,
@@ -185,10 +199,10 @@ z_grd_scale = 2.03,
  !hght_perturbation = 1500.0,    ! Perturbation height - height at which the warm/cold bubble will be suspended [m]
 
 ! Surface initialization
- !sfc_full_init =.true.
- !sfc_lu_index = 28,             ! Defines USGS surface category used for surface initialization based on LANDUSE.TBL (roughness, albedo etc)
- !sfc_tsk = 300.0,                ! Skin surface temperature [K]
- !sfc_tmn = 290.0,                ! Mean soil temperature [K]
+ sfc_full_init =.true.
+ sfc_lu_index = 28,             ! Defines USGS surface category used for surface initialization based on LANDUSE.TBL (roughness, albedo etc)
+ sfc_tsk = 300.0,                ! Skin surface temperature [K]
+ sfc_tmn = 290.0,                ! Mean soil temperature [K]
 
 
 ! method switches for develo	pers only, do not change!

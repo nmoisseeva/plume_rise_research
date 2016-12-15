@@ -10,10 +10,13 @@ import mpl_toolkits.basemap.pyproj as pyproj
 import warnings
 warnings.filterwarnings("ignore")
 
-wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
+# wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
+wrfinput='/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01'
 
-# ll_utm = np.array([521620,3376766])
-ll_utm = np.array([518317,3373798])
+
+# ll_utm = np.array([521620,3376766]) - first domain
+# ll_utm = np.array([518317,3373798])
+ll_utm = np.array([520317,3375798])
 
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 
@@ -71,7 +74,9 @@ l2g_mask = l2g.contains_points(zip(WGSfx,WGSfy))
 l2g_mask = np.reshape(l2g_mask, np.shape(UTMfx))
 fuel = nc_data.variables['NFUEL_CAT'][0,:,:]
 fuel[l2g_mask] = fuel_cat
-fuel[fuel!=fuel_cat] = 14
+fuel[~l2g_mask] = 14
+# fuel[fuel!=fuel_cat] = 14
+
 
 plt.contourf(fuel)
 plt.colorbar()

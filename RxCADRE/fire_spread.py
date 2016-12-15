@@ -17,7 +17,8 @@ from matplotlib import animation
 
 #====================INPUT===================
 wrfdata = '/Users/nadya2/data/plume/RxCADRE/wrfout_LG2'
-wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
+# wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
+wrfinput='/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01'
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nadya2/data/RxCADRE/instruments/HIP1'
 
@@ -90,6 +91,7 @@ print('Average ROS within fire area: %.2f m/s' %l2g_ros)
 
 #calculate average peak heat flux
 hfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
+
 hfxnan = hfx 	
 hfxnan[hfxnan<5] = np.nan 			#residence time defined as at least 5kW/m2 as per Butler2013
 hfxnanmax = np.nanmax(hfxnan,0)/1000 	#get peak value in kW/m2

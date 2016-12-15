@@ -8,9 +8,10 @@
 #====================================
 
 #input-----------------------------
-wrfdir="/Users/nadya2/Applications/WRFV3/test/em_fire/"
+# wrfdir="/Users/nadya2/Applications/WRFV3/test/em_fire/"
+wrfdir="/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/"
 datadir="/Users/nadya2/data/plume/RxCADRE/"
-wrfout="wrfout_d01_2012-11-10_12:25:00"
+wrfout="wrfout_d01_2012-11-10_12:27:00"
 firename="LG2"
 #----------------------------------
 
@@ -25,7 +26,7 @@ newname=wrfout_${firename}
 #run interpolation code
 cd $datadir
 echo ".....copying data from wrf directory"
-mv ${wrfdir}${wrfout} ${datadir}${newname}
+cp ${wrfdir}${wrfout} ${datadir}${newname}
 
 echo ".....converting data to vdf"
 # ncdfvdfcreate -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars U:V:W:T:QVAPOR:GRNHFX:AVG_FUEL_FRAC:HGT wrfout\_$nRun vapor_$nRun.vdf
