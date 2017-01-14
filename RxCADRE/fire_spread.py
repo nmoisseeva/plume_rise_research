@@ -25,7 +25,10 @@ instruments_shape = '/Users/nadya2/data/RxCADRE/instruments/HIP1'
 target_ros = {'HIP1':0.225, 'HIP2':0.443,'HIP3':0.233} 	#rates of spread from Butler2016 for L2G
 # HIP1_locs = '/Users/nadya2/data/RxCADRE/instruments/L2G_HIP1.csv'
 
-ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
+# ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
+# ll_utm = np.array([520317,3375798])
+ll_utm = np.array([518800,3377000])
+
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 #=================end of input===============
 
@@ -84,8 +87,9 @@ dist, grid_id = gridTree.query(hip1_lcn[:,::-1]) 	#reorder columnets to lat/lon
 #calculate average rate of spread
 ros = np.copy(nc_data.variables['ROS'][:,:,:])
 rosnan = ros	
-rosnan[rosnan==0] = np.nan 			#mask all non-fire cells
-rosnan = np.nanmean(rosnan,0)		#git time averaged values
+# rosnan[rosnan==0] = np.nan 			#mask all non-fire cells
+rosnan[np.where(rosnan==0)] = np.nan
+rosnan = np.nanmean(rosnan,0)		#get time averaged values
 l2g_ros = np.nanmean(np.nanmean(rosnan,0)) #get average value for the entire fire
 print('Average ROS within fire area: %.2f m/s' %l2g_ros)
 

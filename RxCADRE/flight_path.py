@@ -20,36 +20,35 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nadya2/data/plume/RxCADRE/wrfout_LG2'
-wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
+wrfdata = '/Users/nadya2/data/plume/RxCADRE/wrfout_LG2_2linesNoMBL'
 wrfinterp = '/Users/nadya2/data/plume/RxCADRE/interp/wrfinterp_LG2'
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 disp_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
 
-ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
+# ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
+ll_utm = np.array([518800,3377000])
+
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm.npy' %(ll_utm[0],ll_utm[1])
 lvl = np.arange(0,2000,50) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)
 sfc_hgt = 62 							#surface height MSL (m)
-mean_wind = 130 						#degrees 
 #=================end of input===============
 
 
 print('Extracting NetCDF data from %s ' %wrfdata)
 nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
 nc_interp = netcdf.netcdf_file(wrfinterp, mode ='r')  
-nc_inputdata = netcdf.netcdf_file(wrfinput, mode ='r')
 
 #get dimensions of the data
-nT,nY,nX = np.shape(nc_inputdata.variables['XLONG'])
+nT,nY,nX = np.shape(nc_data.variables['XLONG'])
 
 #get geopotential array and convrt to height
 # z = (nc_data.variables['PHB'][:,:,:,:] + nc_data.variables['PH'][:,:,:,:]) / 9.81
 
 #create a UTM grid
-UTMx = nc_inputdata.variables['XLONG'][0,:,:] + ll_utm[0]
-UTMy = nc_inputdata.variables['XLAT'][0,:,:] + ll_utm[1]
+UTMx = nc_data.variables['XLONG'][0,:,:] + ll_utm[0]
+UTMy = nc_data.variables['XLAT'][0,:,:] + ll_utm[1]
 
 #convert coordinate systems to something basemaps can read
 wgs84=pyproj.Proj("+init=EPSG:4326")

@@ -9,7 +9,7 @@
 
 #input-----------------------------
 datadir="/Users/nadya2/data/plume/RxCADRE/MBL/"
-wrfout="wrfout_MLbubble"
+wrfout="wrfout_MBL"
 firename='ML'
 #----------------------------------
 
@@ -22,8 +22,8 @@ local=${pwd}
 cd $datadir
 
 echo ".....converting data to vdf"
-ncdfvdfcreate -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars T:TKE: $wrfout $firename.vdf
-ncdf2vdf -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars T:TKE: $wrfout $firename.vdf
+ncdfvdfcreate -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars T:U:V: $wrfout $firename.vdf
+ncdf2vdf -timedims Time -stagdims bottom_top_stag:south_north_stag:west_east_stag -vars T:U:V: $wrfout $firename.vdf
 
 cd ${local}
 echo "COMPLETE"
