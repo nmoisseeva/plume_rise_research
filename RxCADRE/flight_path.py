@@ -20,8 +20,9 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nadya2/data/plume/RxCADRE/wrfout_LG2_2linesNoMBL'
-wrfinterp = '/Users/nadya2/data/plume/RxCADRE/interp/wrfinterp_LG2'
+wrfdata = '/Users/nadya2/data/plume/RxCADRE/wrfout_LG2'
+# wrfinterp = '/Users/nadya2/data/plume/RxCADRE/interp/wrfinterp_LG2'
+fig_dir = '/Users/nadya2/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 disp_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
@@ -38,13 +39,13 @@ sfc_hgt = 62 							#surface height MSL (m)
 
 print('Extracting NetCDF data from %s ' %wrfdata)
 nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
-nc_interp = netcdf.netcdf_file(wrfinterp, mode ='r')  
+# nc_interp = netcdf.netcdf_file(wrfinterp, mode ='r')  
 
 #get dimensions of the data
 nT,nY,nX = np.shape(nc_data.variables['XLONG'])
 
 #get geopotential array and convrt to height
-# z = (nc_data.variables['PHB'][:,:,:,:] + nc_data.variables['PH'][:,:,:,:]) / 9.81
+z = (nc_data.variables['PHB'][:,:,:,:] + nc_data.variables['PH'][:,:,:,:]) / 9.81
 
 #create a UTM grid
 UTMx = nc_data.variables['XLONG'][0,:,:] + ll_utm[0]
@@ -103,18 +104,27 @@ disp_dict['meta']= 'time: seconds since model start run | \
 tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec] #times since start
 dt = disp_dict['time'][1] - disp_dict['time'][0] 	
 
-#construct KDtree from idealized grid
-grid_coord = zip(WGSy,WGSx,lvl)
-gridTree = KDTree(grid_coord)
-dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx])
+# #construct KDtree from idealized grid
+# grid_coord = zip(WGSy,WGSx,lvl)
+# gridTree = KDTree(grid_coord)
+# dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx])
 
 #calculate H20 MR departure and extract point locations (assumes dry initial state)
-qvapor = np.copy(nc_interp.variables['QVAPOR'][:,:,:,:])
+# qvapor = np.copy(nc_interp.variables['QVAPOR'][:,:,:,:])
+qvapor = np.copy(nc_data.variables['QVAPOR'][:,:,:,:])
 qvapornan = np.copy(qvapor)
 qvapornan[qvapornan<1e-30] = np.nan
 mod_val = np.empty((len(tsec))) * np.nan
 # obs_val = np.empty((len(tsec))) * np.nan
+print('Finding nearest points....')
 for nt in range(len(tsec)):
+	print('tstep: %s') %nt
+	#construct KDtree from idealized grid
+	lvl = z[nt,:,:,:].ravel()
+	grid_coord = zip(WGSy,WGSx,lvl)
+	gridTree = KDTree(grid_coord)
+	dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx])
+
 	flatq = qvapornan[nt,::-1,:,:].ravel()
 	mod_val[nt] = flatq[grid_id[nt]]
 	mv = disp_dict['H2O'][tidx[nt]]		#in percent by volume
@@ -212,18 +222,34 @@ plt.show()
 
 #================================VIRTICAL PROFILE==================================
 #define start and end of the corkscrew in sec from beginning of simulation
-csStart = 2500
-csEnd = 2800
-plt.title('Vertical Profile of CO2 Emissions (Extracted from Corkscrew )')
+csStart = 2400
+csEnd = 2700
+plt.title('CO2 PROFILE (from Corskrew flight)')
 s = np.argmin(abs(disp_dict['time']-csStart))
 f = np.argmin(abs(disp_dict['time']-csEnd))
-plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2] )
+plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2] )
+plt.ylim([0,2000])
+plt.xlabel('CO2 mixing ratio [ppmv]')
+plt.ylabel('height [m]')
+plt.savefig(fig_dir + 'CO2ProfileCorkscrew.pdf')
 plt.show()
 
 #create a horizontall averaged plume profile
+zave = np.nanmean(np.nanmean(np.nanmean(z,0),1),1) 	#average vertical level height)
 plume_profile = np.nansum(np.nansum(qvapor,2),2)
-plt.contourf(plume_profile.T)
-plt.colorbar()
+plt.contourf(plume_profile.T,cmap=plt.cm.cubehelix_r, vmin=0, vmax=0.15)
+cbar = plt.colorbar()
+cbar.set_label('H2O mixing ratio')
+cbar.set_clim(0,0.15)
+plt.clim(0,0.15)
+ax = plt.gca()
+ax.set_yticks(np.arange(0,np.shape(plume_profile)[1],5))
+ax.set_yticklabels(zave[::5])
+plt.xlabel('time [min]')
+plt.ylabel('height [m]')
+plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
+plt.tight_layout()
+plt.savefig(fig_dir + 'SmokeColumn.pdf')
 plt.show()
 
 

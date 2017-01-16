@@ -8,6 +8,7 @@ from matplotlib import path
 from mpl_toolkits import basemap
 import mpl_toolkits.basemap.pyproj as pyproj
 import warnings
+import os
 warnings.filterwarnings("ignore")
 
 # wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
@@ -33,14 +34,6 @@ fuel_cat = 3
 print('Extracting NetCDF data from %s ' %wrfinput)
 nc_data = NetCDF.NetCDFFile(wrfinput, 'a')
 
-
-#get dimensions of the data
-nT,nY,nX = np.shape(nc_data.variables['XLONG'])
-
-#construct grid
-grid_coord = zip(nc_data.variables['XLONG'][0].ravel(),nc_data.variables['XLAT'][0].ravel())
-fire_grid_coord = zip(nc_data.variables['FXLONG'][0].ravel(),nc_data.variables['FXLAT'][0].ravel())
-
 #create a UTM grid
 UTMx = nc_data.variables['XLONG'][0,:,:] + ll_utm[0]
 UTMy = nc_data.variables['XLAT'][0,:,:] + ll_utm[1]
@@ -62,6 +55,11 @@ print('..... configuring basemaps')
 bm = basemap.Basemap(llcrnrlon=WLONG[0,0], llcrnrlat=WLAT[0,0],\
 					 urcrnrlon=WLONG[-1,-1], urcrnrlat=WLAT[-1,-1], resolution='f', epsg=4326)
 
+#pull landsat image and save for future use (fabour)
+landsat_pull_cmnd = "bash getWMSImage.sh -o ./npy/landsat_%s_%s_%s_%s.tiff -m landsat %s %s %s %s" \
+				%(WLONG[0,0],WLAT[0,0],WLONG[-1,-1],WLAT[-1,-1],WLONG[0,0],WLAT[0,0],WLONG[-1,-1],WLAT[-1,-1])
+os.system(landsat_pull_cmnd)
+
 #add plot shapefile
 polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
 
@@ -72,8 +70,6 @@ l2g_mask = np.reshape(l2g_mask, np.shape(UTMfx))
 fuel = nc_data.variables['NFUEL_CAT'][0,:,:]
 fuel[l2g_mask] = fuel_cat
 fuel[~l2g_mask] = 14
-# fuel[fuel!=fuel_cat] = 14
-
 
 bm.contourf(WLONGf, WLATf,fuel)
 plt.colorbar()
