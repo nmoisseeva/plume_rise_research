@@ -16,8 +16,7 @@ import mpl_toolkits.mplot3d as a3
 from matplotlib import animation
 
 #====================INPUT===================
-wrfdata = '/Users/nadya2/data/plume/RxCADRE/wrfout_LG2'
-# wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
+wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2_regrid'
 wrfinput='/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01'
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nadya2/data/RxCADRE/instruments/HIP1'
@@ -25,9 +24,9 @@ instruments_shape = '/Users/nadya2/data/RxCADRE/instruments/HIP1'
 target_ros = {'HIP1':0.225, 'HIP2':0.443,'HIP3':0.233} 	#rates of spread from Butler2016 for L2G
 # HIP1_locs = '/Users/nadya2/data/RxCADRE/instruments/L2G_HIP1.csv'
 
-# ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
-# ll_utm = np.array([520317,3375798])
-ll_utm = np.array([518800,3377000])
+burn_lmt = [(-86.73051,30.54315),(-86.73398,30.54584),(-86.74677,30.53858),(-86.74422,30.53546)]
+
+ll_utm = np.array([518800,3377000])		#lower left corner of the domain in utm
 
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 #=================end of input===============
@@ -39,16 +38,20 @@ nc_inputdata = netcdf.netcdf_file(wrfinput, mode ='r')
 #create a UTM grid
 FUTMx = nc_inputdata.variables['FXLONG'][0,:,:] + ll_utm[0]
 FUTMy = nc_inputdata.variables['FXLAT'][0,:,:] + ll_utm[1]
-UTMx = nc_inputdata.variables['XLONG'][0,:,:] + ll_utm[0]
-UTMy = nc_inputdata.variables['XLAT'][0,:,:] + ll_utm[1]
+# UTMx = nc_inputdata.variables['XLONG'][0,:,:] + ll_utm[0]
+# UTMy = nc_inputdata.variables['XLAT'][0,:,:] + ll_utm[1]
 
 #convert coordinate systems to something basemaps can read
 wgs84=pyproj.Proj("+init=EPSG:4326")
 epsg26916=pyproj.Proj("+init=EPSG:26916")
-WGSx, WGSy= pyproj.transform(epsg26916,wgs84,UTMx.ravel(),UTMy.ravel())
-WLONG, WLAT = np.reshape(WGSx, np.shape(UTMx)), np.reshape(WGSy, np.shape(UTMy))
+# WGSx, WGSy= pyproj.transform(epsg26916,wgs84,UTMx.ravel(),UTMy.ravel())
+# WLONG, WLAT = np.reshape(WGSx, np.shape(UTMx)), np.reshape(WGSy, np.shape(UTMy))
 FWGSx, FWGSy= pyproj.transform(epsg26916,wgs84,FUTMx.ravel(),FUTMy.ravel())
 FWLONG, FWLAT = np.reshape(FWGSx, np.shape(FUTMx)), np.reshape(FWGSy, np.shape(FUTMy))
+
+
+WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
+WGSx, WGSy = WLONG.ravel(), WLAT.ravel()
 
 #open/generate basemap
 if os.path.isfile(basemap_path):
@@ -84,17 +87,36 @@ grid_coord = zip(WGSy,WGSx)
 gridTree = KDTree(grid_coord)
 dist, grid_id = gridTree.query(hip1_lcn[:,::-1]) 	#reorder columnets to lat/lon
 
+#get necessary variables
+ros = np.copy(nc_data.variables['ROS'][:,:,:])		#ger ROS
+hfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
+xtime = nc_data.variables['XTIME'][:] * 60 			#get time in seconds (since noon)
+ignition = np.copy(nc_data.variables['TIGN_G'][:,:,:])
+
+#create ignition mask
+print('..... creating an igntion mask (may take several minutes)')
+ign_mask = np.empty_like(ros) * np.nan
+for nt in range(len(xtime)):
+	print(nt)
+	current_ign = ignition[nt,:,:].astype(int)
+	tsec = round(xtime[nt])
+	temp_mask = np.empty_like(current_ign) * np.nan
+	temp_mask[(current_ign!=tsec)] = 1
+	ign_mask[nt,:,:] = temp_mask
+
 #calculate average rate of spread
-ros = np.copy(nc_data.variables['ROS'][:,:,:])
-rosnan = ros	
-# rosnan[rosnan==0] = np.nan 			#mask all non-fire cells
-rosnan[np.where(rosnan==0)] = np.nan
-rosnan = np.nanmean(rosnan,0)		#get time averaged values
+print('..... masking ROS area and calculating averages')
+# l2g = path.Path(burn_lmt)
+# l2g_mask = l2g.contains_points(zip(FWGSx,FWGSy))
+# l2g_mask = np.reshape(l2g_mask, np.shape(FUTMx))
+ros[np.isnan(ign_mask)] = np.nan
+ros[ros==0] = np.nan
+rosnan = np.nanmean(ros,0)		#get time averaged values
 l2g_ros = np.nanmean(np.nanmean(rosnan,0)) #get average value for the entire fire
 print('Average ROS within fire area: %.2f m/s' %l2g_ros)
 
 #calculate average peak heat flux
-hfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
+
 
 hfxnan = hfx 	
 hfxnan[hfxnan<5] = np.nan 			#residence time defined as at least 5kW/m2 as per Butler2013

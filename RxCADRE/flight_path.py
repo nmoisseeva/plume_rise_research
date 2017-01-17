@@ -20,17 +20,15 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nadya2/data/plume/RxCADRE/wrfout_LG2'
-# wrfinterp = '/Users/nadya2/data/plume/RxCADRE/interp/wrfinterp_LG2'
+wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2'
 fig_dir = '/Users/nadya2/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 disp_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
 
-# ll_utm = np.array([521620,3376766]) 	#lower left corner of the domain in utm
-ll_utm = np.array([518800,3377000])
-
+ll_utm = np.array([518800,3377000]) 	#lower left corner of the domain in utm
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm.npy' %(ll_utm[0],ll_utm[1])
+
 lvl = np.arange(0,2000,50) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)
 sfc_hgt = 62 							#surface height MSL (m)
@@ -41,21 +39,21 @@ print('Extracting NetCDF data from %s ' %wrfdata)
 nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
 # nc_interp = netcdf.netcdf_file(wrfinterp, mode ='r')  
 
-#get dimensions of the data
-nT,nY,nX = np.shape(nc_data.variables['XLONG'])
-
 #get geopotential array and convrt to height
 z = (nc_data.variables['PHB'][:,:,:,:] + nc_data.variables['PH'][:,:,:,:]) / 9.81
 
-#create a UTM grid
-UTMx = nc_data.variables['XLONG'][0,:,:] + ll_utm[0]
-UTMy = nc_data.variables['XLAT'][0,:,:] + ll_utm[1]
+# #create a UTM grid
+# UTMx = nc_data.variables['XLONG'][0,:,:] + ll_utm[0]
+# UTMy = nc_data.variables['XLAT'][0,:,:] + ll_utm[1]
 
-#convert coordinate systems to something basemaps can read
-wgs84=pyproj.Proj("+init=EPSG:4326")
-epsg26916=pyproj.Proj("+init=EPSG:26916")
-WGSx, WGSy= pyproj.transform(epsg26916,wgs84,UTMx.ravel(),UTMy.ravel())
-WLONG, WLAT = np.reshape(WGSx, np.shape(UTMx)), np.reshape(WGSy, np.shape(UTMy))
+# #convert coordinate systems to something basemaps can read
+# wgs84=pyproj.Proj("+init=EPSG:4326")
+# epsg26916=pyproj.Proj("+init=EPSG:26916")
+# WGSx, WGSy= pyproj.transform(epsg26916,wgs84,UTMx.ravel(),UTMy.ravel())
+# WLONG, WLAT = np.reshape(WGSx, np.shape(UTMx)), np.reshape(WGSy, np.shape(UTMy))
+
+WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
+
 
 #open/generate basemap
 if os.path.isfile(basemap_path):
@@ -69,7 +67,7 @@ else:
 	print('.....New basemap instance saved as: %s' %basemap_path)
 
 # Sanity check: import shape file
-polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
+# polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
 # fireim = nc_data.variables['GRNHFX'][25,:,:]
 # bm.imshow(fireim)
 # plt.show()
@@ -78,6 +76,11 @@ polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
 runstart = nc_data.START_DATE[-8:]
 tsec = nc_data.variables['XTIME'][:] * 60 		#get time in seconds since run start
 model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
+
+#==========================VERTICAL INTERPOLATION============================
+qvcopy = np.copy(nc_data.variables['QVAPOR'][:,:,:,:])
+
+
 
 #================================DISPERSION==================================
 #extract and format dispersion data
@@ -231,17 +234,17 @@ plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2] )
 plt.ylim([0,2000])
 plt.xlabel('CO2 mixing ratio [ppmv]')
 plt.ylabel('height [m]')
+plt.tight_layout()
 plt.savefig(fig_dir + 'CO2ProfileCorkscrew.pdf')
 plt.show()
 
 #create a horizontall averaged plume profile
 zave = np.nanmean(np.nanmean(np.nanmean(z,0),1),1) 	#average vertical level height)
 plume_profile = np.nansum(np.nansum(qvapor,2),2)
-plt.contourf(plume_profile.T,cmap=plt.cm.cubehelix_r, vmin=0, vmax=0.15)
+plume_profile[plume_profile<0] = np.nan 			#mask negataives
+plt.contourf(plume_profile.T,cmap=plt.cm.cubehelix_r)
 cbar = plt.colorbar()
 cbar.set_label('H2O mixing ratio')
-cbar.set_clim(0,0.15)
-plt.clim(0,0.15)
 ax = plt.gca()
 ax.set_yticks(np.arange(0,np.shape(plume_profile)[1],5))
 ax.set_yticklabels(zave[::5])
