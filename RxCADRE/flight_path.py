@@ -20,11 +20,12 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2'
+wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2_regrid'
 fig_dir = '/Users/nadya2/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 disp_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
+interp_path = '/Users/nadya2/code/plume/RxCADRE/npy/qv_LG2_interp.npy'
 
 ll_utm = np.array([518800,3377000]) 	#lower left corner of the domain in utm
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm.npy' %(ll_utm[0],ll_utm[1])
@@ -32,6 +33,8 @@ basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm.npy' %(ll_utm[0],l
 lvl = np.arange(0,2000,50) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)
 sfc_hgt = 62 							#surface height MSL (m)
+runstart = '12:00:00' 					#start time (if restart run time of inital simulation)
+runend = '12:00:00'
 #=================end of input===============
 
 
@@ -53,7 +56,7 @@ z = (nc_data.variables['PHB'][:,:,:,:] + nc_data.variables['PH'][:,:,:,:]) / 9.8
 # WLONG, WLAT = np.reshape(WGSx, np.shape(UTMx)), np.reshape(WGSy, np.shape(UTMy))
 
 WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
-
+nT,nZ,nY,nX = np.shape(z)
 
 #open/generate basemap
 if os.path.isfile(basemap_path):
@@ -73,17 +76,35 @@ else:
 # plt.show()
 
 #extract model time info
-runstart = nc_data.START_DATE[-8:]
+# runstart = nc_data.START_DATE[-8:]
 tsec = nc_data.variables['XTIME'][:] * 60 		#get time in seconds since run start
 model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
 
 #==========================VERTICAL INTERPOLATION============================
-qvcopy = np.copy(nc_data.variables['QVAPOR'][:,:,:,:])
+numLvl = len(lvl)
 
-
+#open/generate vertically interpolated data
+if os.path.isfile(interp_path):
+	qinterp = np.load(interp_path)   # load here the above pickle 
+	print('Interpolated data found at: %s' %interp_path)
+else:
+	print('WARNING: no interpolated vapour data found - generating: SLOW ROUTINE!')
+	qvcopy = np.copy(nc_data.variables['QVAPOR'][:,:,:,:])
+	qinterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
+	for t in range(nT):
+		print('.... tsetp = %s/%s' %(t,nT))
+		for y in range(nY):
+			for x in range(nX):
+				tempz = z[t,:,y,x]
+				interpz = (tempz[:-1]+tempz[1:])/2.
+				f = interpolate.interp1d(interpz,qvcopy[t,:,y,x],fill_value="extrapolate")
+				qinterp[t,:,y,x] = f(lvl)
+	np.save(interp_path, qinterp)
+	print('Interpolated data saved as: %s' %interp_path)
 
 #================================DISPERSION==================================
 #extract and format dispersion data
+print('Importing dispersion data from %s' %disp_data)
 disp_dict = {}
 disp_array = np.genfromtxt(disp_data, skip_header=1, usecols = [1,2,3,4,5,7,8,9], delimiter=',')
 
@@ -107,36 +128,24 @@ disp_dict['meta']= 'time: seconds since model start run | \
 tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec] #times since start
 dt = disp_dict['time'][1] - disp_dict['time'][0] 	
 
-# #construct KDtree from idealized grid
-# grid_coord = zip(WGSy,WGSx,lvl)
-# gridTree = KDTree(grid_coord)
-# dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx])
+#construct KDtree from idealized grid
+lat = nc_data.variables['XLAT'][0,:,:]
+lon = nc_data.variables['XLONG'][0,:,:]
+grid_coord = zip(lat.ravel(),lon.ravel())
+gridTree = KDTree(grid_coord)
+dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx][:,0:2])
 
 #calculate H20 MR departure and extract point locations (assumes dry initial state)
-# qvapor = np.copy(nc_interp.variables['QVAPOR'][:,:,:,:])
-qvapor = np.copy(nc_data.variables['QVAPOR'][:,:,:,:])
-qvapornan = np.copy(qvapor)
+qvapornan = np.copy(qinterp)
 qvapornan[qvapornan<1e-30] = np.nan
 mod_val = np.empty((len(tsec))) * np.nan
-# obs_val = np.empty((len(tsec))) * np.nan
 print('Finding nearest points....')
 for nt in range(len(tsec)):
-	print('tstep: %s') %nt
-	#construct KDtree from idealized grid
-	lvl = z[nt,:,:,:].ravel()
-	grid_coord = zip(WGSy,WGSx,lvl)
-	gridTree = KDTree(grid_coord)
-	dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx])
-
-	flatq = qvapornan[nt,::-1,:,:].ravel()
-	mod_val[nt] = flatq[grid_id[nt]]
+	print('...tstep: %s') %nt
+	idxy,idxx = np.unravel_index(grid_id[nt],np.shape(lat))
+	idxz = np.argmin(abs(lvl-disp_dict['lcn'][tidx][nt][2]))
+	mod_val[nt] = qvapornan[nt,idxz,idxy,idxx]
 	mv = disp_dict['H2O'][tidx[nt]]		#in percent by volume
-	# obs_val[nt] = 0.622*mv/(100-mv)
-
-# plt.scatter(disp_dict['time'],disp_dict['CO2'])
-plt.scatter(disp_array[:,0],disp_array[:,3])
-# plt.plot(tsec,mod_val)
-plt.show()
 
 #================================EMISSIONS==================================
 #extract and format emissions data 
@@ -152,39 +161,45 @@ emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation 
 
 
 #================================PLOTTING==================================
-#plot of CO2 slices
-plt.figure()
-plt.title('CO2 anomalies')
-plt.scatter(disp_dict['time'],disp_dict['CO2'])
-ax = plt.gca()
-for nSlice in range(len(emis_dict['smoke'])):
-	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
-	ax.fill_between(shade, 390,440, facecolor='gray', alpha=0.1, edgecolor='w')
-plt.ylim([390,440])
-plt.xlim([0,3000])
-plt.show()
+# #plot of CO2 slices
+# plt.figure()
+# plt.title('CO2 anomalies')
+# plt.scatter(disp_dict['time'],disp_dict['CO2'])
+# ax = plt.gca()
+# for nSlice in range(len(emis_dict['smoke'])):
+# 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
+# 	ax.fill_between(shade, 390,440, facecolor='gray', alpha=0.1, edgecolor='w')
+# plt.ylim([390,440])
+# plt.xlim([tsec[0],tsec[-1]])
+# plt.show()
 
 
-#plot of H2O slices
-plt.figure()
-plt.title('H2O anomalies')
-plt.scatter(disp_dict['time'],disp_dict['H2O'])
-ax = plt.gca()
-for nSlice in range(len(emis_dict['smoke'])):
-	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
-	ax.fill_between(shade, 0,1.5, facecolor='gray', alpha=0.1, edgecolor='w')
-plt.ylim([0,1.5])
-plt.xlim([0,3000])
-plt.show()
+# #plot of H2O slices
+# plt.figure()
+# plt.title('H2O anomalies')
+# plt.scatter(disp_dict['time'],disp_dict['H2O'])
+# ax = plt.gca()
+# for nSlice in range(len(emis_dict['smoke'])):
+# 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
+# 	ax.fill_between(shade, 0,1.5, facecolor='gray', alpha=0.1, edgecolor='w')
+# plt.ylim([0,1.5])
+# plt.xlim([tsec[0],tsec[-1]])
+# plt.show()
 
 #plot of model H20 slices overlayed with real emissions
-plt.scatter(disp_dict['time'][tidx], mod_val)
+plt.title('SIMULATED $Q_v$ ANOMALY ALONG FLIGHT PATH')
+plt.scatter(disp_dict['time'][tidx], mod_val*1000000,c='red')
+plt.plot(disp_dict['time'][tidx], mod_val*1000000,'b--')
 ax = plt.gca()
 for nSlice in range(len(emis_dict['smoke'])):
 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
-	ax.fill_between(shade, 0,0.000002, facecolor='gray', alpha=0.1, edgecolor='w')
-plt.ylim([0,0.000002])
-plt.xlim([0,2100])
+	ax.fill_between(shade, 0,20, facecolor='gray', alpha=0.3, edgecolor='w')
+plt.ylim([0,20])
+plt.xlim([2000,tsec[-1]])
+plt.xlabel('time [s]')
+plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')
+plt.tight_layout()
+plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
 plt.show()
 
 #================================FLIGHT ANIMATION==================================
@@ -225,29 +240,29 @@ plt.show()
 
 #================================VIRTICAL PROFILE==================================
 #define start and end of the corkscrew in sec from beginning of simulation
-csStart = 2400
-csEnd = 2700
-plt.title('CO2 PROFILE (from Corskrew flight)')
+csStart = 3600
+csEnd = 4600
+plt.title('$CO_2$ PROFILE FROM CORKSCREW')
 s = np.argmin(abs(disp_dict['time']-csStart))
 f = np.argmin(abs(disp_dict['time']-csEnd))
-plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2] )
+plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],color='black' )
+plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],'b--' )
 plt.ylim([0,2000])
-plt.xlabel('CO2 mixing ratio [ppmv]')
+plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylabel('height [m]')
 plt.tight_layout()
 plt.savefig(fig_dir + 'CO2ProfileCorkscrew.pdf')
 plt.show()
 
-#create a horizontall averaged plume profile
-zave = np.nanmean(np.nanmean(np.nanmean(z,0),1),1) 	#average vertical level height)
-plume_profile = np.nansum(np.nansum(qvapor,2),2)
-plume_profile[plume_profile<0] = np.nan 			#mask negataives
-plt.contourf(plume_profile.T,cmap=plt.cm.cubehelix_r)
+#vertical column evoluation
+column_evol = np.nansum(np.nansum(qinterp,2),2)
+column_evol[column_evol<0] = np.nan 			#mask negataives
+plt.pcolor(column_evol.T*1000,cmap=plt.cm.cubehelix_r)
 cbar = plt.colorbar()
-cbar.set_label('H2O mixing ratio')
+cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
 ax = plt.gca()
-ax.set_yticks(np.arange(0,np.shape(plume_profile)[1],5))
-ax.set_yticklabels(zave[::5])
+ax.set_yticks(np.arange(0,numLvl,5))
+ax.set_yticklabels(lvl[::5])
 plt.xlabel('time [min]')
 plt.ylabel('height [m]')
 plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
@@ -255,16 +270,52 @@ plt.tight_layout()
 plt.savefig(fig_dir + 'SmokeColumn.pdf')
 plt.show()
 
+#create a horizontall averaged plume profile (last slide)
+plume_profile = np.nansum(qinterp[-1,:,:,:],2)
+plt.pcolor(plume_profile * 1000,cmap=plt.cm.PuBu)
+cbar = plt.colorbar()
+cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
+ax = plt.gca()
+ax.set_yticks(np.arange(0,numLvl,5))
+ax.set_yticklabels(lvl[::5])
+plt.xlabel('grid #')
+plt.ylabel('height [m]')
+plt.title('TOTAL $Q_v$ ANOMALY (HORIZONTALLY AVERAGED) at $t_{end}$')
+plt.tight_layout()
+plt.savefig(fig_dir + 'AvePlume_Tend.pdf')
+plt.show()
 
-# #plot test slice 
-# qtest = qvapor[100,3:,:,:]
-# qrot = rotate(qtest, mean_wind, axes=(1,2),reshape=True, mode='constant', cval=np.nan, prefilter=True)
-# qtot = np.nansum(qrot,2)
-# plt.contourf(qtot)
-# plt.colorbar()
-# plt.show()
 
-# #rotate qvapor grid onto mean wind direction
-# rot_QVAPOR = rotate(qvapor, mean_wind, axes=(2,3),reshape=True, mode='constant', cval=np.nan, prefilter=True)
+#=============================ANIMATION OF CW ave plume==================================
+
+print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
+qrot = rotate(qvapornan, 130, axes=(2, 3), reshape=True, mode='constant', cval=np.nan)
+print('WARNING: Slow routine: creating cross-wind averages')
+cw_ave = np.nanmean(qrot,3)
+
+fig = plt.figure()
+ax = plt.gca()
+# create initial frame
+# point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
+cntr = plt.contourf(cw_ave[0,:,:],cmap=plt.cm.PuBu)
+# line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
+# ax.legend()
+# ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
+# ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
+# ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
+plt.colorbar()
+# time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
+
+# move the point position at every frame
+def update_plot(n, cw_ave,cntr):
+    cntr = plt.contourf(cw_ave[n,:,:],cmap=plt.cm.PuBu)
+    # time_text.set_text('Time (sec) = %s' %(n*dt))
+    return cntr, 
+
+#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+ani=animation.FuncAnimation(fig, update_plot, 1500, fargs=(cw_ave,cntr), interval=1)
+# ani.save('./test_ani.gif', writer='imagemagick',fps=120)
+plt.show()
+
 
 

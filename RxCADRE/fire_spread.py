@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import netcdf
 from scipy.spatial import KDTree
+from scipy.ndimage.interpolation import zoom
 import matplotlib.animation as animation
 from matplotlib import path 
 from mpl_toolkits import basemap
@@ -97,37 +98,45 @@ ignition = np.copy(nc_data.variables['TIGN_G'][:,:,:])
 print('..... creating an igntion mask (may take several minutes)')
 ign_mask = np.empty_like(ros) * np.nan
 for nt in range(len(xtime)):
-	print(nt)
+	print nt
 	current_ign = ignition[nt,:,:].astype(int)
 	tsec = round(xtime[nt])
 	temp_mask = np.empty_like(current_ign) * np.nan
-	temp_mask[(current_ign!=tsec)] = 1
+	temp_mask[(current_ign!=tsec) & (ign_mask[nt-1,:,:]!=1)] = 1
 	ign_mask[nt,:,:] = temp_mask
 
-#calculate average rate of spread
-print('..... masking ROS area and calculating averages')
-# l2g = path.Path(burn_lmt)
-# l2g_mask = l2g.contains_points(zip(FWGSx,FWGSy))
-# l2g_mask = np.reshape(l2g_mask, np.shape(FUTMx))
-ros[np.isnan(ign_mask)] = np.nan
-ros[ros==0] = np.nan
-rosnan = np.nanmean(ros,0)		#get time averaged values
-l2g_ros = np.nanmean(np.nanmean(rosnan,0)) #get average value for the entire fire
-print('Average ROS within fire area: %.2f m/s' %l2g_ros)
+#downscale to atmospheric grid
+print('..... creating ignition mask for atm grid (may take several minutes)')
+ign_mask_atm = np.empty_like(hfx) * np.nan
+for nt in range(len(xtime)):
+	print nt
+	current_ign = zoom(ignition[nt,:,:].astype(int), 0.1)[:-1,:-1]
+	tsec = round(xtime[nt])
+	temp_mask = np.empty_like(current_ign) * np.nan
+	temp_mask[(current_ign!=tsec)] = 1
+	ign_mask_atm[nt,:,:] = temp_mask
+
 
 #calculate average peak heat flux
-
-
-hfxnan = hfx 	
-hfxnan[hfxnan<5] = np.nan 			#residence time defined as at least 5kW/m2 as per Butler2013
+hfxnan = hfx
+hfxnan[hfx<300] = np.nan 				#mask anything below basic daytime longwave
+hfxnan[np.isnan(ign_mask_atm)] = np.nan 			#residence time defined as at least 5kW/m2 as per Butler2013
 hfxnanmax = np.nanmax(hfxnan,0)/1000 	#get peak value in kW/m2
 l2g_hfx_max = np.nanmean(np.nanmean(hfxnanmax,1)) #get average value for the entire fire
 print('Average peak heat flux of the fire: %.2f kW m-2' %l2g_hfx_max)
-
 #calculate average heat flux
 hfxnanmean = np.nanmean(hfxnan,0)/1000 	#get peak value in kW/m2
 l2g_hfx = np.nanmean(np.nanmean(hfxnanmean,1)) #get average value for the entire fire
 print('Average heat flux of the fire: %.2f kW m-2' %l2g_hfx)
+
+#calculate average rate of spread
+print('..... masking ROS area and calculating averages')
+ros[np.isnan(ign_mask)] = np.nan 	#mask based on ignition
+ros[ros==0] = np.nan 				#mask weird edges
+rosnan = np.nanmean(ros,0)			#get time averaged values
+l2g_ros = np.nanmean(np.nanmean(rosnan,0)) #get average value for the entire fire
+print('Average ROS within fire area: %.2f m/s' %l2g_ros)
+
 
 
 #calculate select values for HIP1
@@ -158,21 +167,21 @@ print('Averages for HIP1: ROS = %s m/s, HFX = %s kW/m2, HFXmax = %s kW/m2' %(mea
 # ------------------------------PLOTTING-----------------------------
 #plot mean ROS for the fire
 plt.figure()
-im = plt.contourf(rosnan) 	
+im = plt.contourf(rosnan[0:1000,1000:]) 	
 plt.colorbar()
 plt.title('ROS [m/s]')
 plt.show()
 
 #plot peak heat flux
 plt.figure()
-im = plt.contourf(hfxnanmax) 
+im = plt.contourf(hfxnanmax[0:100,100:]) 
 plt.title('PEAK HFX DURING FIRE')
 plt.colorbar()			
 plt.show()
 
 #plot average heat flux
 plt.figure()
-im = plt.contourf(hfxnanmean) 			
+im = plt.contourf(hfxnanmean[0:100,100:]) 			
 plt.colorbar()
 plt.title('AVE HFX DURING FIRE')
 plt.show()
