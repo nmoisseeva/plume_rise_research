@@ -30,7 +30,7 @@ interp_path = '/Users/nadya2/code/plume/RxCADRE/npy/qv_LG2_interp.npy'
 ll_utm = np.array([518800,3377000]) 	#lower left corner of the domain in utm
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm.npy' %(ll_utm[0],ll_utm[1])
 
-lvl = np.arange(0,2000,50) 				#
+lvl = np.arange(0,1500,20) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)
 sfc_hgt = 62 							#surface height MSL (m)
 runstart = '12:00:00' 					#start time (if restart run time of inital simulation)
@@ -289,26 +289,37 @@ plt.show()
 #=============================ANIMATION OF CW ave plume==================================
 
 print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
-qrot = rotate(qvapornan, 130, axes=(2, 3), reshape=True, mode='constant', cval=np.nan)
+qrot = rotate(qinterp, 130, axes=(2, 3), reshape=True, mode='constant', cval=np.nan)
+qrot[qrot<1e-30] = np.nan
 print('WARNING: Slow routine: creating cross-wind averages')
-cw_ave = np.nanmean(qrot,3)
+cw_ave = np.nanmean(qrot,3)*1000000 #converting to mg
 
 fig = plt.figure()
 ax = plt.gca()
 # create initial frame
 # point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
-cntr = plt.contourf(cw_ave[0,:,:],cmap=plt.cm.PuBu)
+cntr = plt.contourf(cw_ave[0,:,100:300],cmap=plt.cm.PuBu,levels=np.arange(0,20,1))
+cbar = plt.colorbar()
+cbar.set_label('average $H_{2}O$ mixing ratio anomaly [mg/kg]')
+plt.xlabel('grid #')
+plt.ylabel('height [m]')
+ax.set_yticks(np.arange(0,numLvl,5))
+ax.set_yticklabels(lvl[::5])
+plt.title('EVOLUTION OF CROSS-WIND AVERAGE $Q_v$ ANOMALY')
+
+# plt.clim([0,2])
+
 # line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
 # ax.legend()
 # ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
 # ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
 # ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
-plt.colorbar()
+# ax.colorbar()
 # time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
 
 # move the point position at every frame
 def update_plot(n, cw_ave,cntr):
-    cntr = plt.contourf(cw_ave[n,:,:],cmap=plt.cm.PuBu)
+    cntr = plt.contourf(cw_ave[n,:,100:300],cmap=plt.cm.PuBu,levels=np.arange(0,20,1))
     # time_text.set_text('Time (sec) = %s' %(n*dt))
     return cntr, 
 
@@ -319,3 +330,4 @@ plt.show()
 
 
 
+#NEED TO ADD COLORBAR AND CONSTANT LIMITS

@@ -17,42 +17,32 @@ import mpl_toolkits.mplot3d as a3
 from matplotlib import animation
 
 #====================INPUT===================
-wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2_regrid'
-wrfinput='/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01'
+wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_L2G_mar3_regrid'
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nadya2/data/RxCADRE/instruments/HIP1'
 
-target_ros = {'HIP1':0.225, 'HIP2':0.443,'HIP3':0.233} 	#rates of spread from Butler2016 for L2G
-# HIP1_locs = '/Users/nadya2/data/RxCADRE/instruments/L2G_HIP1.csv'
+# burn_lmt = [(-86.73051,30.54315),(-86.73398,30.54584),(-86.74677,30.53858),(-86.74422,30.53546)]
 
-burn_lmt = [(-86.73051,30.54315),(-86.73398,30.54584),(-86.74677,30.53858),(-86.74422,30.53546)]
+ign_lcn = (524600,3378360)
 
-ll_utm = np.array([518800,3377000])		#lower left corner of the domain in utm
+# ll_utm = np.array([518800,3377000])		#lower left corner of the domain in utm
+ll_utm = np.array([523500,3377000])
 
 basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 #=================end of input===============
 
 print('Extracting NetCDF data from %s ' %wrfdata)
 nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
-nc_inputdata = netcdf.netcdf_file(wrfinput, mode ='r')
 
-#create a UTM grid
-FUTMx = nc_inputdata.variables['FXLONG'][0,:,:] + ll_utm[0]
-FUTMy = nc_inputdata.variables['FXLAT'][0,:,:] + ll_utm[1]
-# UTMx = nc_inputdata.variables['XLONG'][0,:,:] + ll_utm[0]
-# UTMy = nc_inputdata.variables['XLAT'][0,:,:] + ll_utm[1]
+tstep = (nc_data.variables['XTIME'][1]- nc_data.variables['XTIME'][1]) * 60.  #timestep in sec
+WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
 
 #convert coordinate systems to something basemaps can read
 wgs84=pyproj.Proj("+init=EPSG:4326")
 epsg26916=pyproj.Proj("+init=EPSG:26916")
-# WGSx, WGSy= pyproj.transform(epsg26916,wgs84,UTMx.ravel(),UTMy.ravel())
-# WLONG, WLAT = np.reshape(WGSx, np.shape(UTMx)), np.reshape(WGSy, np.shape(UTMy))
-FWGSx, FWGSy= pyproj.transform(epsg26916,wgs84,FUTMx.ravel(),FUTMy.ravel())
-FWLONG, FWLAT = np.reshape(FWGSx, np.shape(FUTMx)), np.reshape(FWGSy, np.shape(FUTMy))
 
-
-WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
-WGSx, WGSy = WLONG.ravel(), WLAT.ravel()
+FWGSx, FWGSy = zoom(WLONG,10),zoom(WLAT,10)
+FUTMx, FUTMy = pyproj.transform(wgs84,epsg26916,FWGSx.ravel(),FWGSy.ravel())
 
 #open/generate basemap
 if os.path.isfile(basemap_path):
@@ -66,135 +56,153 @@ else:
 	print('.....New basemap instance saved as: %s' %basemap_path)
 
 #read shapefiles
-plt.figure()
 polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)		
 instruments = bm.readshapefile(instruments_shape, name='hip1')
-hip1_lcn = []
+hip1_lcn, hip1_tag = [], []
 for nPt,item in enumerate(bm.hip1_info):
 	if item['Instrument'] == 'FireBehaviorPackage':
 		hip1_lcn.append(bm.hip1[nPt])
-	if item['Sensor_ID'] == 'FB22': 		#get index of fb22 for individual comparison 
-		fb22_idx = len(hip1_lcn)-1
-hip1_lcn = np.array(hip1_lcn)
-# bm.scatter(hip1_lcn[:,0],hip1_lcn[:,1])
-# plt.show()
-plt.close()
+		hip1_tag.append(item['Sensor_ID'])
 
-#construct KDtree from idealized grid for fire and atmospheric mesh
-grid_coord_fire = zip(FWGSy,FWGSx)
+hip1_lcn, hip1_tag = np.array(hip1_lcn), np.array(hip1_tag)
+# bm.contourf(FWGSx,FWGSy,fhfx[100,:,:])
+plt.show()
+
+#convert hip1 locations to UTM
+hipUTMx, hipUTMy = pyproj.transform(wgs84,epsg26916, hip1_lcn[:,0],hip1_lcn[:,1])
+
+grid_coord_fire = zip(FUTMy,FUTMx)
 FgridTree = KDTree(grid_coord_fire)
-Fdist, Fgrid_id = FgridTree.query(hip1_lcn[:,::-1]) 	#reorder columnets to lat/lon
-grid_coord = zip(WGSy,WGSx)
-gridTree = KDTree(grid_coord)
-dist, grid_id = gridTree.query(hip1_lcn[:,::-1]) 	#reorder columnets to lat/lon
+Fdist, Fgrid_id = FgridTree.query(zip(hipUTMy, hipUTMx)) 	
+Idist, Igrid_id = FgridTree.query([ign_lcn[1], ign_lcn[0]]) 	#location of ignition line normal
 
 #get necessary variables
-ros = np.copy(nc_data.variables['ROS'][:,:,:])		#ger ROS
-hfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
+fhfx = np.copy(nc_data.variables['FGRNHFX'][:,:-10,:-10]) 	#extract fire heat flux
 xtime = nc_data.variables['XTIME'][:] * 60 			#get time in seconds (since noon)
-ignition = np.copy(nc_data.variables['TIGN_G'][:,:,:])
 
 #create ignition mask
 print('..... creating an igntion mask (may take several minutes)')
-ign_mask = np.empty_like(ros) * np.nan
+ign_mask = np.empty_like(fhfx) * np.nan
 for nt in range(len(xtime)):
 	print nt
-	current_ign = ignition[nt,:,:].astype(int)
-	tsec = round(xtime[nt])
+	current_ign = fhfx[nt,:,:]
 	temp_mask = np.empty_like(current_ign) * np.nan
-	temp_mask[(current_ign!=tsec) & (ign_mask[nt-1,:,:]!=1)] = 1
+	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
 	ign_mask[nt,:,:] = temp_mask
 
-#downscale to atmospheric grid
-print('..... creating ignition mask for atm grid (may take several minutes)')
-ign_mask_atm = np.empty_like(hfx) * np.nan
-for nt in range(len(xtime)):
-	print nt
-	current_ign = zoom(ignition[nt,:,:].astype(int), 0.1)[:-1,:-1]
-	tsec = round(xtime[nt])
-	temp_mask = np.empty_like(current_ign) * np.nan
-	temp_mask[(current_ign!=tsec)] = 1
-	ign_mask_atm[nt,:,:] = temp_mask
-
-
 #calculate average peak heat flux
-hfxnan = hfx
-hfxnan[hfx<300] = np.nan 				#mask anything below basic daytime longwave
-hfxnan[np.isnan(ign_mask_atm)] = np.nan 			#residence time defined as at least 5kW/m2 as per Butler2013
-hfxnanmax = np.nanmax(hfxnan,0)/1000 	#get peak value in kW/m2
-l2g_hfx_max = np.nanmean(np.nanmean(hfxnanmax,1)) #get average value for the entire fire
-print('Average peak heat flux of the fire: %.2f kW m-2' %l2g_hfx_max)
-#calculate average heat flux
-hfxnanmean = np.nanmean(hfxnan,0)/1000 	#get peak value in kW/m2
-l2g_hfx = np.nanmean(np.nanmean(hfxnanmean,1)) #get average value for the entire fire
-print('Average heat flux of the fire: %.2f kW m-2' %l2g_hfx)
+ignFHFX = np.copy(fhfx) 			#convert to kW/m2
+ignFHFX[np.isnan(ign_mask)] = np.nan 	#get ignited cells only
 
-#calculate average rate of spread
-print('..... masking ROS area and calculating averages')
-ros[np.isnan(ign_mask)] = np.nan 	#mask based on ignition
-ros[ros==0] = np.nan 				#mask weird edges
-rosnan = np.nanmean(ros,0)			#get time averaged values
-l2g_ros = np.nanmean(np.nanmean(rosnan,0)) #get average value for the entire fire
-print('Average ROS within fire area: %.2f m/s' %l2g_ros)
+aveFHFX = np.nanmean(ignFHFX,0)/1000. #get ave value in kW/m2
+maxFHFX = np.nanmax(ignFHFX,0)/1000. #get peak value in kW/m2
 
+print('Average average heat flux of the fire: %.2f kW m-2' %np.nanmean(aveFHFX))
+print('Average peak flux of the fire: %.2f kW m-2' %np.nanmean(maxFHFX))
 
-
-#calculate select values for HIP1
+#calculate values for HIP1
 print('Calculating values for HIP1...')
-ros_val, hfx_val, hfxmax_val = [],[],[]
-for pt in Fgrid_id:
-	flat_ros = rosnan.ravel() 
-	pt_ros = flat_ros[pt]
-	ros_val.append(pt_ros) 
-	print('---> Probe val: ROS = %s m/s' %(pt_ros))
-for nPt, pt in enumerate(grid_id):
-	flat_hfx = hfxnanmean.ravel()
-	flat_hfxmax = hfxnanmax.ravel()
-	pt_hfx = flat_hfx[pt]
-	pt_hfxmax = flat_hfxmax[pt]
-	hfx_val.append(pt_hfx)
-	hfxmax_val.append(pt_hfxmax)
-	print('---> Probe val:  HFX = %s kW/m2, HFXmax = %s kW/m2' %(pt_hfx,pt_hfxmax))
-	if nPt == fb22_idx:
-		fb22_coords = np.unravel_index(pt, np.shape(hfx[0,:,:]))
-		print('------> FB22 sensor: 3d grid IDs: y=%s x=%s' %fb22_coords )
-mean_hip1_ros = np.mean(ros_val)
-mean_hip1_hfx = np.mean(hfx_val)
-mean_hip1_hfxmax = np.mean(hfxmax_val)
-print('Averages for HIP1: ROS = %s m/s, HFX = %s kW/m2, HFXmax = %s kW/m2' %(mean_hip1_ros,mean_hip1_hfx,mean_hip1_hfxmax))
+hip1_max, hip1_ave, t_ign = [], [], []
+hip1_hfx = np.empty((len(hip1_tag),len(xtime)))*np.nan
 
+for nPt, pt in enumerate(Fgrid_id):
+	#get max values for sensors
+	flat_max = maxFHFX.ravel() 
+	pt_hfxmax = flat_max[pt]
+	hip1_max.append(pt_hfxmax) 
+
+	#get average values for sensors
+	pt_idx = np.unravel_index(pt,np.shape(FWGSx))
+	print pt_idx
+	hip1_hfx[nPt,:] = ignFHFX[:,pt_idx[0],pt_idx[1]]
+	pt_ave = np.nanmean(hip1_hfx[nPt,:])
+	hip1_ave.append(pt_ave)
+	print('---> Sensor %s: hfx = %s kW/m2, maxhfx = %s kW/m2' %(hip1_tag[nPt],pt_ave,pt_hfxmax))
+
+	#calculate rate of spread
+	pt_ign = np.argmax(np.isfinite(hip1_hfx[nPt,:]))  	#get index of first non-nan
+	t_ign.append(pt_ign)
+
+ign_idx = np.unravel_index(Igrid_id,np.shape(FWGSx)) 				#get location of normal
+t0 = np.argmax(np.isfinite(ignFHFX[:,ign_idx[0],ign_idx[1]])) 	#get time of igntion of normal
+t = (t_ign - t0) * tstep
+print('.....fireline igntion t0 frame: %s' %t0)
+print('.....ignition time in sec: %s' %t)
+
+subTree = KDTree(zip(hipUTMx,hipUTMy))
+rosdist, ros_id = subTree.query((ign_lcn[0], ign_lcn[1]),k=len(hip1_tag)) 	#reorder columnets to lat/lon
+
+ros = rosdist / t
+aveROS = np.mean(ros)
+print('.....Avarage rate of spread based on HIP1: %s' %aveROS)
+
+#--------------------------DATA from Butler 2013--------------------
+butler_data = {'aveHFX':{}, 'maxHFX':{}, 'ROS':{}}
+
+butler_data['ROS']['arrival'] = [0.32,0.24,0.25,0.22,0.22,0.10]
+butler_data['ROS']['arrival'] = [0.24,0.31,0.44,0.61]
+
+butler_data['maxHFX']['HIP1'] = [36.7,32.3,12.5,30.8,13.6,8.8,0.7]
+butler_data['maxHFX']['L2G'] = [36.7,32.3,12.5,30.8,13.6,8.8,0.7,12.9,26.9,23.5,25.5,22.1,24,13.2,20,30.2,13.1,16.2,29.8,17.7,8.6,]
+
+butler_data['aveHFX']['HIP1'] = [19.3,16.9,5.9,14.1,0.7]
+butler_data['aveHFX']['L2G'] = [19.3,16.9,5.9,14.1,0.7,5.2,15,13.9,15,14.2,15.6,8.7,8.6,12.8,6.2,8.6,13.3,8.3,6.3]
 
 # ------------------------------PLOTTING-----------------------------
-#plot mean ROS for the fire
 plt.figure()
-im = plt.contourf(rosnan[0:1000,1000:]) 	
-plt.colorbar()
-plt.title('ROS [m/s]')
+plt.title('HEAT FLUX AT INDIVIDUAL HIP1 SENSORS')
+for i in range(len(hip1_tag)):
+	plt.plot(hip1_hfx[i,:], label=hip1_tag[i])
+plt.xticks(np.arange(0,len(xtime),20),xtime[::20])
+plt.xlabel('time [sec]')
+plt.ylabel('heat flux $[kW m^{-2}]$')
+plt.legend()
 plt.show()
 
-#plot peak heat flux
 plt.figure()
-im = plt.contourf(hfxnanmax[0:100,100:]) 
-plt.title('PEAK HFX DURING FIRE')
-plt.colorbar()			
+plt.title('AVERAGE HEAT FLUX')
+box = plt.boxplot([butler_data['aveHFX']['L2G'],\
+					butler_data['aveHFX']['HIP1'],\
+					aveFHFX[np.isfinite(aveFHFX)]], notch=True, patch_artist=True,showmeans=True)
+colors = ['lightblue','lightblue','pink']
+for patch, color in zip(box['boxes'], colors):
+    patch.set_facecolor(color)
+plt.xticks([1,2,3],['L2G','HIP1','LES'])
+plt.ylabel('heat flux $[kW m^{-2}]$')
 plt.show()
 
-#plot average heat flux
 plt.figure()
-im = plt.contourf(hfxnanmean[0:100,100:]) 			
-plt.colorbar()
-plt.title('AVE HFX DURING FIRE')
+plt.title('PEAK HEAT FLUX')
+box = plt.boxplot([butler_data['maxHFX']['L2G'],\
+					butler_data['maxHFX']['HIP1'],\
+					aveFHFX[np.isfinite(maxFHFX)]], notch=True, patch_artist=True,showmeans=True)
+colors = ['lightblue','lightblue','pink']
+for patch, color in zip(box['boxes'], colors):
+    patch.set_facecolor(color)
+plt.xticks([1,2,3],['L2G','HIP1','LES'])
+plt.ylabel('heat flux $[kW m^{-2}]$')
 plt.show()
 
-#plot heat flux over FB22 sensor throughout the fire
-plt.figure()
-plt.plot(nc_data.variables['XTIME'][:],hfx[:,fb22_coords[0],fb22_coords[1]])
-plt.title('HEAT FLUX AT FB22 SENSOR')
-plt.xlabel('time [min]')
-plt.ylabel('heat flux [W/m2]')
-plt.show()
+# #plot mean ROS for the fire
+# plt.figure()
+# im = plt.contourf(rosnan[0:1000,1000:]) 	
+# plt.colorbar()
+# plt.title('ROS [m/s]')
+# plt.show()
 
+# #plot peak heat flux
+# plt.figure()
+# im = plt.contourf(hfxnanmax[0:100,100:]) 
+# plt.title('PEAK HFX DURING FIRE')
+# plt.colorbar()			
+# plt.show()
 
+# #plot average heat flux
+# plt.figure()
+# im = plt.contourf(hfxnanmean[0:100,100:]) 			
+# plt.colorbar()
+# plt.title('AVE HFX DURING FIRE')
+# plt.show()
 
 
 

@@ -13,12 +13,10 @@ warnings.filterwarnings("ignore")
 
 # wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
 wrfinput='/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01'
-
-
-# ll_utm = np.array([521620,3376766]) - first domain
-# ll_utm = np.array([518317,3373798])
-# ll_utm = np.array([520317,3375798])
-ll_utm = np.array([518800,3377000])
+input_fc = '/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/input_fc'
+#lower left corner
+#ll_utm = np.array([519500,3377000]) #THIS IS THE PROPER ONE
+ll_utm = np.array([523500,3377000])
 
 
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
@@ -28,7 +26,7 @@ fire_dict_utm = {'fireline1':{'start':np.array([525828,3379011]), 'end':np.array
 				'fireline2':{'start':np.array([525729,3379075]), 'end':np.array([524487,3378275])},\
 				'fireline3':{'start':np.array([525612,3379181]), 'end':np.array([524409,3378388])},\
 				'fireline4':{'start':np.array([525538,3379244]), 'end':np.array([524331,3378480])} }
-fuel_cat = 3
+fuel_cat = 1
 
 #======================end of input=======================
 print('Extracting NetCDF data from %s ' %wrfinput)
@@ -71,11 +69,27 @@ fuel = nc_data.variables['NFUEL_CAT'][0,:,:]
 fuel[l2g_mask] = fuel_cat
 fuel[~l2g_mask] = 14
 
+# frac = nc_data.variables['FUEL_FRAC'][0,:,:]
+# frac[l2g_mask] = 1
+# frac[~l2g_mask] = 0
+
+# moist = nc_data.variables['FMC_G'][0,:,:]
+# moist[~l2g_mask] = 1
+
+# nc_data.variables['NFUEL_CAT'][0,:,:] = fuel
+# nc_data.variables['FUEL_FRAC'][0,:,:] = frac
+# nc_data.variables['FMC_G'][0,:,:] = moist
+
+
+np.savetxt(input_fc, fuel.T,delimiter=' ',fmt='%d', header = '%s,%s' %(nc_data.dimensions['west_east_subgrid'],nc_data.dimensions['south_north_subgrid']))
+
+
 bm.contourf(WLONGf, WLATf,fuel)
 plt.colorbar()
 plt.show()
 
-nc_data.variables['NFUEL_CAT'][0,:,:] = fuel
+
+
 nc_data.close()
 
 #convert fireline cooredinate to WRF input
