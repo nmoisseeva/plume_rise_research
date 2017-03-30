@@ -15,8 +15,8 @@ warnings.filterwarnings("ignore")
 wrfinput='/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01'
 input_fc = '/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/input_fc'
 #lower left corner
-#ll_utm = np.array([519500,3377000]) #THIS IS THE PROPER ONE
-ll_utm = np.array([523500,3377000])
+ll_utm = np.array([519500,3377000]) #THIS IS THE PROPER ONE
+# ll_utm = np.array([523500,3377000])
 
 
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'

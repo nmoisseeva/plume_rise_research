@@ -17,7 +17,9 @@ import mpl_toolkits.mplot3d as a3
 from matplotlib import animation
 
 #====================INPUT===================
-wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_L2G_mar3_regrid'
+# wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2_nospinup_regrid'
+wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_regrid'
+
 bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nadya2/data/RxCADRE/instruments/HIP1'
 
@@ -34,7 +36,7 @@ basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm
 print('Extracting NetCDF data from %s ' %wrfdata)
 nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
 
-tstep = (nc_data.variables['XTIME'][1]- nc_data.variables['XTIME'][1]) * 60.  #timestep in sec
+tstep = round((nc_data.variables['XTIME'][1]- nc_data.variables['XTIME'][0]) * 60.)  #timestep in sec
 WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
 
 #convert coordinate systems to something basemaps can read
@@ -77,10 +79,11 @@ Fdist, Fgrid_id = FgridTree.query(zip(hipUTMy, hipUTMx))
 Idist, Igrid_id = FgridTree.query([ign_lcn[1], ign_lcn[0]]) 	#location of ignition line normal
 
 #get necessary variables
+ghfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
 fhfx = np.copy(nc_data.variables['FGRNHFX'][:,:-10,:-10]) 	#extract fire heat flux
 xtime = nc_data.variables['XTIME'][:] * 60 			#get time in seconds (since noon)
 
-#create ignition mask
+#create ignition mask (fire mesh)
 print('..... creating an igntion mask (may take several minutes)')
 ign_mask = np.empty_like(fhfx) * np.nan
 for nt in range(len(xtime)):
@@ -90,15 +93,31 @@ for nt in range(len(xtime)):
 	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
 	ign_mask[nt,:,:] = temp_mask
 
-#calculate average peak heat flux
+print('..... creating an igntion mask on atm grid (may take several minutes)')
+ign_mask_atm = np.empty_like(ghfx) * np.nan
+for nt in range(len(xtime)):
+	print nt
+	current_ign = ghfx[nt,:,:]
+	temp_mask = np.empty_like(current_ign) * np.nan
+	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
+	ign_mask_atm[nt,:,:] = temp_mask
+
+#calculate average peak heat flux on fire grid
 ignFHFX = np.copy(fhfx) 			#convert to kW/m2
 ignFHFX[np.isnan(ign_mask)] = np.nan 	#get ignited cells only
 
 aveFHFX = np.nanmean(ignFHFX,0)/1000. #get ave value in kW/m2
 maxFHFX = np.nanmax(ignFHFX,0)/1000. #get peak value in kW/m2
 
-print('Average average heat flux of the fire: %.2f kW m-2' %np.nanmean(aveFHFX))
-print('Average peak flux of the fire: %.2f kW m-2' %np.nanmean(maxFHFX))
+#calculate average peak heat flux on atmospheric grid
+ignGHFX = np.copy(ghfx) 			#convert to kW/m2
+ignGHFX[np.isnan(ign_mask_atm)] = np.nan 	#get ignited cells only
+
+aveGHFX = np.nanmean(ignGHFX,0)/1000. #get ave value in kW/m2
+maxGHFX = np.nanmax(ignGHFX,0)/1000. #get peak value in kW/m2
+
+print('Average average heat flux of the fire: %.2f kW m-2' %np.nanmean(aveGHFX))
+print('Average peak flux of the fire: %.2f kW m-2' %np.nanmean(maxGHFX))
 
 #calculate values for HIP1
 print('Calculating values for HIP1...')
@@ -114,7 +133,7 @@ for nPt, pt in enumerate(Fgrid_id):
 	#get average values for sensors
 	pt_idx = np.unravel_index(pt,np.shape(FWGSx))
 	print pt_idx
-	hip1_hfx[nPt,:] = ignFHFX[:,pt_idx[0],pt_idx[1]]
+	hip1_hfx[nPt,:] = ignFHFX[:,pt_idx[0],pt_idx[1]]/1000.
 	pt_ave = np.nanmean(hip1_hfx[nPt,:])
 	hip1_ave.append(pt_ave)
 	print('---> Sensor %s: hfx = %s kW/m2, maxhfx = %s kW/m2' %(hip1_tag[nPt],pt_ave,pt_hfxmax))
@@ -127,7 +146,7 @@ ign_idx = np.unravel_index(Igrid_id,np.shape(FWGSx)) 				#get location of normal
 t0 = np.argmax(np.isfinite(ignFHFX[:,ign_idx[0],ign_idx[1]])) 	#get time of igntion of normal
 t = (t_ign - t0) * tstep
 print('.....fireline igntion t0 frame: %s' %t0)
-print('.....ignition time in sec: %s' %t)
+print('.....ignition time in sec: %s' %t_ign)
 
 subTree = KDTree(zip(hipUTMx,hipUTMy))
 rosdist, ros_id = subTree.query((ign_lcn[0], ign_lcn[1]),k=len(hip1_tag)) 	#reorder columnets to lat/lon
@@ -140,7 +159,7 @@ print('.....Avarage rate of spread based on HIP1: %s' %aveROS)
 butler_data = {'aveHFX':{}, 'maxHFX':{}, 'ROS':{}}
 
 butler_data['ROS']['arrival'] = [0.32,0.24,0.25,0.22,0.22,0.10]
-butler_data['ROS']['arrival'] = [0.24,0.31,0.44,0.61]
+butler_data['ROS']['FRP'] = [0.24,0.31,0.44,0.61]
 
 butler_data['maxHFX']['HIP1'] = [36.7,32.3,12.5,30.8,13.6,8.8,0.7]
 butler_data['maxHFX']['L2G'] = [36.7,32.3,12.5,30.8,13.6,8.8,0.7,12.9,26.9,23.5,25.5,22.1,24,13.2,20,30.2,13.1,16.2,29.8,17.7,8.6,]
@@ -163,11 +182,12 @@ plt.figure()
 plt.title('AVERAGE HEAT FLUX')
 box = plt.boxplot([butler_data['aveHFX']['L2G'],\
 					butler_data['aveHFX']['HIP1'],\
-					aveFHFX[np.isfinite(aveFHFX)]], notch=True, patch_artist=True,showmeans=True)
-colors = ['lightblue','lightblue','pink']
+					aveGHFX[np.isfinite(aveGHFX)],\
+					hip1_ave], notch=True, patch_artist=True,showmeans=True)
+colors = ['lightblue','lightblue','pink','pink']
 for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
-plt.xticks([1,2,3],['L2G','HIP1','LES'])
+plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
 plt.show()
 
@@ -175,12 +195,26 @@ plt.figure()
 plt.title('PEAK HEAT FLUX')
 box = plt.boxplot([butler_data['maxHFX']['L2G'],\
 					butler_data['maxHFX']['HIP1'],\
-					aveFHFX[np.isfinite(maxFHFX)]], notch=True, patch_artist=True,showmeans=True)
+					aveGHFX[np.isfinite(maxGHFX)],\
+					hip1_max], notch=True, patch_artist=True,showmeans=True)
+colors = ['lightblue','lightblue','pink','pink']
+for patch, color in zip(box['boxes'], colors):
+    patch.set_facecolor(color)
+plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
+plt.ylabel('heat flux $[kW m^{-2}]$')
+plt.show()
+
+
+plt.figure()
+plt.title('ROS')
+box = plt.boxplot([butler_data['ROS']['arrival'],\
+					butler_data['ROS']['FRP'],\
+					ros], notch=True, patch_artist=True,showmeans=True)
 colors = ['lightblue','lightblue','pink']
 for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
-plt.xticks([1,2,3],['L2G','HIP1','LES'])
-plt.ylabel('heat flux $[kW m^{-2}]$')
+plt.xticks([1,2,3,4],['L2G','HIP1','LES'])
+plt.ylabel('ROS $[m s^{-1}]$')
 plt.show()
 
 # #plot mean ROS for the fire

@@ -31,11 +31,11 @@
  time_step_fract_den                 = 10,
  max_dom                             = 1,
  s_we                                = 1,
- !e_we                                = 200,
-  e_we                                = 100,  
-  
+ e_we                                = 200,
+ !e_we                                = 100,  
  s_sn                                = 1,   
- e_sn                                = 70,
+ e_sn                                = 270,
+ !e_sn                                = 70,
  s_vert                              = 1,    
  e_vert                              = 51,   
  dx                                  = 40,   
@@ -124,7 +124,7 @@
  &fire 
 ! be sure to set sr_x,sr_y in domains-namelist (to set refinement in x,y)
  ifire              = 2,    ! integer, = 0: no fire, 2=turn on fire model
- fire_fuel_read     = 2,    ! integer, -1: from WPS, 0= use fire_fuel_cat, 1= by altitude
+ fire_fuel_read     = 2,    ! integer, -1: from WPS, 0= use fire_fuel_cat, 1= by altitude, 2=from input_fc
  fire_fuel_cat      = 1,    ! integer, if specified which fuel category?
 
 ! ignition 

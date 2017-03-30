@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore")
 
 datadir ='/Users/nadya2/data/plume/RxCADRE'
 savedir ='/regrid'
-wrffile = 'wrfout_L2G_mar3'
+wrffile = 'wrfout_L2G_cat1'
 # ll_utm = np.array([518800,3377000])
 ll_utm = np.array([523500,3377000])
 
