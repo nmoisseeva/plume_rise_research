@@ -1,9 +1,9 @@
 #!/bin/bash
 
 local=$pwd
-filename="wrfout_L2G_cat1"
+filename="wrfout_L2G_cat3_new"
 
-cd ~/Applications/WRF-SFIRE/wrf-fire/wrfv2_fire/test/em_fire/rxcadre
+cd ~/wrf/wrf-fire/wrfv2_fire/test/em_fire/rxcadre
 
 echo ".....copying wrf output to data folder"
 cp wrfout_d01_* ~/data/plume/RxCADRE/$filename

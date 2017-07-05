@@ -12,21 +12,21 @@ import os
 warnings.filterwarnings("ignore")
 
 # wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
-wrfinput='/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01'
-input_fc = '/Users/nadya2/Applications/WRF-SFIRE/wrf-fire/WRFV3/test/em_fire/rxcadre/input_fc'
+wrfinput='/Users/nmoisseeva/wrf/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01'
+input_fc = '/Users/nmoisseeva/wrf/wrf-fire/WRFV3/test/em_fire/rxcadre/input_fc'
 #lower left corner
 ll_utm = np.array([519500,3377000]) #THIS IS THE PROPER ONE
 # ll_utm = np.array([523500,3377000])
 
 
-bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
+bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 
 #four lines (strip headfire method) walking ignition
 fire_dict_utm = {'fireline1':{'start':np.array([525828,3379011]), 'end':np.array([524551,3378179])},\
 				'fireline2':{'start':np.array([525729,3379075]), 'end':np.array([524487,3378275])},\
 				'fireline3':{'start':np.array([525612,3379181]), 'end':np.array([524409,3378388])},\
 				'fireline4':{'start':np.array([525538,3379244]), 'end':np.array([524331,3378480])} }
-fuel_cat = 1
+fuel_cat = 3
 
 #======================end of input=======================
 print('Extracting NetCDF data from %s ' %wrfinput)
@@ -56,16 +56,19 @@ bm = basemap.Basemap(llcrnrlon=WLONG[0,0], llcrnrlat=WLAT[0,0],\
 #pull landsat image and save for future use (fabour)
 landsat_pull_cmnd = "bash getWMSImage.sh -o ./npy/landsat_%s_%s_%s_%s.tiff -m landsat %s %s %s %s" \
 				%(WLONG[0,0],WLAT[0,0],WLONG[-1,-1],WLAT[-1,-1],WLONG[0,0],WLAT[0,0],WLONG[-1,-1],WLAT[-1,-1])
-os.system(landsat_pull_cmnd)
+#os.system(landsat_pull_cmnd)
 
 #add plot shapefile
 polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
 
 print('..... replacing fuel data')
 l2g = path.Path(bm.fire_bounds[5])
+print('.......-select points')
 l2g_mask = l2g.contains_points(zip(WGSfx,WGSfy))
 l2g_mask = np.reshape(l2g_mask, np.shape(UTMfx))
-fuel = nc_data.variables['NFUEL_CAT'][0,:,:]
+
+print('.......-copying fuel data')
+fuel = nc_data.variables['NFUEL_CAT'][0,:,:]   
 fuel[l2g_mask] = fuel_cat
 fuel[~l2g_mask] = 14
 
@@ -98,4 +101,3 @@ for key in fire_dict_utm:
 	fstart = fire_dict_utm[key]['start'][:] - ll_utm[:]
 	fend = fire_dict_utm[key]['end'][:] - ll_utm[:]
 	print'     ..... %s: start (%sm, %sm) - end (%sm, %sm)' %(key, fstart[0],fstart[1],fend[0],fend[1])
-

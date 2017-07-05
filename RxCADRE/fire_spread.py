@@ -18,19 +18,19 @@ from matplotlib import animation
 
 #====================INPUT===================
 # wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2_nospinup_regrid'
-wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat3_new_regrid'
 
-bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
-instruments_shape = '/Users/nadya2/data/RxCADRE/instruments/HIP1'
+bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
+instruments_shape = '/Users/nmoisseeva/data/RxCADRE/instruments/HIP1'
 
 # burn_lmt = [(-86.73051,30.54315),(-86.73398,30.54584),(-86.74677,30.53858),(-86.74422,30.53546)]
 
 ign_lcn = (524600,3378360)
 
 # ll_utm = np.array([518800,3377000])		#lower left corner of the domain in utm
-ll_utm = np.array([523500,3377000])
+ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
 
-basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
+basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 #=================end of input===============
 
 print('Extracting NetCDF data from %s ' %wrfdata)

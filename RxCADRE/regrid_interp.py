@@ -11,11 +11,13 @@ import warnings
 import os
 warnings.filterwarnings("ignore")
 
-datadir ='/Users/nadya2/data/plume/RxCADRE'
+datadir ='/Users/nmoisseeva/data/plume/RxCADRE'
 savedir ='/regrid'
-wrffile = 'wrfout_L2G_cat1'
+wrffile = 'wrfout_L2G_cat3_new'
 # ll_utm = np.array([518800,3377000])
-ll_utm = np.array([523500,3377000])
+ll_utm = np.array([519500,3377000])
+
+# ll_utm = np.array([523500,3377000])
 
 
 #======================end of input=======================
