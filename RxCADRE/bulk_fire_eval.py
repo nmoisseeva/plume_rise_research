@@ -50,76 +50,59 @@ mosaic_stamps = np.genfromtxt(mosaic_data, skip_header=1, delimiter=',',dtype=st
 num_im = np.shape(mosaic_stamps)[0]
 
 t_idx = []
+gdal.UseExceptions()
+
 for nIm in range(num_im):
+	#get closest time snapshot
 	tend = mosaic_stamps[nIm,2]
 	tend_sec = (int(tend[3:5]) - 27)*60 + int(tend[6:8])
 	ti = np.argmin(abs(tsec - tend_sec))
 	t_idx.append(ti)
+ 
+	#get model heat flux
 	hxsnap = ghfx[ti,:,:]
-	hxsnap[hxsnap==0] = np.nan
-	plt.contourf(hxsnap)
-	plt.show()
-	print np.nanmean(hxsnap.ravel())
+	hxsnap[hxsnap<1000] = np.nan
 
-gdal.UseExceptions()
-for nIm in range(num_im):
-	#load tiff mosaic files starting from the last snapshot
+	# plt.contourf(hxsnap)
+	# plt.show()
+	# plt.hist(hxsnap[np.isfinite(hxsnap)], bins=20)
+	# plt.show()
+
+	#load tiff mosaic files
 	trange = mosaic_stamps[nIm,0]
-	intif = lwir_data + 'L2G_Wm2_mosaic_' + trange + '.tif'
+	print('Current mosaic: %s' %trange)
+
+
 	outtif = lwir_data + 'NMcrop_' + trange + '.tif'
 	if not os.path.isfile(outtif):
+		intif = lwir_data + 'L2G_Wm2_mosaic_' + trange + '.tif'
 		warp_cmd = 'gdalwarp -cutline ' +  bounds_shape + ' -crop_to_cutline -dstalpha ' +  intif + ' ' + outtif
 		os.system(warp_cmd)
 	lwir = gdal.Open(outtif)
 	band = lwir.GetRasterBand(1)
 	tiffdata = np.array(band.ReadAsArray(),dtype = float)
 	tiffdata[tiffdata==65535] = np.nan
-	tiffdata[tiffdata<600] = np.nan
-	plt.imshow(tiffdata)
-	plt.colorbar()
-	plt.show()
-	print np.nanmean(tiffdata.ravel())
+	tiffdata[tiffdata<1000] = np.nan
+	# plt.imshow(tiffdata)
+	# plt.colorbar()
+	# plt.show()
+
+	#get resolution of LIWR and model 
+	geotransform = lwir.GetGeoTransform()					
+	pixTif = abs(geotransform[1]) * abs(geotransform[5])
+	pixMod = nc_data.DX * nc_data.DY
 
 
+	#get mean fluxes
+	aveHfxTif, aveHfxMod = np.nanmean(tiffdata.ravel()), np.nanmean(hxsnap.ravel())
 
+	#get total fire output
+	flat_lwir_vals = tiffdata[~np.isnan(tiffdata)] * pixTif
+	flat_mod_vals = hxsnap[~np.isnan(hxsnap)] * pixMod
+	areaTif = pixTif * len(flat_lwir_vals) / 1000000.
+	areaMod = pixMod * len(flat_mod_vals)/ 1000000.
+	totHeatTif, totHeatMod = np.sum(flat_lwir_vals)/1000000., np.sum(flat_mod_vals)/1000000.
 
-# gdal.UseExceptions()
-# for nIm in range(num_im):
-# 	#load tiff mosaic files starting from the last snapshot
-# 	trange = mosaic_stamps[nIm,0]
-# 	geotiff = lwir_data + 'L2G_Wm2_mosaic_' + trange + '.tif'
-# 	lwir = gdal.Open(geotiff)
-# 	band = lwir.GetRasterBand(1)
-# 	tiffdata = band.ReadAsArray()
-
-# 	#create lat/lon grids
-# 	gt = lwir.GetGeoTransform()							#get raster data			
-# 	nPy, nPx = np.shape(tiffdata)						#get size of data
-# 	lat_grid = np.zeros((nPx,nPy))						#create storage arrays
-# 	lon_grid = np.zeros((nPx,nPy))
-# 	for nY in range(nPy):
-# 		for nX in range(nPx):
-# 			lat_grid[nX,nY] = gt[3] + nX*gt[4] + nY*gt[5]
-# 			lon_grid[nX,nY] = gt[0] + nX*gt[1] + nY*gt[2]
-
-# 	min_lat_idx = np.argmin(np.abs(lat_grid[0,:]-lat[0])) 
-# 	max_lat_idx = np.argmin(np.abs(lat_grid[0,:]-lat[1]))
-# 	min_lon_idx = np.argmin(np.abs(lon_grid[:,0]-lon[0]))
-# 	max_lon_idx = np.argmin(np.abs(lon_grid[:,0]-lon[1]))
-
-# 	bounds = (lon_grid[min_lon_idx,0],lon_grid[max_lon_idx,0], lat_grid[0,min_lat_idx],lat_grid[0,max_lat_idx])
-
-# 	if any((min_lat_idx,max_lat_idx)) == any((0,nPy)):
-# 		print("WARNING: requestested latitude range extends to the edge (or beyond) the available geoTIFF domain")
-# 	if any((min_lat_idx,max_lat_idx)) == any((0,nPx)):
-# 		print("WARNING: requestested longitude range extends to the edge (or beyond) the available geoTIFF domain")
-
-# 	minY, maxY = min(max_lat_idx,min_lat_idx), max(max_lat_idx,min_lat_idx)
-# 	minX, maxX = min(max_lon_idx,min_lon_idx), max(max_lon_idx,min_lon_idx)
-# 	lat_grid = lat_grid[minX:maxX, minY:maxY]
-# 	lon_grid = lon_grid[minX:maxX, minY:maxY]
-# 	tiffdata = tiffdata[minY:maxY, minX:maxX]
-
-# 	tiffdata  = tiffdata.T
-
-
+	print('.....Avearage heat flux real vs model fire: %.2f vs. %.2f (W/m2)' %(aveHfxTif, aveHfxMod))
+	print('.....Total heat output of real vs model fire: %.2f vs. %.2f (MW)' %( totHeatTif,totHeatMod))
+	print('.....Total fire area of real vs model fire: %.2f vs. %.2f (km2)' %( areaTif,areaMod))
