@@ -18,6 +18,7 @@ bounds_shape = '/Users/nmoisseeva/data/qgis/active_burn_perim.shp'
 lwir_data = '/Users/nmoisseeva/data/RxCADRE/LWIR/RDS-2016-0008/Data/2012_L2G/'
 mosaic_data = '/Users/nmoisseeva/data/RxCADRE/LWIR/MosaicTimes_NM.csv'
 
+sr_xy = 10								#fire grid downscale
 
 ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
 
@@ -29,8 +30,9 @@ print('Extracting NetCDF data from %s ' %wrfdata)
 nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
 
 WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
-ghfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
+ghfx = np.copy(nc_data.variables['FGRNHFX'][:,:,:]) 	#extract fire heat flux
 tsec = nc_data.variables['XTIME'][:] * 60 		#get time in seconds since run start
+ros = np.copy(nc_data.variables['ROS'][:,:,:])
 
 
 #open/generate basemap
@@ -61,7 +63,7 @@ for nIm in range(num_im):
  
 	#get model heat flux
 	hxsnap = ghfx[ti,:,:]
-	hxsnap[hxsnap<1000] = np.nan
+	hxsnap[hxsnap<5000] = np.nan
 
 	# plt.contourf(hxsnap)
 	# plt.show()
@@ -82,7 +84,7 @@ for nIm in range(num_im):
 	band = lwir.GetRasterBand(1)
 	tiffdata = np.array(band.ReadAsArray(),dtype = float)
 	tiffdata[tiffdata==65535] = np.nan
-	tiffdata[tiffdata<1000] = np.nan
+	tiffdata[tiffdata<5000] = np.nan
 	# plt.imshow(tiffdata)
 	# plt.colorbar()
 	# plt.show()
@@ -90,19 +92,24 @@ for nIm in range(num_im):
 	#get resolution of LIWR and model 
 	geotransform = lwir.GetGeoTransform()					
 	pixTif = abs(geotransform[1]) * abs(geotransform[5])
-	pixMod = nc_data.DX * nc_data.DY
-
+	pixMod = nc_data.DX * nc_data.DY / (sr_xy**2)
 
 	#get mean fluxes
 	aveHfxTif, aveHfxMod = np.nanmean(tiffdata.ravel()), np.nanmean(hxsnap.ravel())
 
+	#get ros values and averages
+	rossnap = ros[ti,:,:]
+	rossnap[np.isnan(hxsnap)] = np.nan
+	aveRosMod = np.nanmean(rossnap.ravel())
+	print('.....Average model ROS: %.2f (m/s2)' %aveRosMod)
+
 	#get total fire output
 	flat_lwir_vals = tiffdata[~np.isnan(tiffdata)] * pixTif
 	flat_mod_vals = hxsnap[~np.isnan(hxsnap)] * pixMod
-	areaTif = pixTif * len(flat_lwir_vals) / 1000000.
-	areaMod = pixMod * len(flat_mod_vals)/ 1000000.
+	areaTif = pixTif * len(flat_lwir_vals)
+	areaMod = pixMod * len(flat_mod_vals)
 	totHeatTif, totHeatMod = np.sum(flat_lwir_vals)/1000000., np.sum(flat_mod_vals)/1000000.
 
 	print('.....Avearage heat flux real vs model fire: %.2f vs. %.2f (W/m2)' %(aveHfxTif, aveHfxMod))
 	print('.....Total heat output of real vs model fire: %.2f vs. %.2f (MW)' %( totHeatTif,totHeatMod))
-	print('.....Total fire area of real vs model fire: %.2f vs. %.2f (km2)' %( areaTif,areaMod))
+	print('.....Total fire area of real vs model fire: %.2f vs. %.2f (ha)' %( areaTif*1e-4,areaMod*1e-4))

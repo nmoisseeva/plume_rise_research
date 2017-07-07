@@ -26,7 +26,7 @@ fire_dict_utm = {'fireline1':{'start':np.array([525828,3379011]), 'end':np.array
 				'fireline2':{'start':np.array([525729,3379075]), 'end':np.array([524487,3378275])},\
 				'fireline3':{'start':np.array([525612,3379181]), 'end':np.array([524409,3378388])},\
 				'fireline4':{'start':np.array([525538,3379244]), 'end':np.array([524331,3378480])} }
-fuel_cat = 3
+fuel_cat = 1
 
 #======================end of input=======================
 print('Extracting NetCDF data from %s ' %wrfinput)

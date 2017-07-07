@@ -20,7 +20,7 @@ from matplotlib import animation
 # wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2_nospinup_regrid'
 wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat3_new_regrid'
 
-bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
+bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS2'
 instruments_shape = '/Users/nmoisseeva/data/RxCADRE/instruments/HIP1'
 
 # burn_lmt = [(-86.73051,30.54315),(-86.73398,30.54584),(-86.74677,30.53858),(-86.74422,30.53546)]
@@ -42,6 +42,7 @@ WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:
 #convert coordinate systems to something basemaps can read
 wgs84=pyproj.Proj("+init=EPSG:4326")
 epsg26916=pyproj.Proj("+init=EPSG:26916")
+
 
 FWGSx, FWGSy = zoom(WLONG,10),zoom(WLAT,10)
 FUTMx, FUTMy = pyproj.transform(wgs84,epsg26916,FWGSx.ravel(),FWGSy.ravel())
@@ -73,6 +74,7 @@ plt.show()
 #convert hip1 locations to UTM
 hipUTMx, hipUTMy = pyproj.transform(wgs84,epsg26916, hip1_lcn[:,0],hip1_lcn[:,1])
 
+print('Create a KDtree of fire')
 grid_coord_fire = zip(FUTMy,FUTMx)
 FgridTree = KDTree(grid_coord_fire)
 Fdist, Fgrid_id = FgridTree.query(zip(hipUTMy, hipUTMx)) 	

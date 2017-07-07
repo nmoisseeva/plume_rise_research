@@ -96,7 +96,7 @@
  moist_adv_opt                       = 1,   
  scalar_adv_opt                      = 1,  
  w_damping                           = 0,
- tke_heat_flux						 = 0.3,
+ tke_heat_flux						 = 0.5, !H/(rho*Cp) where H = Sensible heat flux , rho is air density (~ 1.2), and Cp (~ 1005)
  /
 
  &bdy_control
