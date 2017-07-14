@@ -18,9 +18,9 @@ from matplotlib import animation
 
 #====================INPUT===================
 # wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2_nospinup_regrid'
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat3_new_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_regrid'
 
-bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS2'
+bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nmoisseeva/data/RxCADRE/instruments/HIP1'
 
 # burn_lmt = [(-86.73051,30.54315),(-86.73398,30.54584),(-86.74677,30.53858),(-86.74422,30.53546)]
@@ -93,6 +93,8 @@ for nt in range(len(xtime)):
 	current_ign = fhfx[nt,:,:]
 	temp_mask = np.empty_like(current_ign) * np.nan
 	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
+	# temp_mask[current_ign>0] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
+
 	ign_mask[nt,:,:] = temp_mask
 
 print('..... creating an igntion mask on atm grid (may take several minutes)')
@@ -102,6 +104,8 @@ for nt in range(len(xtime)):
 	current_ign = ghfx[nt,:,:]
 	temp_mask = np.empty_like(current_ign) * np.nan
 	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
+	# temp_mask[current_ign>0] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
+
 	ign_mask_atm[nt,:,:] = temp_mask
 
 #calculate average peak heat flux on fire grid

@@ -20,15 +20,15 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2_regrid'
-fig_dir = '/Users/nadya2/code/plume/figs/RxCADRE/'
-bounds_shape = '/Users/nadya2/data/qgis/LG2012_WGS'
-disp_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
-emis_data = '/Users/nadya2/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
-interp_path = '/Users/nadya2/code/plume/RxCADRE/npy/qv_LG2_interp.npy'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_regrid'
+fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
+bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
+disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
+emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
+interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_LG2_cat1_interp.npy'
 
-ll_utm = np.array([518800,3377000]) 	#lower left corner of the domain in utm
-basemap_path = '/Users/nadya2/code/plume/RxCADRE/npy/%s_%s_bm.npy' %(ll_utm[0],ll_utm[1])
+ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
+basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 
 lvl = np.arange(0,1500,20) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)

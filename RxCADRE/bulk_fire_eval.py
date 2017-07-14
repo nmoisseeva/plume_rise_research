@@ -12,7 +12,7 @@ import gdal
 
 
 #====================INPUT===================
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat3_new_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_regrid'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nmoisseeva/data/qgis/active_burn_perim.shp'
 lwir_data = '/Users/nmoisseeva/data/RxCADRE/LWIR/RDS-2016-0008/Data/2012_L2G/'
@@ -30,7 +30,7 @@ print('Extracting NetCDF data from %s ' %wrfdata)
 nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
 
 WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
-ghfx = np.copy(nc_data.variables['FGRNHFX'][:,:,:]) 	#extract fire heat flux
+ghfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
 tsec = nc_data.variables['XTIME'][:] * 60 		#get time in seconds since run start
 ros = np.copy(nc_data.variables['ROS'][:,:,:])
 
@@ -92,16 +92,29 @@ for nIm in range(num_im):
 	#get resolution of LIWR and model 
 	geotransform = lwir.GetGeoTransform()					
 	pixTif = abs(geotransform[1]) * abs(geotransform[5])
-	pixMod = nc_data.DX * nc_data.DY / (sr_xy**2)
+	# pixMod = nc_data.DX * nc_data.DY / (sr_xy**2)
+	pixMod = nc_data.DX * nc_data.DY
 
+
+	#UPSCALING!!!!! TESTING 
+	x = np.copy(tiffdata[:-3,:])
+	plt.contourf(x)
+	plt.show()
+	x.shape = (94,4,128,4)
+	y = np.nanmean(x, axis=3)
+	y = np.nanmean(y, axis=1)	
+	plt.contourf(y)
+	plt.show()
+
+	
 	#get mean fluxes
 	aveHfxTif, aveHfxMod = np.nanmean(tiffdata.ravel()), np.nanmean(hxsnap.ravel())
 
-	#get ros values and averages
-	rossnap = ros[ti,:,:]
-	rossnap[np.isnan(hxsnap)] = np.nan
-	aveRosMod = np.nanmean(rossnap.ravel())
-	print('.....Average model ROS: %.2f (m/s2)' %aveRosMod)
+	# # get ros values and averages
+	# rossnap = ros[ti,:,:]
+	# rossnap[np.isnan(hxsnap)] = np.nan
+	# aveRosMod = np.nanmean(rossnap.ravel())
+	# print('.....Average model ROS: %.2f (m/s2)' %aveRosMod)
 
 	#get total fire output
 	flat_lwir_vals = tiffdata[~np.isnan(tiffdata)] * pixTif
