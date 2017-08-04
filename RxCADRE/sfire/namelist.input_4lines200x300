@@ -169,10 +169,10 @@ fire_ignition_end_x4 = 4831.,
  fire_ignition_end_y4 = 1480.,   
 
 ! all within this radius will ignite, > fire mesh step
- fire_ignition_radius1 =    10,     
- fire_ignition_radius2 =    10,     
- fire_ignition_radius3 =    10,    
- fire_ignition_radius4 =    10,   
+ fire_ignition_radius1 =    5,     
+ fire_ignition_radius2 =    5,     
+ fire_ignition_radius3 =    5,    
+ fire_ignition_radius4 =    5,   
 
  fire_ignition_start_time1 = 13.,    ! sec for ignition from the start
  fire_ignition_start_time2 = 13.,    ! sec for ignition from the start

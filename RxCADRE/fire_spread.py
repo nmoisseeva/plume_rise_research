@@ -83,6 +83,7 @@ Idist, Igrid_id = FgridTree.query([ign_lcn[1], ign_lcn[0]]) 	#location of igniti
 #get necessary variables
 ghfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
 fhfx = np.copy(nc_data.variables['FGRNHFX'][:,:-10,:-10]) 	#extract fire heat flux
+fuelfrac = np.copy(nc_data.variables['AVG_FUEL_FRAC'][:,:,:])
 xtime = nc_data.variables['XTIME'][:] * 60 			#get time in seconds (since noon)
 
 #create ignition mask (fire mesh)
@@ -101,11 +102,12 @@ print('..... creating an igntion mask on atm grid (may take several minutes)')
 ign_mask_atm = np.empty_like(ghfx) * np.nan
 for nt in range(len(xtime)):
 	print nt
+	frac = fuelfrac[nt,:,:]
 	current_ign = ghfx[nt,:,:]
 	temp_mask = np.empty_like(current_ign) * np.nan
 	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
 	# temp_mask[current_ign>0] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
-
+	# temp_mask[(frac<1) & (frac>0)] = 1 
 	ign_mask_atm[nt,:,:] = temp_mask
 
 #calculate average peak heat flux on fire grid
@@ -231,7 +233,7 @@ plt.show()
 # plt.show()
 
 # #plot peak heat flux
-# plt.figure()
+# plt.figure()`
 # im = plt.contourf(hfxnanmax[0:100,100:]) 
 # plt.title('PEAK HFX DURING FIRE')
 # plt.colorbar()			

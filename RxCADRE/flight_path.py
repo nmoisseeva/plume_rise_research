@@ -26,6 +26,7 @@ bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
 interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_LG2_cat1_interp.npy'
+pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
 basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
@@ -33,8 +34,8 @@ basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll
 lvl = np.arange(0,1500,20) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)
 sfc_hgt = 62 							#surface height MSL (m)
-runstart = '12:00:00' 					#start time (if restart run time of inital simulation)
-runend = '12:00:00'
+runstart = '12:27:00' 					#start time (if restart run time of inital simulation)
+runend = '13:00:00'
 #=================end of input===============
 
 
@@ -77,7 +78,7 @@ else:
 
 #extract model time info
 # runstart = nc_data.START_DATE[-8:]
-tsec = nc_data.variables['XTIME'][:] * 60 		#get time in seconds since run start
+tsec = nc_data.variables['XTIME'][:] * 60. 		#get time in seconds since run start
 model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
 
 #==========================VERTICAL INTERPOLATION============================
@@ -124,6 +125,9 @@ disp_dict['meta']= 'time: seconds since model start run | \
 					lcn: (lat, lon, elevation) - coords in WGS84, elevation AGL'
 
 
+#load pre-burn moisture profile
+pre_burn_qv = np.genfromtxt(pre_moisture, skip_header=1, delimiter=',')
+
 #get indecies of samples corresponding to model output times
 tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec] #times since start
 dt = disp_dict['time'][1] - disp_dict['time'][0] 	
@@ -158,8 +162,6 @@ emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation 
 					smoke: plume start and end in sec from simulation start | \
 					lcn: (lat, lon, elevation) - coords in WGS84, elevation MSL'
 
-
-
 #================================PLOTTING==================================
 # #plot of CO2 slices
 # plt.figure()
@@ -174,17 +176,17 @@ emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation 
 # plt.show()
 
 
-# #plot of H2O slices
-# plt.figure()
-# plt.title('H2O anomalies')
-# plt.scatter(disp_dict['time'],disp_dict['H2O'])
-# ax = plt.gca()
-# for nSlice in range(len(emis_dict['smoke'])):
-# 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
-# 	ax.fill_between(shade, 0,1.5, facecolor='gray', alpha=0.1, edgecolor='w')
-# plt.ylim([0,1.5])
+#plot of H2O slices
+plt.figure()
+plt.title('H2O')
+plt.scatter(disp_dict['time'],disp_dict['H2O'])
+ax = plt.gca()
+for nSlice in range(len(emis_dict['smoke'])):
+	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
+	ax.fill_between(shade, 0,1.5, facecolor='gray', alpha=0.1, edgecolor='w')
+plt.ylim([0,1.5])
 # plt.xlim([tsec[0],tsec[-1]])
-# plt.show()
+plt.show()
 
 #plot of model H20 slices overlayed with real emissions
 plt.title('SIMULATED $Q_v$ ANOMALY ALONG FLIGHT PATH')
@@ -195,7 +197,7 @@ for nSlice in range(len(emis_dict['smoke'])):
 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
 	ax.fill_between(shade, 0,20, facecolor='gray', alpha=0.3, edgecolor='w')
 plt.ylim([0,20])
-plt.xlim([2000,tsec[-1]])
+plt.xlim([0,tsec[-1]])
 plt.xlabel('time [s]')
 plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
@@ -233,26 +235,44 @@ def update_point(n, disp_dict,smoky,point):
     return point, time_text,
 
 #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-ani=animation.FuncAnimation(fig, update_point, 1500, fargs=(disp_dict,smoky,point), interval=1)
+ani=animation.FuncAnimation(fig, update_point, 80, fargs=(disp_dict,smoky,point), interval=15)
 # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
 plt.show()
 
 
 #================================VIRTICAL PROFILE==================================
+
+s = np.argmax(disp_dict['lcn'][:,2]) 	#corkscrew starts at max height - get the time of max height
+f = s + 250 							#corkscrew lasts ~500sec (250x 2 sec timesteps)
+cleanf = np.argmin(disp_dict['lcn'][:,2]) 	#end of initial vertical profile (beginning of flight) - used as bg
+bg_h2o = h2o[:cleanf]
+bg_h = h[:cleanf]
+
 #define start and end of the corkscrew in sec from beginning of simulation
-csStart = 3600
-csEnd = 4600
 plt.title('$CO_2$ PROFILE FROM CORKSCREW')
-s = np.argmin(abs(disp_dict['time']-csStart))
-f = np.argmin(abs(disp_dict['time']-csEnd))
-plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],color='black' )
+plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],color='lack' )
 plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],'b--' )
-plt.ylim([0,2000])
+plt.ylim([0,1700])
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylabel('height [m]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'CO2ProfileCorkscrew.pdf')
+plt.savefig(fig_dir + 'CO2ProfileCorkscrew.pdf')s
 plt.show()
+
+
+#H2O profiles from corkscrew and earlier
+plt.title('$H_2O$ PROFILES')
+plt.plot(pre_burn_qv[:,1],pre_burn_qv[:,0],':', label='pre-burn $H_2O$ profile from sounding')
+plt.plot(bg_h2o, bg_h,'g--',label='background $H_2O$ profile from flight ')
+plt.plot(disp_dict['H2O'][s:f],disp_dict['lcn'][s:f,2],'r-.',label='in-plume $H_2O$ profile from flight' )
+plt.ylim([0,1700])
+plt.xlabel('$H2_O$ mixing ratio [%]')
+plt.ylabel('height [m]')
+plt.tight_layout()
+plt.legend(loc='lower left')
+plt.savefig(fig_dir + 'H2OProfiles.pdf')
+plt.show()
+
 
 #vertical column evoluation
 column_evol = np.nansum(np.nansum(qinterp,2),2)
@@ -263,6 +283,8 @@ cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
 ax = plt.gca()
 ax.set_yticks(np.arange(0,numLvl,5))
 ax.set_yticklabels(lvl[::5])
+ax.set_xticks(np.arange(0,len(tsec),30))
+ax.set_xticklabels((tsec[::30]/60.).astype(int))
 plt.xlabel('time [min]')
 plt.ylabel('height [m]')
 plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
@@ -286,48 +308,48 @@ plt.savefig(fig_dir + 'AvePlume_Tend.pdf')
 plt.show()
 
 
-#=============================ANIMATION OF CW ave plume==================================
+# #=============================ANIMATION OF CW ave plume==================================
 
-print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
-qrot = rotate(qinterp, 130, axes=(2, 3), reshape=True, mode='constant', cval=np.nan)
-qrot[qrot<1e-30] = np.nan
-print('WARNING: Slow routine: creating cross-wind averages')
-cw_ave = np.nanmean(qrot,3)*1000000 #converting to mg
+# print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
+# qrot = rotate(qinterp, 130, axes=(2, 3), reshape=True, mode='constant', cval=np.nan)
+# qrot[qrot<1e-30] = np.nan
+# print('WARNING: Slow routine: creating cross-wind averages')
+# cw_ave = np.nanmean(qrot,3)*1000000 #converting to mg
 
-fig = plt.figure()
-ax = plt.gca()
-# create initial frame
-# point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
-cntr = plt.contourf(cw_ave[0,:,100:300],cmap=plt.cm.PuBu,levels=np.arange(0,20,1))
-cbar = plt.colorbar()
-cbar.set_label('average $H_{2}O$ mixing ratio anomaly [mg/kg]')
-plt.xlabel('grid #')
-plt.ylabel('height [m]')
-ax.set_yticks(np.arange(0,numLvl,5))
-ax.set_yticklabels(lvl[::5])
-plt.title('EVOLUTION OF CROSS-WIND AVERAGE $Q_v$ ANOMALY')
+# fig = plt.figure()
+# ax = plt.gca()
+# # create initial frame
+# # point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
+# cntr = plt.contourf(cw_ave[0,:,100:300],cmap=plt.cm.PuBu,levels=np.arange(0,20,1))
+# cbar = plt.colorbar()
+# cbar.set_label('average $H_{2}O$ mixing ratio anomaly [mg/kg]')
+# plt.xlabel('grid #')
+# plt.ylabel('height [m]')
+# ax.set_yticks(np.arange(0,numLvl,5))
+# ax.set_yticklabels(lvl[::5])
+# plt.title('EVOLUTION OF CROSS-WIND AVERAGE $Q_v$ ANOMALY')
 
-# plt.clim([0,2])
+# # plt.clim([0,2])
 
-# line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
-# ax.legend()
-# ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
-# ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
-# ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
-# ax.colorbar()
-# time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
+# # line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
+# # ax.legend()
+# # ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
+# # ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
+# # ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
+# # ax.colorbar()
+# # time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
 
-# move the point position at every frame
-def update_plot(n, cw_ave,cntr):
-    cntr = plt.contourf(cw_ave[n,:,100:300],cmap=plt.cm.PuBu,levels=np.arange(0,20,1))
-    # time_text.set_text('Time (sec) = %s' %(n*dt))
-    return cntr, 
+# # move the point position at every frame
+# def update_plot(n, cw_ave,cntr):
+#     cntr = plt.contourf(cw_ave[n,:,100:300],cmap=plt.cm.PuBu,levels=np.arange(0,20,1))
+#     # time_text.set_text('Time (sec) = %s' %(n*dt))
+#     return cntr, 
 
-#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-ani=animation.FuncAnimation(fig, update_plot, 1500, fargs=(cw_ave,cntr), interval=1)
-# ani.save('./test_ani.gif', writer='imagemagick',fps=120)
-plt.show()
+# #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+# ani=animation.FuncAnimation(fig, update_plot, 1500, fargs=(cw_ave,cntr), interval=1)
+# # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
+# plt.show()
 
 
 
-#NEED TO ADD COLORBAR AND CONSTANT LIMITS
+# #NEED TO ADD COLORBAR AND CONSTANT LIMITS

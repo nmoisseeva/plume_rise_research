@@ -32,7 +32,7 @@ nc_data = netcdf.netcdf_file(wrfdata, mode ='r')
 WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
 ghfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
 tsec = nc_data.variables['XTIME'][:] * 60 		#get time in seconds since run start
-ros = np.copy(nc_data.variables['ROS'][:,:,:])
+# ros = np.copy(nc_data.variables['ROS'][:,:,:])
 
 
 #open/generate basemap
@@ -65,10 +65,10 @@ for nIm in range(num_im):
 	hxsnap = ghfx[ti,:,:]
 	hxsnap[hxsnap<5000] = np.nan
 
-	# plt.contourf(hxsnap)
-	# plt.show()
-	# plt.hist(hxsnap[np.isfinite(hxsnap)], bins=20)
-	# plt.show()
+	plt.contourf(hxsnap)
+	plt.show()
+	plt.hist(hxsnap[np.isfinite(hxsnap)], bins=20)
+	plt.show()
 
 	#load tiff mosaic files
 	trange = mosaic_stamps[nIm,0]
@@ -94,21 +94,27 @@ for nIm in range(num_im):
 	pixTif = abs(geotransform[1]) * abs(geotransform[5])
 	# pixMod = nc_data.DX * nc_data.DY / (sr_xy**2)
 	pixMod = nc_data.DX * nc_data.DY
+	# pixTif = abs(geotransform[1]) * abs(geotransform[5]) * 36
 
 
-	#UPSCALING!!!!! TESTING 
-	x = np.copy(tiffdata[:-3,:])
-	plt.contourf(x)
-	plt.show()
-	x.shape = (94,4,128,4)
-	y = np.nanmean(x, axis=3)
-	y = np.nanmean(y, axis=1)	
-	plt.contourf(y)
-	plt.show()
 
-	
+	# #UPSCALING!!!!! TESTING 
+	# x = np.copy(tiffdata[:-1,:-2])
+	# plt.contourf(x)
+	# plt.show()
+	# x.shape = (63,6,85,6)
+	# y = np.nanmean(x, axis=3)
+	# y = np.nanmean(y, axis=1)	
+	# plt.contourf(y)
+	# plt.show()
+
+
 	#get mean fluxes
 	aveHfxTif, aveHfxMod = np.nanmean(tiffdata.ravel()), np.nanmean(hxsnap.ravel())
+	# aveHfxTif, aveHfxMod = np.nanmean(y.ravel()), np.nanmean(hxsnap.ravel())
+
+
+
 
 	# # get ros values and averages
 	# rossnap = ros[ti,:,:]
@@ -116,12 +122,20 @@ for nIm in range(num_im):
 	# aveRosMod = np.nanmean(rossnap.ravel())
 	# print('.....Average model ROS: %.2f (m/s2)' %aveRosMod)
 
-	#get total fire output
+	# get total fire output
 	flat_lwir_vals = tiffdata[~np.isnan(tiffdata)] * pixTif
 	flat_mod_vals = hxsnap[~np.isnan(hxsnap)] * pixMod
 	areaTif = pixTif * len(flat_lwir_vals)
 	areaMod = pixMod * len(flat_mod_vals)
 	totHeatTif, totHeatMod = np.sum(flat_lwir_vals)/1000000., np.sum(flat_mod_vals)/1000000.
+
+	# flat_lwir_vals = y[~np.isnan(y)] * pixTif
+	# flat_mod_vals = hxsnap[~np.isnan(hxsnap)] * pixMod
+	# areaTif = pixTif * len(flat_lwir_vals)
+	# areaMod = pixMod * len(flat_mod_vals)
+	# totHeatTif, totHeatMod = np.sum(flat_lwir_vals)/1000000., np.sum(flat_mod_vals)/1000000.
+
+
 
 	print('.....Avearage heat flux real vs model fire: %.2f vs. %.2f (W/m2)' %(aveHfxTif, aveHfxMod))
 	print('.....Total heat output of real vs model fire: %.2f vs. %.2f (MW)' %( totHeatTif,totHeatMod))
