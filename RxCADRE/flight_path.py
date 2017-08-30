@@ -20,12 +20,12 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_250Wm_regrid'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
-interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_LG2_cat1_interp.npy'
+interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_LG2_cat1_250Wm_interp.npy'
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
@@ -250,13 +250,13 @@ bg_h = h[:cleanf]
 
 #define start and end of the corkscrew in sec from beginning of simulation
 plt.title('$CO_2$ PROFILE FROM CORKSCREW')
-plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],color='lack' )
+plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],color='black' )
 plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],'b--' )
 plt.ylim([0,1700])
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylabel('height [m]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'CO2ProfileCorkscrew.pdf')s
+plt.savefig(fig_dir + 'CO2ProfileCorkscrew.pdf')
 plt.show()
 
 

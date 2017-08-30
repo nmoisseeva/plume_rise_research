@@ -18,10 +18,11 @@ from matplotlib import animation
 
 #====================INPUT===================
 # wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2_nospinup_regrid'
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_250Wm_regrid'
 
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nmoisseeva/data/RxCADRE/instruments/HIP1'
+fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 
 # burn_lmt = [(-86.73051,30.54315),(-86.73398,30.54584),(-86.74677,30.53858),(-86.74422,30.53546)]
 
@@ -46,6 +47,9 @@ epsg26916=pyproj.Proj("+init=EPSG:26916")
 
 FWGSx, FWGSy = zoom(WLONG,10),zoom(WLAT,10)
 FUTMx, FUTMy = pyproj.transform(wgs84,epsg26916,FWGSx.ravel(),FWGSy.ravel())
+UTMx, UTMy = pyproj.transform(wgs84,epsg26916,WLONG.ravel(),WLAT.ravel())
+
+
 
 #open/generate basemap
 if os.path.isfile(basemap_path):
@@ -74,11 +78,18 @@ plt.show()
 #convert hip1 locations to UTM
 hipUTMx, hipUTMy = pyproj.transform(wgs84,epsg26916, hip1_lcn[:,0],hip1_lcn[:,1])
 
-print('Create a KDtree of fire')
+print('Create a KDtree of fire mesh')
 grid_coord_fire = zip(FUTMy,FUTMx)
 FgridTree = KDTree(grid_coord_fire)
 Fdist, Fgrid_id = FgridTree.query(zip(hipUTMy, hipUTMx)) 	
 Idist, Igrid_id = FgridTree.query([ign_lcn[1], ign_lcn[0]]) 	#location of ignition line normal
+
+print('Create a KDtree of atm mesh')
+grid_coord_atm = zip(UTMy.ravel(),UTMx.ravel())
+gridTree = KDTree(grid_coord_atm)
+Adist, Agrid_id = gridTree.query(zip(hipUTMy, hipUTMx)) 	
+IAdist, IAgrid_id = gridTree.query([ign_lcn[1], ign_lcn[0]]) 	#location of ignition line normal
+
 
 #get necessary variables
 ghfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
@@ -94,19 +105,16 @@ for nt in range(len(xtime)):
 	current_ign = fhfx[nt,:,:]
 	temp_mask = np.empty_like(current_ign) * np.nan
 	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
-	# temp_mask[current_ign>0] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
-
 	ign_mask[nt,:,:] = temp_mask
 
 print('..... creating an igntion mask on atm grid (may take several minutes)')
 ign_mask_atm = np.empty_like(ghfx) * np.nan
 for nt in range(len(xtime)):
 	print nt
-	frac = fuelfrac[nt,:,:]
+	# frac = fuelfrac[nt,:,:]
 	current_ign = ghfx[nt,:,:]
 	temp_mask = np.empty_like(current_ign) * np.nan
 	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
-	# temp_mask[current_ign>0] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
 	# temp_mask[(frac<1) & (frac>0)] = 1 
 	ign_mask_atm[nt,:,:] = temp_mask
 
@@ -150,6 +158,26 @@ for nPt, pt in enumerate(Fgrid_id):
 	pt_ign = np.argmax(np.isfinite(hip1_hfx[nPt,:]))  	#get index of first non-nan
 	t_ign.append(pt_ign)
 
+
+hip1_max_atm, hip1_ave_atm = [],[]
+for nPt, pt in enumerate(Agrid_id):
+	#get max values for sensors
+	flat_max = maxGHFX.ravel() 
+	pt_hfxmax = flat_max[pt]
+	if pt_hfxmax not in hip1_max_atm:
+		hip1_max_atm.append(pt_hfxmax) 
+
+	#get average values for sensors
+	pt_idx = np.unravel_index(pt,np.shape(WLAT))
+	print pt_idx
+	hip1_hfx[nPt,:] = ignGHFX[:,pt_idx[0],pt_idx[1]]/1000.
+	pt_ave = np.nanmean(hip1_hfx[nPt,:])
+	if pt_ave not in hip1_ave_atm:
+		hip1_ave_atm.append(pt_ave)
+	print('---> Sensor %s: hfx = %s kW/m2, maxhfx = %s kW/m2' %(hip1_tag[nPt],pt_ave,pt_hfxmax))
+
+
+
 ign_idx = np.unravel_index(Igrid_id,np.shape(FWGSx)) 				#get location of normal
 t0 = np.argmax(np.isfinite(ignFHFX[:,ign_idx[0],ign_idx[1]])) 	#get time of igntion of normal
 t = (t_ign - t0) * tstep
@@ -166,8 +194,8 @@ print('.....Avarage rate of spread based on HIP1: %s' %aveROS)
 #--------------------------DATA from Butler 2013--------------------
 butler_data = {'aveHFX':{}, 'maxHFX':{}, 'ROS':{}}
 
-butler_data['ROS']['arrival'] = [0.32,0.24,0.25,0.22,0.22,0.10]
-butler_data['ROS']['FRP'] = [0.24,0.31,0.44,0.61]
+butler_data['ROS']['L2G'] = [0.32,0.24,0.25,0.22,0.22,0.10,0.33,0.46,0.47,0.47,0.44,0.45,0.48,0.25,0.39,0.16,0.30,0.27,0.16,0.10]
+butler_data['ROS']['HIP1'] = [0.32,0.24,0.25,0.22,0.22,0.10]
 
 butler_data['maxHFX']['HIP1'] = [36.7,32.3,12.5,30.8,13.6,8.8,0.7]
 butler_data['maxHFX']['L2G'] = [36.7,32.3,12.5,30.8,13.6,8.8,0.7,12.9,26.9,23.5,25.5,22.1,24,13.2,20,30.2,13.1,16.2,29.8,17.7,8.6,]
@@ -191,39 +219,46 @@ plt.title('AVERAGE HEAT FLUX')
 box = plt.boxplot([butler_data['aveHFX']['L2G'],\
 					butler_data['aveHFX']['HIP1'],\
 					aveGHFX[np.isfinite(aveGHFX)],\
-					hip1_ave], notch=True, patch_artist=True,showmeans=True)
+					hip1_ave_atm], notch=True, patch_artist=True,showmeans=True)
 colors = ['lightblue','lightblue','pink','pink']
 for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
+plt.savefig(fig_dir + 'AveHx.pdf')
 plt.show()
+plt.close()
 
 plt.figure()
 plt.title('PEAK HEAT FLUX')
 box = plt.boxplot([butler_data['maxHFX']['L2G'],\
 					butler_data['maxHFX']['HIP1'],\
 					aveGHFX[np.isfinite(maxGHFX)],\
-					hip1_max], notch=True, patch_artist=True,showmeans=True)
+					hip1_max_atm], notch=True, patch_artist=True,showmeans=True)
 colors = ['lightblue','lightblue','pink','pink']
 for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
+plt.savefig(fig_dir + 'MaxHx.pdf')
 plt.show()
+plt.close()
 
 
 plt.figure()
 plt.title('ROS')
-box = plt.boxplot([butler_data['ROS']['arrival'],\
-					butler_data['ROS']['FRP'],\
+box = plt.boxplot([butler_data['ROS']['L2G'],\
+					butler_data['ROS']['HIP1'],\
 					ros], notch=True, patch_artist=True,showmeans=True)
 colors = ['lightblue','lightblue','pink']
 for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
-plt.xticks([1,2,3,4],['L2G','HIP1','LES'])
+plt.xticks([1,2,3,4],['L2G','HIP1','LES HIP1'])
 plt.ylabel('ROS $[m s^{-1}]$')
+plt.savefig(fig_dir + 'ROS.pdf')
 plt.show()
+plt.close()
+
 
 # #plot mean ROS for the fire
 # plt.figure()

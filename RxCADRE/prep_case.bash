@@ -1,7 +1,7 @@
 #!/bin/bash
 
 local=$pwd
-filename="wrfout_L2G_cat1"
+filename="wrfout_L2G_cat1_250Wm"
 
 cd ~/wrf/wrf-fire/wrfv2_fire/test/em_fire/rxcadre
 
