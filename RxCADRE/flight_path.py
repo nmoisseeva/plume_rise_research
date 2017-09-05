@@ -31,7 +31,7 @@ pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoisturePro
 ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
 basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 
-lvl = np.arange(0,1500,20) 				#
+lvl = np.arange(0,1700,20) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)
 sfc_hgt = 62 							#surface height MSL (m)
 runstart = '12:27:00' 					#start time (if restart run time of inital simulation)
@@ -142,14 +142,16 @@ dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx][:,0:2])
 #calculate H20 MR departure and extract point locations (assumes dry initial state)
 qvapornan = np.copy(qinterp)
 qvapornan[qvapornan<1e-30] = np.nan
-mod_val = np.empty((len(tsec))) * np.nan
+mod_val, obs_val = np.empty((len(tsec))) * np.nan, np.empty((len(tsec))) * np.nan
+obs_h = []
 print('Finding nearest points....')
 for nt in range(len(tsec)):
 	print('...tstep: %s') %nt
 	idxy,idxx = np.unravel_index(grid_id[nt],np.shape(lat))
 	idxz = np.argmin(abs(lvl-disp_dict['lcn'][tidx][nt][2]))
 	mod_val[nt] = qvapornan[nt,idxz,idxy,idxx]
-	mv = disp_dict['H2O'][tidx[nt]]		#in percent by volume
+	obs_val[nt] = disp_dict['CO2'][tidx[nt]]		#in percent by volume
+	obs_h.append(disp_dict['lcn'][tidx][nt][2])
 
 #================================EMISSIONS==================================
 #extract and format emissions data 
@@ -196,7 +198,7 @@ ax = plt.gca()
 for nSlice in range(len(emis_dict['smoke'])):
 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
 	ax.fill_between(shade, 0,20, facecolor='gray', alpha=0.3, edgecolor='w')
-plt.ylim([0,20])
+plt.ylim([0,15])
 plt.xlim([0,tsec[-1]])
 plt.xlabel('time [s]')
 plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')
@@ -235,7 +237,7 @@ def update_point(n, disp_dict,smoky,point):
     return point, time_text,
 
 #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-ani=animation.FuncAnimation(fig, update_point, 80, fargs=(disp_dict,smoky,point), interval=15)
+ani=animation.FuncAnimation(fig, update_point, 1500, fargs=(disp_dict,smoky,point), interval=15)
 # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
 plt.show()
 
@@ -245,20 +247,58 @@ plt.show()
 s = np.argmax(disp_dict['lcn'][:,2]) 	#corkscrew starts at max height - get the time of max height
 f = s + 250 							#corkscrew lasts ~500sec (250x 2 sec timesteps)
 cleanf = np.argmin(disp_dict['lcn'][:,2]) 	#end of initial vertical profile (beginning of flight) - used as bg
-bg_h2o = h2o[:cleanf]
-bg_h = h[:cleanf]
+# bg_h2o = h2o[:cleanf]
+# bg_h = h[:cleanf]
+
+#calculate H20 MR departure at corkscrew point locations (NOT MATCHED IN TIME - LAST SLID ONLY)
+#H20 corkscrew profile from last frame
+dist_cs, grid_id_cs = gridTree.query(np.array(disp_dict['lcn'])[s:f,0:2])
+mod_val_cs = []
+print('Finding nearest points....')
+for nt in range(len(range(s,f))):
+	print('...tstep: %s') %nt
+	idxy,idxx = np.unravel_index(grid_id_cs[nt],np.shape(lat))
+	idxz = np.argmin(abs(lvl-disp_dict['lcn'][nt,2]))
+	mod_val_cs.append(qvapornan[-1,idxz,idxy,idxx]*1000000)
+	# mv = disp_dict['H2O'][tidx[nt]]		#in percent by volume
 
 #define start and end of the corkscrew in sec from beginning of simulation
-plt.title('$CO_2$ PROFILE FROM CORKSCREW')
+plt.figure(figsize=(9,5))
+plt.subplot(1,2,1)
+plt.title('(a) $CO_2$ PROFILE FROM CORKSCREW')
 plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],color='black' )
 plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],'b--' )
 plt.ylim([0,1700])
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylabel('height [m]')
+plt.subplot(1,2,2)
+plt.title('(b) $H_2O$ PROFILE FROM LES CORKSCREW')
+plt.scatter(mod_val_cs,disp_dict['lcn'][s:f,2],color='black' )
+plt.plot(mod_val_cs,disp_dict['lcn'][s:f,2],'k--' )
+plt.ylim([0,1700])
+plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
+plt.ylabel('height [m]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'CO2ProfileCorkscrew.pdf')
+plt.savefig(fig_dir + 'ProfilesCorkscrew.pdf')
 plt.show()
 
+#H2O and CO2 profiles from garage flights
+plt.figure(figsize=(9,5))
+plt.subplot(1,2,1)
+plt.title('(a) $CO_2$ PROFILE FROM OBS GARAGE')
+plt.plot(obs_val,obs_h,'k--' )
+plt.ylabel('height [m]')
+plt.ylim([0,1700])
+plt.xlabel('$CO_2$ mixing ratio [ppmv]')
+plt.subplot(1,2,2)
+plt.title('(b) $H_2O$ PROFILE FROM LES GARAGE')
+plt.plot(mod_val*1000000,obs_h,'b--' )
+plt.ylim([0,1700])
+plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
+plt.ylabel('height [m]')
+plt.tight_layout()
+plt.savefig(fig_dir + 'ProfilesGarage.pdf')
+plt.show()
 
 #H2O profiles from corkscrew and earlier
 plt.title('$H_2O$ PROFILES')
@@ -281,8 +321,8 @@ plt.pcolor(column_evol.T*1000,cmap=plt.cm.cubehelix_r)
 cbar = plt.colorbar()
 cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
 ax = plt.gca()
-ax.set_yticks(np.arange(0,numLvl,5))
-ax.set_yticklabels(lvl[::5])
+ax.set_yticks(np.arange(0,numLvl,10))
+ax.set_yticklabels(lvl[::10])
 ax.set_xticks(np.arange(0,len(tsec),30))
 ax.set_xticklabels((tsec[::30]/60.).astype(int))
 plt.xlabel('time [min]')

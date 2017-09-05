@@ -24,9 +24,16 @@ bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nmoisseeva/data/RxCADRE/instruments/HIP1'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 
-# burn_lmt = [(-86.73051,30.54315),(-86.73398,30.54584),(-86.74677,30.53858),(-86.74422,30.53546)]
+#define normals to fire spread
+ign_lcn = (524600,3378360) 			#hip1 normal
+norm_lcn_x = np.arange(525719.,524451.,-25.36) 	#above fireline 3
+norm_lcn_y = np.arange(3379095.,3378277.,-16.36)
 
-ign_lcn = (524600,3378360)
+#define ros test points (above fireline 2)
+mid_lcn_x = np.arange(525647.,524409.,-24.76) 	#above fireline 3
+mid_lcn_y = np.arange(3379161.,3378336.,-16.5)
+
+# y([525612,3379181]), 'end':np.array([524409,3378388])},\
 
 # ll_utm = np.array([518800,3377000])		#lower left corner of the domain in utm
 ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
@@ -83,13 +90,14 @@ grid_coord_fire = zip(FUTMy,FUTMx)
 FgridTree = KDTree(grid_coord_fire)
 Fdist, Fgrid_id = FgridTree.query(zip(hipUTMy, hipUTMx)) 	
 Idist, Igrid_id = FgridTree.query([ign_lcn[1], ign_lcn[0]]) 	#location of ignition line normal
+TESTdist, TESTgrid_id = FgridTree.query(zip(mid_lcn_y,mid_lcn_x))
+NORMdist, NORMgrid_id = FgridTree.query(zip(norm_lcn_y,norm_lcn_x))
+
 
 print('Create a KDtree of atm mesh')
 grid_coord_atm = zip(UTMy.ravel(),UTMx.ravel())
 gridTree = KDTree(grid_coord_atm)
 Adist, Agrid_id = gridTree.query(zip(hipUTMy, hipUTMx)) 	
-IAdist, IAgrid_id = gridTree.query([ign_lcn[1], ign_lcn[0]]) 	#location of ignition line normal
-
 
 #get necessary variables
 ghfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
@@ -139,7 +147,9 @@ print('Average peak flux of the fire: %.2f kW m-2' %np.nanmean(maxGHFX))
 print('Calculating values for HIP1...')
 hip1_max, hip1_ave, t_ign = [], [], []
 hip1_hfx = np.empty((len(hip1_tag),len(xtime)))*np.nan
+mid_lcn_hfx = np.empty((len(mid_lcn_y),len(xtime))) * np.nan
 
+#on fire mesh (currentlly only used for ROS)
 for nPt, pt in enumerate(Fgrid_id):
 	#get max values for sensors
 	flat_max = maxFHFX.ravel() 
@@ -158,8 +168,8 @@ for nPt, pt in enumerate(Fgrid_id):
 	pt_ign = np.argmax(np.isfinite(hip1_hfx[nPt,:]))  	#get index of first non-nan
 	t_ign.append(pt_ign)
 
-
-hip1_max_atm, hip1_ave_atm = [],[]
+#on atm grid (used for heat fluxes)
+hip1_max_atm, hip1_ave_atm  = [],[]
 for nPt, pt in enumerate(Agrid_id):
 	#get max values for sensors
 	flat_max = maxGHFX.ravel() 
@@ -176,9 +186,21 @@ for nPt, pt in enumerate(Agrid_id):
 		hip1_ave_atm.append(pt_ave)
 	print('---> Sensor %s: hfx = %s kW/m2, maxhfx = %s kW/m2' %(hip1_tag[nPt],pt_ave,pt_hfxmax))
 
+#on mid cross-section (for calculating L2G ros)
+tf_l2g = []
+for nPt, pt in enumerate(TESTgrid_id):
+	#get average values for sensors
+	pt_idx = np.unravel_index(pt,np.shape(FWGSx))
+	mid_lcn_hfx[nPt,:] = ignFHFX[:,pt_idx[0],pt_idx[1]]/1000.
+	# plt.plot(mid_lcn_hfx[nPt,:])
+	# plt.show()
+	#calculate rate of spread
+	pt_ign = np.argmax(np.isfinite(mid_lcn_hfx[nPt,:]))  	#get index of first non-nan
+	tf_l2g.append(pt_ign)
 
 
-ign_idx = np.unravel_index(Igrid_id,np.shape(FWGSx)) 				#get location of normal
+#calculate ROS for hip1
+ign_idx = np.unravel_index(Igrid_id,np.shape(FWGSx)) 			#get location of normal
 t0 = np.argmax(np.isfinite(ignFHFX[:,ign_idx[0],ign_idx[1]])) 	#get time of igntion of normal
 t = (t_ign - t0) * tstep
 print('.....fireline igntion t0 frame: %s' %t0)
@@ -190,6 +212,20 @@ rosdist, ros_id = subTree.query((ign_lcn[0], ign_lcn[1]),k=len(hip1_tag)) 	#reor
 ros = rosdist / t
 aveROS = np.mean(ros)
 print('.....Avarage rate of spread based on HIP1: %s' %aveROS)
+
+#calculate ROS along midfire 
+t0_l2g, t_l2g = [], []
+dist_l2g = np.sqrt((norm_lcn_x - mid_lcn_x)**2 + (norm_lcn_y - mid_lcn_y)**2)
+for nPt, pt in enumerate(NORMgrid_id):
+	norm_idx = np.unravel_index(pt,np.shape(FWGSx))
+	ti = np.argmax(np.isfinite(ignFHFX[:,norm_idx[0],norm_idx[1]])) #get time of igntion of normal
+	t0_l2g.append(ti) 	
+	t_pt = (tf_l2g[nPt] - ti) * tstep
+	t_l2g.append(t_pt)
+
+ros_l2g = dist_l2g/t_l2g
+clean_ros_l2g = ros_l2g[(np.isfinite(ros_l2g)) & (ros_l2g > 0)]
+aveROSl2g = np.mean(clean_ros_l2g)
 
 #--------------------------DATA from Butler 2013--------------------
 butler_data = {'aveHFX':{}, 'maxHFX':{}, 'ROS':{}}
@@ -233,7 +269,7 @@ plt.figure()
 plt.title('PEAK HEAT FLUX')
 box = plt.boxplot([butler_data['maxHFX']['L2G'],\
 					butler_data['maxHFX']['HIP1'],\
-					aveGHFX[np.isfinite(maxGHFX)],\
+					maxGHFX[np.isfinite(maxGHFX)],\
 					hip1_max_atm], notch=True, patch_artist=True,showmeans=True)
 colors = ['lightblue','lightblue','pink','pink']
 for patch, color in zip(box['boxes'], colors):
@@ -249,11 +285,12 @@ plt.figure()
 plt.title('ROS')
 box = plt.boxplot([butler_data['ROS']['L2G'],\
 					butler_data['ROS']['HIP1'],\
+					clean_ros_l2g,\
 					ros], notch=True, patch_artist=True,showmeans=True)
-colors = ['lightblue','lightblue','pink']
+colors = ['lightblue','lightblue','pink','pink']
 for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
-plt.xticks([1,2,3,4],['L2G','HIP1','LES HIP1'])
+plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('ROS $[m s^{-1}]$')
 plt.savefig(fig_dir + 'ROS.pdf')
 plt.show()
