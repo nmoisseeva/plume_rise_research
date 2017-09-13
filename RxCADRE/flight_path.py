@@ -21,11 +21,14 @@ from matplotlib import animation
 
 #====================INPUT===================
 wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_250Wm_regrid'
+# wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_nospinup_regrid'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
 interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_LG2_cat1_250Wm_interp.npy'
+# interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_LG2_nospinup_interp.npy'
+
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
@@ -203,7 +206,7 @@ plt.xlim([0,tsec[-1]])
 plt.xlabel('time [s]')
 plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
+# plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
 plt.show()
 
 #================================FLIGHT ANIMATION==================================
@@ -247,8 +250,12 @@ plt.show()
 s = np.argmax(disp_dict['lcn'][:,2]) 	#corkscrew starts at max height - get the time of max height
 f = s + 250 							#corkscrew lasts ~500sec (250x 2 sec timesteps)
 cleanf = np.argmin(disp_dict['lcn'][:,2]) 	#end of initial vertical profile (beginning of flight) - used as bg
-# bg_h2o = h2o[:cleanf]
-# bg_h = h[:cleanf]
+h20 = np.array(disp_dict['H2O'])
+h = np.array(disp_dict['lcn'])[:,2]
+bg_h2o = disp_dict['H2O'][:cleanf]
+bg_h = h[:cleanf]
+
+
 
 #calculate H20 MR departure at corkscrew point locations (NOT MATCHED IN TIME - LAST SLID ONLY)
 #H20 corkscrew profile from last frame
@@ -267,14 +274,14 @@ plt.figure(figsize=(9,5))
 plt.subplot(1,2,1)
 plt.title('(a) $CO_2$ PROFILE FROM CORKSCREW')
 plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],color='black' )
-plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],'b--' )
+plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],'k--' )
 plt.ylim([0,1700])
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylabel('height [m]')
 plt.subplot(1,2,2)
 plt.title('(b) $H_2O$ PROFILE FROM LES CORKSCREW')
-plt.scatter(mod_val_cs,disp_dict['lcn'][s:f,2],color='black' )
-plt.plot(mod_val_cs,disp_dict['lcn'][s:f,2],'k--' )
+plt.scatter(mod_val_cs,disp_dict['lcn'][s:f,2],color='blue' )
+plt.plot(mod_val_cs,disp_dict['lcn'][s:f,2],'b--' )
 plt.ylim([0,1700])
 plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
 plt.ylabel('height [m]')
@@ -286,12 +293,14 @@ plt.show()
 plt.figure(figsize=(9,5))
 plt.subplot(1,2,1)
 plt.title('(a) $CO_2$ PROFILE FROM OBS GARAGE')
+plt.scatter(obs_val,obs_h,color='black')
 plt.plot(obs_val,obs_h,'k--' )
 plt.ylabel('height [m]')
 plt.ylim([0,1700])
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.subplot(1,2,2)
 plt.title('(b) $H_2O$ PROFILE FROM LES GARAGE')
+plt.scatter(mod_val*1000000,obs_h,color='blue')
 plt.plot(mod_val*1000000,obs_h,'b--' )
 plt.ylim([0,1700])
 plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
@@ -306,7 +315,7 @@ plt.plot(pre_burn_qv[:,1],pre_burn_qv[:,0],':', label='pre-burn $H_2O$ profile f
 plt.plot(bg_h2o, bg_h,'g--',label='background $H_2O$ profile from flight ')
 plt.plot(disp_dict['H2O'][s:f],disp_dict['lcn'][s:f,2],'r-.',label='in-plume $H_2O$ profile from flight' )
 plt.ylim([0,1700])
-plt.xlabel('$H2_O$ mixing ratio [%]')
+plt.xlabel('$H_2O$ mixing ratio [%]')
 plt.ylabel('height [m]')
 plt.tight_layout()
 plt.legend(loc='lower left')
@@ -332,64 +341,64 @@ plt.tight_layout()
 plt.savefig(fig_dir + 'SmokeColumn.pdf')
 plt.show()
 
-#create a horizontall averaged plume profile (last slide)
-plume_profile = np.nansum(qinterp[-1,:,:,:],2)
-plt.pcolor(plume_profile * 1000,cmap=plt.cm.PuBu)
-cbar = plt.colorbar()
-cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
-ax = plt.gca()
-ax.set_yticks(np.arange(0,numLvl,5))
-ax.set_yticklabels(lvl[::5])
-plt.xlabel('grid #')
-plt.ylabel('height [m]')
-plt.title('TOTAL $Q_v$ ANOMALY (HORIZONTALLY AVERAGED) at $t_{end}$')
-plt.tight_layout()
-plt.savefig(fig_dir + 'AvePlume_Tend.pdf')
-plt.show()
-
-
-# #=============================ANIMATION OF CW ave plume==================================
-
-# print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
-# qrot = rotate(qinterp, 130, axes=(2, 3), reshape=True, mode='constant', cval=np.nan)
-# qrot[qrot<1e-30] = np.nan
-# print('WARNING: Slow routine: creating cross-wind averages')
-# cw_ave = np.nanmean(qrot,3)*1000000 #converting to mg
-
-# fig = plt.figure()
-# ax = plt.gca()
-# # create initial frame
-# # point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
-# cntr = plt.contourf(cw_ave[0,:,100:300],cmap=plt.cm.PuBu,levels=np.arange(0,20,1))
+# #create a horizontall averaged plume profile (last slide)
+# plume_profile = np.nansum(qinterp[-1,:,:,:],2)
+# plt.pcolor(plume_profile * 1000,cmap=plt.cm.PuBu)
 # cbar = plt.colorbar()
-# cbar.set_label('average $H_{2}O$ mixing ratio anomaly [mg/kg]')
-# plt.xlabel('grid #')
-# plt.ylabel('height [m]')
+# cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
+# ax = plt.gca()
 # ax.set_yticks(np.arange(0,numLvl,5))
 # ax.set_yticklabels(lvl[::5])
-# plt.title('EVOLUTION OF CROSS-WIND AVERAGE $Q_v$ ANOMALY')
-
-# # plt.clim([0,2])
-
-# # line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
-# # ax.legend()
-# # ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
-# # ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
-# # ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
-# # ax.colorbar()
-# # time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
-
-# # move the point position at every frame
-# def update_plot(n, cw_ave,cntr):
-#     cntr = plt.contourf(cw_ave[n,:,100:300],cmap=plt.cm.PuBu,levels=np.arange(0,20,1))
-#     # time_text.set_text('Time (sec) = %s' %(n*dt))
-#     return cntr, 
-
-# #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-# ani=animation.FuncAnimation(fig, update_plot, 1500, fargs=(cw_ave,cntr), interval=1)
-# # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
+# plt.xlabel('grid #')
+# plt.ylabel('height [m]')
+# plt.title('TOTAL $Q_v$ ANOMALY (HORIZONTALLY AVERAGED) at $t_{end}$')
+# plt.tight_layout()
+# plt.savefig(fig_dir + 'AvePlume_Tend.pdf')
 # plt.show()
 
 
+#=============================ANIMATION OF CW ave plume==================================
 
-# #NEED TO ADD COLORBAR AND CONSTANT LIMITS
+print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
+qrot = rotate(qinterp[:,:,:,:], 40, axes=(2, 3), reshape=True, mode='constant', cval=np.nan)
+qrot[qrot<1e-30] = np.nan
+print('WARNING: Slow routine: creating cross-wind averages')
+cw_sum = np.nansum(qrot,3)*1000 #converting to mg
+
+fig = plt.figure()
+ax = plt.gca()
+# create initial frame
+# point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
+cntr = plt.contourf(cw_sum[0,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
+cbar = plt.colorbar()
+cbar.set_label('total $H_{2}O$ mixing ratio anomaly [g/kg]')
+plt.xlabel('grid #')
+plt.ylabel('height [m]')
+ax.set_yticks(np.arange(0,numLvl,5))
+ax.set_yticklabels(lvl[::5])
+plt.title('EVOLUTION OF TOTAL CROSS-WIND $Q_v$ ANOMALY')
+
+# plt.clim([0,2])
+
+# line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
+# ax.legend()
+# ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
+# ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
+# ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
+# ax.colorbar()
+# time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
+
+# move the point position at every frame
+def update_plot(n, cw_ave,cntr):
+    cntr = plt.contourf(cw_sum[n,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
+    # time_text.set_text('Time (sec) = %s' %(n*dt))
+    return cntr, 
+
+#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+ani=animation.FuncAnimation(fig, update_plot, 199, fargs=(cw_sum,cntr), interval=1)
+ani.save(fig_dir + 'CW_total.gif', writer='imagemagick',fps=120)
+plt.show()
+
+
+
+#NEED TO ADD COLORBAR AND CONSTANT LIMITS

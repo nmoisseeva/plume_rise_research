@@ -17,8 +17,8 @@ import mpl_toolkits.mplot3d as a3
 from matplotlib import animation
 
 #====================INPUT===================
-# wrfdata = '/Users/nadya2/data/plume/RxCADRE/regrid/wrfout_LG2_nospinup_regrid'
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_250Wm_regrid'
+# wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_nospinup_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_700Wm_regrid'
 
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nmoisseeva/data/RxCADRE/instruments/HIP1'
@@ -261,7 +261,7 @@ for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
-plt.savefig(fig_dir + 'AveHx.pdf')
+# plt.savefig(fig_dir + 'AveHx.pdf')
 plt.show()
 plt.close()
 
@@ -276,7 +276,7 @@ for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
-plt.savefig(fig_dir + 'MaxHx.pdf')
+# plt.savefig(fig_dir + 'MaxHx.pdf')
 plt.show()
 plt.close()
 
@@ -292,7 +292,7 @@ for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('ROS $[m s^{-1}]$')
-plt.savefig(fig_dir + 'ROS.pdf')
+# plt.savefig(fig_dir + 'ROS.pdf')
 plt.show()
 plt.close()
 
