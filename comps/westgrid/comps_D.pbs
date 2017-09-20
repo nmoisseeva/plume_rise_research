@@ -1,0 +1,18 @@
+#!/bin/bash
+#Script for running wrf
+
+#PBS -N CompD
+#PBS -S /bin/bash
+#PBS -l nodes=1:ppn=8
+#PBS -m bea
+#PBS -M nmoisseeva@eos.ubc.ca
+#PBS -l walltime=72:00:00
+
+cd ~/plume/westgrid/ 
+echo "Running on `hostname`"
+export OMP_NUM_THREADS=$PBS_NUM_PPN
+echo "Starting run at: `date`"
+#ulimit -uvs unlimited
+bash westgrid_comps_wrapper_D.bash  > log_D.txt
+echo "Program finished with exit code $? at: `date`"
+
