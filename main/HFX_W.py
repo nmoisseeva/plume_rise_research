@@ -132,6 +132,45 @@ qvapor_mtot = np.nansum(qvapor[:,:,xsx-20:xsx+20,:],2)
 temp_mave = np.mean(temp[:,:,xsx-20:xsx+20,:],2)
 
 
+#create plot of time-average around peak flux--------------------------
+xmax = np.argmax(ghfx_mave,axis=1)
+ghfx_t, qvapor_t, temp_t, w_t = [],[],[],[]
+for nP, pt in enumerate(xmax[1:]):
+	ghfx_t.append(ghfx_mave[nP+1,pt-10:pt+50])
+	qvapor_t.append(qvapor_mtot[nP+1,:,pt-10:pt+50])
+	w_t.append(w_mave[nP+1,:,pt-10:pt+50])
+	temp_t.append(temp_mave[nP+1,:,pt-10:pt+50])
+ghfx_tave = np.mean(ghfx_t,0) 
+qvapor_tave = np.mean(qvapor_t,0)
+w_tave = np.mean(w_t,0)
+temp_tave = np.mean(temp_t, 0)
+
+#plot contours
+fig = plt.figure()
+fig = plt.figure(figsize=(6,6))
+ax = plt.gca()
+# ---w contours and colorbar
+cntrf = ax.contourf(w_tave, cmap=plt.cm.PRGn_r, levels=np.arange(-5,5.1,0.5))
+cbarf = fig.colorbar(cntrf, orientation='horizontal',fraction=0.046, pad=0.1)
+cbarf.set_label('vertical velocity $[m s^{-2}]$')
+ax.set_xlabel('x grid (#)')
+ax.set_ylabel('height AGL [m]')
+ax.set_xlim([0,60])
+# ---non-filled vapor contours and colorbar
+cntr = ax.contour(qvapor_tave, cmap=plt.cm.Greys,levels=np.arange(0,2.1,0.3),linewidths=2)
+ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
+cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
+cbar.set_label('$H_2O$ mixing ratio $[g kg^{-1}]$',size=8)
+cbar.ax.tick_params(labelsize=8) 
+# ---heat flux
+axh = ax.twinx()
+axh.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+axh.set_ylim([0,140])
+axh.set_xlim([0,60])
+axh.tick_params(axis='y', colors='red')
+ln = axh.plot(ghfx_tave, 'r-')
+
+
 #create animation of the HFX and W ------------------------------------
 print('.....creating crossection of HFX and W animation')
 fig = plt.figure()
