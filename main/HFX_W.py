@@ -43,12 +43,13 @@ print('Extracting NetCDF data from %s ' %wrfpath)
 wrfdata = netcdf.netcdf_file(wrfpath, mode ='r')  
 
 #prep WRF data----------------------------------------------------
-ncdict = wrf.extract_vars(wrfdata, None, ('GRNHFX','W','QVAPOR','T','PHB','PH','U'))
+ncdict = wrf.extract_vars(wrfdata, None, ('GRNHFX','W','QVAPOR','T','PHB','PH','U','P','PB'))
 
 #get height and destagger vars
 zstag = (ncdict['PHB'] + ncdict['PH'])/ 9.81
 z = wrf.destagger(zstag,1)
 u = wrf.destagger(ncdict['U'],3)
+p = ncdict['P'] + ncdict['PB']
 
 interppath = wrfdir + 'interp/wrfinterp_' + tag + '.npy'
 if os.path.isfile(interppath):
@@ -62,6 +63,7 @@ else:
 	winterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
 	uinterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
 	tinterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
+	pinterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
 	for t in range(nT):
 		print('.... tsetp = %s/%s' %(t,nT))
 		for y in range(nY):
@@ -72,11 +74,13 @@ else:
 				fw = interpolate.interp1d(zstag_t,ncdict['W'][t,:,y,x],fill_value="extrapolate")
 				ft = interpolate.interp1d(z_t,ncdict['T'][t,:,y,x],fill_value="extrapolate")
 				fu = interpolate.interp1d(z_t,u[t,:,y,x],fill_value="extrapolate")
+				fp = interpolate.interp1d(z_t,p[t,:,y,x],fill_value="extrapolate")
 				qinterp[t,:,y,x] = fq(lvl)
 				winterp[t,:,y,x] = fw(lvl)
 				tinterp[t,:,y,x] = ft(lvl)
 				uinterp[t,:,y,x] = fu(lvl)
-	interpdict = {'QVAPOR': qinterp, 'W':winterp, 'T':tinterp, 'U':uinterp}
+				pinterp[t,:,y,x] = fp(lvl)
+	interpdict = {'QVAPOR': qinterp, 'W':winterp, 'T':tinterp, 'U':uinterp,'P':pinterp}
 	np.save(interppath, interpdict)
 	print('Interpolated data saved as: %s' %interppath)
 
