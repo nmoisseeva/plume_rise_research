@@ -327,7 +327,7 @@ ax.set_ylabel('height AGL [m]')
 cntr = ax.contour(qvapor_mtot[0,:,:], cmap=cmocean.cm.gray_r,levels=np.arange(0,2.1,0.3),linewidths=4)
 ains = inset_axes(plt.gca(), width='50%', height='2%', loc=1)
 cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
-cbar.set_label('vertical velocity $[m s^{-2}]$',size=8)
+cbar.set_label('$H_2O$ mixing ratio $[g kg^{-1}]$',size=8)
 cbar.ax.tick_params(labelsize=8) 
 # ---heat flux
 axh = ax.twinx()

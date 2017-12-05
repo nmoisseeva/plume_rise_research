@@ -169,9 +169,9 @@ axh.set_ylim([0,140])
 axh.set_xlim([0,74])
 axh.tick_params(axis='y', colors='red')
 ln = axh.plot(ghfx_tave, 'r-')
-plt.savefig(fig_dir + 'U_qv/AVE_hfx_w_qv_%s.pdf' %tag)
+plt.savefig(fig_dir + 'U_qv/AVE_hfx_u_qv_%s.pdf' %tag)
 plt.show()
-print('.....-->saved in: %s' %(fig_dir + 'U_qv/AVE_hfx_w_qv_%s.pdf' %tag))
+print('.....-->saved in: %s' %(fig_dir + 'U_qv/AVE_hfx_u_qv_%s.pdf' %tag))
 
 
 
