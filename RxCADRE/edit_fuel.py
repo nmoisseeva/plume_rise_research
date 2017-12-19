@@ -11,11 +11,11 @@ import warnings
 import os
 warnings.filterwarnings("ignore")
 
-# wrfinput='/Users/nadya2/Applications/WRFV3/test/em_fire/wrfinput_d01'
 wrfinput='/Users/nmoisseeva/wrf/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01'
-input_fc = '/Users/nmoisseeva/wrf/wrf-fire/WRFV3/test/em_fire/rxcadre/input_fc'
+input_fc = '/Users/nmoisseeva/code/plume/RxCADRE/sfire/input_fc'
+
 #lower left corner
-ll_utm = np.array([519500,3377000]) #THIS IS THE PROPER ONE
+ll_utm = np.array([518300,3377000]) #THIS IS THE PROPER ONE
 # ll_utm = np.array([523500,3377000])
 
 
@@ -56,7 +56,7 @@ bm = basemap.Basemap(llcrnrlon=WLONG[0,0], llcrnrlat=WLAT[0,0],\
 #pull landsat image and save for future use (fabour)
 landsat_pull_cmnd = "bash getWMSImage.sh -o ./npy/landsat_%s_%s_%s_%s.tiff -m landsat %s %s %s %s" \
 				%(WLONG[0,0],WLAT[0,0],WLONG[-1,-1],WLAT[-1,-1],WLONG[0,0],WLAT[0,0],WLONG[-1,-1],WLAT[-1,-1])
-#os.system(landsat_pull_cmnd)
+os.system(landsat_pull_cmnd)
 
 #add plot shapefile
 polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
