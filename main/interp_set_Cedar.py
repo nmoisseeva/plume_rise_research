@@ -13,7 +13,7 @@ import wrf
 #====================INPUT===================
 wrfdir = '/Users/nmoisseeva/data/plume/main/' 	#directory on local Mac
 # run = ['W4S400F3R0', 'W4S400F13R0','W10S400F3R0','W4Sn400F3R0']
-run = ['W4S400F3R0', 'W4S400F13R0']
+run = ['W10S400F3R0','W4Sn400F3R0']
 
 interpdir = 'interp/wrfinterp_'
 lvl = np.arange(0,2500,40)	 			#vertical levels in m
@@ -73,5 +73,6 @@ for iTag, tag in enumerate(run):
 	interpdict = {'QVAPOR': qinterp, 'W':winterp, 'T':tinterp, 'U':uinterp,'V':vinterp,'P':pinterp}
 	np.save(interppath, interpdict)
 	print('Interpolated data saved as: %s' %interppath)
+	wrfdata.close()
 
 
