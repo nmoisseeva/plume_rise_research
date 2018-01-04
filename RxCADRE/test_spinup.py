@@ -65,7 +65,7 @@ plt.xlabel('scale [m]')
 plt.ylabel('power')
 plt.title('$v\'$ spetrum')
 plt.tight_layout()
-np.savefig(fig_dir + 'spinup_spectra.pdf')
+plt.savefig(fig_dir + 'spinup_spectra.pdf')
 plt.show()
 
 
