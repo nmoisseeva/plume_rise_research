@@ -18,7 +18,7 @@ from matplotlib import animation
 
 #====================INPUT===================
 # wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_nospinup_regrid'
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_cat1_700Wm_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_9Jan18_regrid'
 
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nmoisseeva/data/RxCADRE/instruments/HIP1'
@@ -36,7 +36,8 @@ mid_lcn_y = np.arange(3379161.,3378336.,-16.5)
 # y([525612,3379181]), 'end':np.array([524409,3378388])},\
 
 # ll_utm = np.array([518800,3377000])		#lower left corner of the domain in utm
-ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
+# ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
+ll_utm = np.array([518300,3377000]) 	#Jan 2018
 
 basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 #=================end of input===============

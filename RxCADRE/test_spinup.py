@@ -13,9 +13,9 @@ from scipy.signal import welch
 #====================INPUT===================
 wrfpath = '/Users/nmoisseeva/data/plume/RxCADRE/wrfout_L2G_spinup'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
-lvl = 5
+lvl = 5 			#height level to run the analysis on
 tstep = 10 			#timestep in sec
-xstep = 40
+xstep = 40 			#grud spacing in m
 #=================end of input===============
 
 
@@ -67,15 +67,6 @@ plt.title('$v\'$ spetrum')
 plt.tight_layout()
 plt.savefig(fig_dir + 'spinup_spectra.pdf')
 plt.show()
-
-
-
-# uprime = u[:,lvl,:,:] - u[0,lvl,0,0]
-# vprime = v[:,lvl,:,:] - v[0,lvl,0,0]
-
-# spec = welch(uprime[-1,:,:].ravel(), fs=1.0, window='hanning')
-# plt.plot(spec[1])
-
 
 
 

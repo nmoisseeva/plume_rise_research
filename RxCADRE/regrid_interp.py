@@ -13,13 +13,11 @@ warnings.filterwarnings("ignore")
 
 datadir ='/Users/nmoisseeva/data/plume/RxCADRE'
 savedir ='/regrid'
-wrffile = 'wrfout_L2G_cat1_250Wm'
+wrffile = 'wrfout_L2G_9Jan18'
 # ll_utm = np.array([518800,3377000])
-ll_utm = np.array([519500,3377000])
+# ll_utm = np.array([519500,3377000])
+ll_utm = np.array([518300,3377000]) 	#Jan 2018
 #!!!!!!!!!MUST UPDATE!!!!!!!!!!!!!!
-
-# ll_utm = np.array([523500,3377000])
-
 
 #======================end of input=======================
 print('REGRIDDING SCRIPT FOR WRF-IDEAL')
