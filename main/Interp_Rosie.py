@@ -1,47 +1,46 @@
-# nmoisseeva@eoad.ubc.ca
-# Dec 2017
+# nmoisseeva@eoas.ubc.ca
+# Sept 2017
 
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.io import netcdf
 from scipy import interpolate
+from matplotlib import path
+import os.path
 import wrf
 
-
 #====================INPUT===================
-wrfdir = '/Users/nmoisseeva/data/plume/main/' 	#directory on local Mac
-# run = ['W4S400F3R0', 'W4S400F13R0','W10S400F3R0','W4Sn400F3R0']
-run = ['W10S400F3R0','W4Sn400F3R0']
-
-interpdir = 'interp/wrfinterp_'
+wrfdir = '/Users/nmoisseeva/data/plume/main/'
+tag = 'W4S400F3R0'
 lvl = np.arange(0,2500,40)	 			#vertical levels in m
 
 #=================end of input===============
 
-print('BULK INTERPOLATION OF LES PLUME DATA')
-print('======================================')
+print('FIRE CROSS-SECTION HEAT FLUX AND W')
+print('===================================')
 
+#import data
+wrfpath = wrfdir + 'wrfout_'+ tag
 
-for iTag, tag in enumerate(run):
-	#import data
-	wrfpath = wrfdir + 'wrfout_'+ tag
+print('Extracting NetCDF data from %s ' %wrfpath)
+wrfdata = netcdf.netcdf_file(wrfpath, mode ='r')
 
-	print('-------------Run: %s--------------' %tag)
-	print('.... Extracting data from raw netcdf')
-	wrfdata = netcdf.netcdf_file(wrfpath, mode ='r')  
+#prep WRF data----------------------------------------------------
+ncdict = wrf.extract_vars(wrfdata, None, ('GRNHFX','W','QVAPOR','T','PHB','PH','U','P','PB','V'))
 
-	#prep WRF data----------------------------------------------------
-	ncdict = wrf.extract_vars(wrfdata, None, ('GRNHFX','W','QVAPOR','T','PHB','PH','U','V','P','PB'))
+#get height and destagger vars
+zstag = (ncdict['PHB'] + ncdict['PH'])/ 9.81
+z = wrf.destagger(zstag,1)
+u = wrf.destagger(ncdict['U'],3)
+v = wrf.destagger(ncdict['V'],2)
+p = ncdict['P'] + ncdict['PB']
 
-	#get height and destagger vars
-	zstag = (ncdict['PHB'] + ncdict['PH'])/ 9.81
-	z = wrf.destagger(zstag,1)
-	u = wrf.destagger(ncdict['U'],3)
-	v = wrf.destagger(ncdict['V'],2)
-	p = ncdict['P'] + ncdict['PB']
-
-	interppath = wrfdir + interpdir + tag + '.npy'
-	
-	print('.... Destaggering and interpolating data')
+interppath = wrfdir + 'interp/wrfinterp_' + tag + '.npy'
+if os.path.isfile(interppath):
+	interpdict = np.load(interppath).item()
+	print('Interpolated data found at: %s' %interppath)
+else:
+	print('WARNING: no interpolated data found - generating: SLOW ROUTINE!')
 	nT,nZ,nY,nX = np.shape(z)
 	qinterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
 	winterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
@@ -50,7 +49,7 @@ for iTag, tag in enumerate(run):
 	tinterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
 	pinterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
 	for t in range(nT):
-		print('....... tsetp = %s/%s' %(t,nT))
+		print('.... tsetp = %s/%s' %(t,nT))
 		for y in range(nY):
 			for x in range(nX):
 				z_t = z[t,:,y,x]
@@ -67,9 +66,6 @@ for iTag, tag in enumerate(run):
 				uinterp[t,:,y,x] = fu(lvl)
 				vinterp[t,:,y,x] = fv(lvl)
 				pinterp[t,:,y,x] = fp(lvl)
-	interpdict = {'QVAPOR': qinterp, 'W':winterp, 'T':tinterp, 'U':uinterp,'V':vinterp,'P':pinterp}
+	interpdict = {'QVAPOR': qinterp, 'W':winterp, 'T':tinterp, 'U':uinterp,'P':pinterp, 'V':vinterp}
 	np.save(interppath, interpdict)
 	print('Interpolated data saved as: %s' %interppath)
-	wrfdata.close()
-
-
