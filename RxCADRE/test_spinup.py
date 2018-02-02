@@ -11,7 +11,7 @@ from scipy.signal import welch
 
 
 #====================INPUT===================
-wrfpath = '/Users/nmoisseeva/data/plume/RxCADRE/wrfout_L2G_spinup'
+wrfpath = '/Users/nmoisseeva/data/plume/RxCADRE/wrfout_L2G_spinup_Jan15'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 lvl = 5 			#height level to run the analysis on
 tstep = 10 			#timestep in sec
@@ -20,7 +20,7 @@ xstep = 40 			#grud spacing in m
 
 
 print('Extracting NetCDF data from %s ' %wrfpath)
-wrfdata = netcdf.netcdf_file(wrfpath, mode ='r') 
+wrfdata = netcdf.netcdf_file(wrfpath, mode ='r')
 
 ncdict = wrf.extract_vars(wrfdata, None, ('U','V','W','PHB','PH'))
 u = wrf.destagger(ncdict['U'],3)
@@ -36,7 +36,7 @@ nT,nZ,nY,nX = np.shape(z)
 # ui = u[0,:,0,0]
 # vi = v[0,:,0,0]
 # WS = np.sqrt(ui**2 + vi**2)
-	
+
 #compare spectra every minute
 tloop = np.arange(0,nT,120/tstep)
 u0,v0,w0 = u[0,lvl,0,0], v[0,lvl,0,0], w[0,lvl,0,0]
@@ -68,8 +68,9 @@ plt.tight_layout()
 plt.savefig(fig_dir + 'spinup_spectra.pdf')
 plt.show()
 
-
-
-
-
-
+#compare pre-spinup and post-spinup wind profiles
+plt.figure()
+plt.plot(u[0,:,0,0], z[0,:,0,0],'r',label='raw profile')
+plt.plot(np.mean(np.mean(u[-1,:,:,:],-1),-1), np.mean(np.mean(z[-1,:,:,:],-1),-1),'k', label="post-spinup average profile")
+plt.legend()
+plt.show()

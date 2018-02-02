@@ -3,8 +3,8 @@ from Scientific.IO import NetCDF
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import netcdf
-import matplotlib as mpl 
-from matplotlib import path 
+import matplotlib as mpl
+from matplotlib import path
 from mpl_toolkits import basemap
 import mpl_toolkits.basemap.pyproj as pyproj
 import warnings
@@ -25,7 +25,7 @@ bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 fire_dict_utm = {'fireline1':{'start':np.array([525828,3379011]), 'end':np.array([524551,3378179])},\
 				'fireline2':{'start':np.array([525729,3379075]), 'end':np.array([524487,3378275])},\
 				'fireline3':{'start':np.array([525612,3379181]), 'end':np.array([524409,3378388])},\
-				'fireline4':{'start':np.array([525538,3379244]), 'end':np.array([524331,3378480])} }
+				'fireline4':{'start':np.array([525549,3379284]), 'end':np.array([524331,3378480])} }
 fuel_cat = 1
 
 #======================end of input=======================
@@ -68,7 +68,7 @@ l2g_mask = l2g.contains_points(zip(WGSfx,WGSfy))
 l2g_mask = np.reshape(l2g_mask, np.shape(UTMfx))
 
 print('.......-copying fuel data')
-fuel = nc_data.variables['NFUEL_CAT'][0,:,:]   
+fuel = nc_data.variables['NFUEL_CAT'][0,:,:]
 fuel[l2g_mask] = fuel_cat
 fuel[~l2g_mask] = 14
 

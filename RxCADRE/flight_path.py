@@ -8,7 +8,7 @@ from scipy import interpolate
 from scipy.ndimage.interpolation import rotate
 from scipy.spatial import KDTree
 import matplotlib.animation as animation
-from matplotlib import path 
+from matplotlib import path
 from mpl_toolkits import basemap
 import mpl_toolkits.basemap.pyproj as pyproj
 import os.path
@@ -20,15 +20,12 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_9Jan18_regrid'
-# wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_nospinup_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_Jan22_regrid'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
 interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_LG2_9Jan18_interp.npy'
-# interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_LG2_nospinup_interp.npy'
-
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 # ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
@@ -48,28 +45,18 @@ garage_ssm = [45237,47133] 				#start and end time of garage profile
 
 
 print('Extracting NetCDF data from %s ' %wrfdata)
-nc_data = netcdf.netcdf_file(wrfdata, mode ='r')  
-# nc_interp = netcdf.netcdf_file(wrfinterp, mode ='r')  
+nc_data = netcdf.netcdf_file(wrfdata, mode ='r')
 
 #get geopotential array and convrt to height
 z = (nc_data.variables['PHB'][:,:,:,:] + nc_data.variables['PH'][:,:,:,:]) / 9.81
 
-# #create a UTM grid
-# UTMx = nc_data.variables['XLONG'][0,:,:] + ll_utm[0]
-# UTMy = nc_data.variables['XLAT'][0,:,:] + ll_utm[1]
-
-# #convert coordinate systems to something basemaps can read
-# wgs84=pyproj.Proj("+init=EPSG:4326")
-# epsg26916=pyproj.Proj("+init=EPSG:26916")
-# WGSx, WGSy= pyproj.transform(epsg26916,wgs84,UTMx.ravel(),UTMy.ravel())
-# WLONG, WLAT = np.reshape(WGSx, np.shape(UTMx)), np.reshape(WGSy, np.shape(UTMy))
-
+#get domain dimensions
 WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
 nT,nZ,nY,nX = np.shape(z)
 
 #open/generate basemap
 if os.path.isfile(basemap_path):
-	bm = pickle.load(open(basemap_path,'rb'))   # load here the above pickle 
+	bm = pickle.load(open(basemap_path,'rb'))   # load here the above pickle
 	print('Domain basemap found at: %s' %basemap_path)
 else:
 	print('WARNING: no existing basemaps found: configuring a new basemap')
@@ -85,7 +72,6 @@ else:
 # plt.show()
 
 #extract model time info
-# runstart = nc_data.START_DATE[-8:]
 tsec = nc_data.variables['XTIME'][:] * 60. 		#get time in seconds since run start
 model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
 
@@ -94,7 +80,7 @@ numLvl = len(lvl)
 
 #open/generate vertically interpolated data
 if os.path.isfile(interp_path):
-	qinterp = np.load(interp_path)   # load here the above pickle 
+	qinterp = np.load(interp_path)   # load here the above pickle
 	print('Interpolated data found at: %s' %interp_path)
 else:
 	print('WARNING: no interpolated vapour data found - generating: SLOW ROUTINE!')
@@ -138,7 +124,7 @@ pre_burn_qv = np.genfromtxt(pre_moisture, skip_header=1, delimiter=',')
 
 #get indecies of samples corresponding to model output times
 tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec] #times since start
-dt = disp_dict['time'][1] - disp_dict['time'][0] 	
+dt = disp_dict['time'][1] - disp_dict['time'][0]
 
 #construct KDtree from idealized grid
 lat = nc_data.variables['XLAT'][0,:,:]
@@ -162,7 +148,7 @@ for nt in range(len(tsec)):
 	obs_h.append(disp_dict['lcn'][tidx][nt][2])
 
 #================================EMISSIONS==================================
-#extract and format emissions data 
+#extract and format emissions data
 emis_dict = {}
 emis_array = np.genfromtxt(emis_data, skip_header=1, usecols = [5,6,13,14], delimiter=',',skip_footer=emis_excl)
 
@@ -406,7 +392,7 @@ plt.show()
 # def update_plot(n, cw_ave,cntr):
 #     cntr = plt.contourf(cw_sum[n,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
 #     # time_text.set_text('Time (sec) = %s' %(n*dt))
-#     return cntr, 
+#     return cntr,
 
 # #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
 # ani=animation.FuncAnimation(fig, update_plot, 199, fargs=(cw_sum,cntr), interval=1)

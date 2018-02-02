@@ -33,9 +33,12 @@ zstag = (ncdict['PHB'] + ncdict['PH'])/ 9.81
 z = wrf.destagger(zstag,1)
 u = wrf.destagger(ncdict['U'],3)
 v = wrf.destagger(ncdict['V'],2)
+w = wrf.destagger(ncdict['W'],1) 	#test line
 p = ncdict['P'] + ncdict['PB']
 
-interppath = wrfdir + 'interp/wrfinterp_' + tag + '.npy'
+# interppath = wrfdir + 'interp/wrfinterp_' + tag + '.npy'
+interppath = wrfdir + 'interp/wrfinterp_' + tag + '_test.npy'
+
 if os.path.isfile(interppath):
 	interpdict = np.load(interppath).item()
 	print('Interpolated data found at: %s' %interppath)
@@ -55,7 +58,8 @@ else:
 				z_t = z[t,:,y,x]
 				zstag_t = zstag[t,:,y,x]
 				fq = interpolate.interp1d(z_t,ncdict['QVAPOR'][t,:,y,x],fill_value="extrapolate")
-				fw = interpolate.interp1d(zstag_t,ncdict['W'][t,:,y,x],fill_value="extrapolate")
+				# fw = interpolate.interp1d(zstag_t,ncdict['W'][t,:,y,x],fill_value="extrapolate")
+				fw = interpolate.interp1d(z_t,w[t,:,y,x],fill_value="extrapolate")
 				ft = interpolate.interp1d(z_t,ncdict['T'][t,:,y,x],fill_value="extrapolate")
 				fu = interpolate.interp1d(z_t,u[t,:,y,x],fill_value="extrapolate")
 				fv = interpolate.interp1d(z_t,v[t,:,y,x],fill_value="extrapolate")

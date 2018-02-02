@@ -3,8 +3,8 @@ from Scientific.IO import NetCDF
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import netcdf
-import matplotlib as mpl 
-from matplotlib import path 
+import matplotlib as mpl
+from matplotlib import path
 from mpl_toolkits import basemap
 import mpl_toolkits.basemap.pyproj as pyproj
 import warnings
@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore")
 
 datadir ='/Users/nmoisseeva/data/plume/RxCADRE'
 savedir ='/regrid'
-wrffile = 'wrfout_L2G_9Jan18'
+wrffile = 'wrfout_01-02-2018'
 # ll_utm = np.array([518800,3377000])
 # ll_utm = np.array([519500,3377000])
 ll_utm = np.array([518300,3377000]) 	#Jan 2018
@@ -48,4 +48,3 @@ WLONG, WLAT = np.reshape(WGSx, np.shape(UTMx)), np.reshape(WGSy, np.shape(UTMy))
 nc_data.variables['XLONG'][:,:,:] = np.float32(WLONG)
 nc_data.variables['XLAT'][:,:,:] = np.float32(WLAT)
 nc_data.close()
-
