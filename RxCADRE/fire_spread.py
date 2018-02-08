@@ -196,7 +196,7 @@ for nPt, pt in enumerate(Igrid_id):
 	dt_hip.append((t_ign_hip1[nPt]-t0) * tstep)
 dist_hip = np.sqrt((ign_lcn_hip_x - hipUTMx)**2 + (ign_lcn_hip_y - hipUTMy)**2)
 ros_hip = dist_hip/dt_hip
-aveROS_hip = np.mean(ros)
+aveROS_hip = np.mean(ros_hip)
 print('.....Avarage rate of spread based on HIP1: %s' %aveROS_hip)
 
 

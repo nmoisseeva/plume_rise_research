@@ -20,12 +20,12 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_Jan22_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_01-02-2018_regrid'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
-interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_LG2_9Jan18_interp.npy'
+interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_01-02-2018_interp.npy'
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 # ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
@@ -237,14 +237,13 @@ plt.show()
 
 
 #================================VIRTICAL PROFILE==================================
-# s = np.argmin(abs(disp_dict['time'] + model_ssm - corskcrew_ssm[0]))
-# f = np.argmin(abs(disp_dict['time']+ model_ssm - corskcrew_ssm[1]))
 
 
-g_s_sec = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[0])) 	#get index in disersion dict
-g_f_sec = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[1]))
-g_s = abs(np.array(tidx) - g_s_sec).argmin() 				#get index in model times
-g_f = abs(np.array(tidx) - g_f_sec).argmin()
+g_s = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - garage_ssm[0])) 	#get index in disersion dict
+g_f = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - garage_ssm[1]))
+
+c_s = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - corskcrew_ssm[0]))
+c_f = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - corskcrew_ssm[1]))
 
 
 # s = np.argmax(disp_dict['lcn'][:,2]) 	#corkscrew starts at max height - get the time of max height after end of spinup
@@ -255,38 +254,57 @@ g_f = abs(np.array(tidx) - g_f_sec).argmin()
 # bg_h2o = disp_dict['H2O'][:cleanf]
 # bg_h = h[:cleanf]
 
+# #calculate H20 MR departure at corkscrew point locations (NOT MATCHED IN TIME - LAST SLID ONLY)
+# #H20 corkscrew profile from last frame
+# dist_cs, grid_id_cs = gridTree.query(np.array(disp_dict['lcn'])[s:f,0:2])
+# mod_val_cs = []
+# print('Finding nearest points....')
+# for nt in range(len(range(s,f))):
+# 	print('...tstep: %s') %nt
+# 	idxy,idxx = np.unravel_index(grid_id_cs[nt],np.shape(lat))
+# 	idxz = np.argmin(abs(lvl-disp_dict['lcn'][nt,2]))
+# 	mod_val_cs.append(qvapornan[-1,idxz,idxy,idxx]*1000000)
+# 	# mv = disp_dict['H2O'][tidx[nt]]		#in percent by volume
+
+# #define start and end of the corkscrew in sec from beginning of simulation
+# plt.figure(figsize=(9,5))
+# plt.subplot(1,2,1)
+# plt.title('(a) $CO_2$ PROFILE FROM CORKSCREW')
+# plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],color='black' )
+# plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],'k--' )
+# plt.ylim([0,1700])
+# plt.xlabel('$CO_2$ mixing ratio [ppmv]')
+# plt.ylabel('height [m]')
+# plt.subplot(1,2,2)
+# plt.title('(b) $H_2O$ PROFILE FROM LES CORKSCREW')
+# plt.scatter(mod_val_cs,disp_dict['lcn'][s:f,2],color='blue' )
+# plt.plot(mod_val_cs,disp_dict['lcn'][s:f,2],'b--' )
+# plt.ylim([0,1700])
+# plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
+# plt.ylabel('height [m]')
+# plt.tight_layout()
+# plt.savefig(fig_dir + 'ProfilesCorkscrew.pdf')
+# plt.show()
 
 
-#calculate H20 MR departure at corkscrew point locations (NOT MATCHED IN TIME - LAST SLID ONLY)
-#H20 corkscrew profile from last frame
-dist_cs, grid_id_cs = gridTree.query(np.array(disp_dict['lcn'])[s:f,0:2])
-mod_val_cs = []
-print('Finding nearest points....')
-for nt in range(len(range(s,f))):
-	print('...tstep: %s') %nt
-	idxy,idxx = np.unravel_index(grid_id_cs[nt],np.shape(lat))
-	idxz = np.argmin(abs(lvl-disp_dict['lcn'][nt,2]))
-	mod_val_cs.append(qvapornan[-1,idxz,idxy,idxx]*1000000)
-	# mv = disp_dict['H2O'][tidx[nt]]		#in percent by volume
-
-#define start and end of the corkscrew in sec from beginning of simulation
+#H2O and CO2 profiles from garage flights
 plt.figure(figsize=(9,5))
 plt.subplot(1,2,1)
 plt.title('(a) $CO_2$ PROFILE FROM CORKSCREW')
-plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],color='black' )
-plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],'k--' )
+plt.scatter(obs_val[c_s:c_f],obs_h[c_s:c_f],color='black')
+plt.plot(obs_val[c_s:c_f],obs_h[c_s:c_f],'k--' )
+plt.ylabel('height [m]')
 plt.ylim([0,1700])
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
-plt.ylabel('height [m]')
 plt.subplot(1,2,2)
 plt.title('(b) $H_2O$ PROFILE FROM LES CORKSCREW')
-plt.scatter(mod_val_cs,disp_dict['lcn'][s:f,2],color='blue' )
-plt.plot(mod_val_cs,disp_dict['lcn'][s:f,2],'b--' )
+plt.scatter(mod_val[c_s:c_f]*1000000,obs_h[c_s:c_f],color='blue')
+plt.plot(mod_val[c_s:c_f]*1000000,obs_h[c_s:c_f],'b--' )
 plt.ylim([0,1700])
 plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
 plt.ylabel('height [m]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'ProfilesCorkscrew.pdf')
+plt.savefig(fig_dir + 'ProfilesGarage.pdf')
 plt.show()
 
 #H2O and CO2 profiles from garage flights
@@ -300,8 +318,8 @@ plt.ylim([0,1700])
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.subplot(1,2,2)
 plt.title('(b) $H_2O$ PROFILE FROM LES GARAGE')
-plt.scatter(mod_val*1000000,obs_h,color='blue')
-plt.plot(mod_val*1000000,obs_h,'b--' )
+plt.scatter(mod_val[g_s:g_f]*1000000,obs_h[g_s:g_f],color='blue')
+plt.plot(mod_val[g_s:g_f]*1000000,obs_h[g_s:g_f],'b--' )
 plt.ylim([0,1700])
 plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
 plt.ylabel('height [m]')

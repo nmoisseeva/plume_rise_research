@@ -15,8 +15,9 @@ wrfinput='/Users/nmoisseeva/wrf/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01
 input_fc = '/Users/nmoisseeva/code/plume/RxCADRE/sfire/input_fc'
 
 #lower left corner
-ll_utm = np.array([518300,3377000]) #THIS IS THE PROPER ONE
+# ll_utm = np.array([518300,3377000]) #THIS IS THE PROPER ONE
 # ll_utm = np.array([523500,3377000])
+ll_utm = np.array([517000,3377000]) #Feb 2018
 
 
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
