@@ -157,7 +157,7 @@ plt.show()
 plt.close()
 
 
-#plot vertical velocity profile 
+#plot vertical velocity profile
 
 
 #plot velocity distribution filled
