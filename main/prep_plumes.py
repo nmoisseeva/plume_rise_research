@@ -11,8 +11,8 @@ import cmocean
 
 #====================INPUT===================
 wrfdir = '/Users/nmoisseeva/data/plume/main/'
-tag = ['W4S400F3R0','W4S400F3R0']
-# tag = ['W4S400F3R0']
+# tag = ['W4S400F3R0','W4S400F13R0']
+tag = ['W4S400F3R0']
 fig_dir = '/Users/nmoisseeva/code/plume/main/figs/'
 lvl = np.arange(0,2500,40)	 			#vertical levels in m
 half_width = 20 						#number of grids to use for averaging ALONG fireline
@@ -25,16 +25,16 @@ print('===================================')
 
 
 for nCase,Case in enumerate(tag):
-	print('Examining case: %s ' %tag)
+	print('Examining case: %s ' %Case)
 
 	#----------check for interpolated data----------------------------
-	interppath = wrfdir + 'interp/wrfinterp_' + tag + '.npy'
-	wrfpath = wrfdir + 'wrfout_'+ tag
+	interppath = wrfdir + 'interp/wrfinterp_' + Case + '.npy'
+	wrfpath = wrfdir + 'wrfout_'+ Case
 	wrfdata = netcdf.netcdf_file(wrfpath, mode ='r')
 
 	if os.path.isfile(interppath):
-		interpdict = np.load(interppath).item()   # load here the above pickle
 		print('Interpolated data found at: %s' %interppath)
+		interpdict = np.load(interppath).item()   # load here the above pickle
 		ncdict = wrf.extract_vars(wrfdata, None, ('GRNHFX'))
 	else:
 		print('WARNING: no interpolated data found - generating: SLOW ROUTINE!')
@@ -82,6 +82,8 @@ for nCase,Case in enumerate(tag):
 	qvapor = interpdict['QVAPOR']*1000.		#convert to g/kg
 	temp = interpdict['T']+300. 			#add perturbation and base temperature
 	w = interpdict['W']
+	v = interpdict['V']
+	u = interpdict['U']
 
 	#get dimensions
 	dimt, dimy, dimx = np.shape(ghfx)
@@ -90,8 +92,12 @@ for nCase,Case in enumerate(tag):
 	#create fire cross-section averages
 	ghfx_mave = np.mean(ghfx[:,xsx-half_width:xsx+half_width,:],1)
 	w_mave = np.mean(w[:,:,xsx-half_width:xsx+half_width,:],2)
+	temp_mave = np.mean(temp[:,:,xsx-half_width:xsx+half_width,:],2)
+
 	#!!!!!!should i look at total or aveage?
 	qvapor_mtot = np.nansum(qvapor[:,:,xsx-half_width:xsx+half_width,:],2)
+	v_mave = np.mean(v[:,:,xsx:xsx+half_width:,:],2)
+	u_mave = np.mean(u[:,:,xsx-half_width:xsx+half_width,:],2)
 
 	#create time-average around peak flux--------------------------
 	xmax = np.argmax(ghfx_mave,axis=1)
@@ -110,6 +116,6 @@ for nCase,Case in enumerate(tag):
 	u_tave = np.mean(u_t,0)
 	temp_tave = np.mean(temp_t, 0)
 
-	avepath = wrfdir + 'interp/wrfave_' + tag + '.npy'
+	avepath = wrfdir + 'interp/wrfave_' + Case + '.npy'
 	avedict = {'GHFX': ghfx_tave, 'T':temp_tave, 'QVAPOR':qvapor_tave, 'W': w_tave, 'U': u_tave, 'V': v_tave}
-	np.save(avedict, avepath)
+	np.save(avepath, avedict)
