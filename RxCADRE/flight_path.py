@@ -20,26 +20,27 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_01-02-2018_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_22Feb2018_regrid'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
-interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_01-02-2018_interp.npy'
+interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_22Feb2018_interp.npy'
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 # ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
-ll_utm = np.array([518300,3377000]) 	#Jan 2018
+# ll_utm = np.array([518300,3377000]) 	#Jan 2018
+ll_utm = np.array([517000,3377000]) #Feb 2018
 basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 
 lvl = np.arange(0,1700,20) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)
 sfc_hgt = 62 							#surface height MSL (m)
 # runstart = '12:27:00' 				#start time (if restart run time of inital simulation)
-runstart = '12:00:00' 					#start time (if restart run time of inital simulation)
-runend = '13:00:00'
+runstart = '11:30:00' 					#start time (if restart run time of inital simulation)
+runend = '13:15:00'
 corskcrew_ssm= [47183,47521]			#start and end of corskcrew maneuver in ssm
-# bg_cork_ssm = [43975,44371] 			#start and end time of pre-burn corkscrew for background
+bg_cork_ssm = [43975,44371] 			#start and end time of pre-burn corkscrew for background
 garage_ssm = [45237,47133] 				#start and end time of garage profile
 #=================end of input===============
 
@@ -72,8 +73,9 @@ else:
 # plt.show()
 
 #extract model time info
-tsec = nc_data.variables['XTIME'][:] * 60. 		#get time in seconds since run start
+tsec = nc_data.variables['XTIME'][:] * 60. 		#get time in seconds since spinup start
 model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
+
 
 #==========================VERTICAL INTERPOLATION============================
 numLvl = len(lvl)
@@ -94,6 +96,8 @@ else:
 				interpz = (tempz[:-1]+tempz[1:])/2.
 				f = interpolate.interp1d(interpz,qvcopy[t,:,y,x],fill_value="extrapolate")
 				qinterp[t,:,y,x] = f(lvl)
+	print('.... masking cells with vals < 1e-30')
+	qinterp[qinterp<1e-30] = np.nan
 	np.save(interp_path, qinterp)
 	print('Interpolated data saved as: %s' %interp_path)
 
@@ -111,7 +115,7 @@ disp_dict['CO2'] = disp_array[start_idx:,2]
 disp_dict['CH4'] = disp_array[start_idx:,3]
 disp_dict['H2O'] = disp_array[start_idx:,4]
 disp_dict['lcn'] = np.array(zip(disp_array[start_idx:,5],disp_array[start_idx:,6],disp_array[start_idx:,7]-sfc_hgt))
-disp_dict['meta']= 'time: seconds since model start run | \
+disp_dict['meta']= 'time: seconds since restart run | \
 					CO: Mixing ratio of carbon monoxide in units of parts per million by volume (ppmv) in dry air. | \
 					CO2: Mixing ratio of carbon dioxide in units of ppmv in dry air. | \
 					CH4: Mixing ratio of methane in units of ppmv in dry air. | \
@@ -134,8 +138,9 @@ gridTree = KDTree(grid_coord)
 dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx][:,0:2])
 
 #calculate H20 MR departure and extract point locations (assumes dry initial state)
-qvapornan = np.copy(qinterp)
-qvapornan[qvapornan<1e-30] = np.nan
+
+# qvapornan = np.copy(qinterp) 			#mask empty cells
+# qvapornan[qvapornan<1e-30] = np.nan
 mod_val, obs_val = np.empty((len(tsec))) * np.nan, np.empty((len(tsec))) * np.nan
 obs_h = []
 print('Finding nearest points....')
@@ -143,11 +148,12 @@ for nt in range(len(tsec)):
 	print('...tstep: %s') %nt
 	idxy,idxx = np.unravel_index(grid_id[nt],np.shape(lat))
 	idxz = np.argmin(abs(lvl-disp_dict['lcn'][tidx][nt][2]))
-	mod_val[nt] = qvapornan[nt,idxz,idxy,idxx]
+	mod_val[nt] = qinterp[nt,idxz,idxy,idxx]
 	obs_val[nt] = disp_dict['CO2'][tidx[nt]]		#in percent by volume
 	obs_h.append(disp_dict['lcn'][tidx][nt][2])
 
 #================================EMISSIONS==================================
+print('Importing emissions data from %s' %emis_data)
 #extract and format emissions data
 emis_dict = {}
 emis_array = np.genfromtxt(emis_data, skip_header=1, usecols = [5,6,13,14], delimiter=',',skip_footer=emis_excl)
@@ -199,8 +205,8 @@ plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
 # plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
 plt.show()
-
-#================================FLIGHT ANIMATION==================================
+#
+# #================================FLIGHT ANIMATION==================================
 fig = plt.figure()
 ax = p3.Axes3D(fig)
 
@@ -239,12 +245,17 @@ plt.show()
 #================================VIRTICAL PROFILE==================================
 
 
-g_s = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - garage_ssm[0])) 	#get index in disersion dict
+g_s = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - garage_ssm[0])) 	#get index in dispersion dict
 g_f = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - garage_ssm[1]))
 
 c_s = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - corskcrew_ssm[0]))
 c_f = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - corskcrew_ssm[1]))
-
+dict_c_s = np.argmin(abs(disp_dict['time'] + model_ssm - corskcrew_ssm[0]))
+dict_c_f = np.argmin(abs(disp_dict['time'] + model_ssm - corskcrew_ssm[1]))
+dict_bg_s = np.argmin(abs(disp_dict['time'] + model_ssm - bg_cork_ssm[0]))
+dict_bg_f = np.argmin(abs(disp_dict['time'] + model_ssm - bg_cork_ssm[1]))
+# dict_bg_s = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[0]))
+# dict_bg_f = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[1]))
 
 # s = np.argmax(disp_dict['lcn'][:,2]) 	#corkscrew starts at max height - get the time of max height after end of spinup
 # f = s + 250 								#corkscrew lasts ~500sec (250x 2 sec timesteps)
@@ -330,8 +341,8 @@ plt.show()
 #H2O profiles from corkscrew and earlier
 plt.title('$H_2O$ PROFILES')
 plt.plot(pre_burn_qv[:,1],pre_burn_qv[:,0],':', label='pre-burn $H_2O$ profile from sounding')
-plt.plot(bg_h2o, bg_h,'g--',label='background $H_2O$ profile from flight ')
-plt.plot(disp_dict['H2O'][s:f],disp_dict['lcn'][s:f,2],'r-.',label='in-plume $H_2O$ profile from flight' )
+plt.plot(disp_dict['H2O'][dict_bg_s:dict_bg_f],disp_dict['lcn'][dict_bg_s:dict_bg_f,2],'g--',label='pre-burn $H_2O$ profile from flight ')
+plt.plot(disp_dict['H2O'][dict_c_s:dict_c_f],disp_dict['lcn'][dict_c_s:dict_c_f,2],'r-.',label='in-plume $H_2O$ profile from flight' )
 plt.ylim([0,1700])
 plt.xlabel('$H_2O$ mixing ratio [%]')
 plt.ylabel('height [m]')

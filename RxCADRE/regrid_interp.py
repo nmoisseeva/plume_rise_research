@@ -13,10 +13,10 @@ warnings.filterwarnings("ignore")
 
 datadir ='/Users/nmoisseeva/data/plume/RxCADRE'
 savedir ='/regrid'
-wrffile = 'wrfout_01-02-2018'
+wrffile = 'wrfout_L2G_22Feb2018'
 # ll_utm = np.array([518800,3377000])
 # ll_utm = np.array([519500,3377000])
-ll_utm = np.array([518300,3377000]) 	#Jan 2018
+ll_utm = np.array([517000,3377000]) #Feb 2018
 #!!!!!!!!!MUST UPDATE!!!!!!!!!!!!!!
 
 #======================end of input=======================

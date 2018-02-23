@@ -18,14 +18,14 @@ from matplotlib import animation
 
 #====================INPUT===================
 # wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_nospinup_regrid'
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_01-02-2018_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_22Feb2018_regrid'
 
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nmoisseeva/data/RxCADRE/instruments/HIP1'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 
 # ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
-ll_utm = np.array([518300,3377000]) 	#Jan 2018
+ll_utm = np.array([517000,3377000]) #Feb 2018
 
 basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 #=================calculated of input===============
