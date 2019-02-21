@@ -10,7 +10,8 @@ from scipy.spatial import KDTree
 import matplotlib.animation as animation
 from matplotlib import path
 from mpl_toolkits import basemap
-import mpl_toolkits.basemap.pyproj as pyproj
+#import mpl_toolkits.basemap.pyproj as pyproj
+import pyproj
 import os.path
 import pickle
 import mpl_toolkits.mplot3d.axes3d as p3
@@ -20,12 +21,12 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_22Feb2018_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/Feb2019/regrid/wrfout_L2G_regrid'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
-interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_22Feb2018_interp.npy'
+interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_Feb2019_interp.npy'
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 # ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
@@ -37,7 +38,7 @@ lvl = np.arange(0,1700,20) 				#
 emis_excl = 0 							#number of samples to excluded (from the END!)
 sfc_hgt = 62 							#surface height MSL (m)
 # runstart = '12:27:00' 				#start time (if restart run time of inital simulation)
-runstart = '11:30:00' 					#start time (if restart run time of inital simulation)
+runstart = '10:00:00' 					#start time (if restart run time of inital simulation)
 runend = '13:15:00'
 corskcrew_ssm= [47183,47521]			#start and end of corskcrew maneuver in ssm
 bg_cork_ssm = [43975,44371] 			#start and end time of pre-burn corkscrew for background

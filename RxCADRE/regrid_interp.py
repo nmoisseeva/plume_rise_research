@@ -6,14 +6,15 @@ from scipy.io import netcdf
 import matplotlib as mpl
 from matplotlib import path
 from mpl_toolkits import basemap
-import mpl_toolkits.basemap.pyproj as pyproj
+#import mpl_toolkits.basemap.pyproj as pyproj
+import pyproj
 import warnings
 import os
 warnings.filterwarnings("ignore")
 
-datadir ='/Users/nmoisseeva/data/plume/RxCADRE'
+datadir ='/Users/nmoisseeva/data/plume/RxCADRE/Feb2019'
 savedir ='/regrid'
-wrffile = 'wrfout_L2G_22Feb2018'
+wrffile = 'wrfout_L2G'
 # ll_utm = np.array([518800,3377000])
 # ll_utm = np.array([519500,3377000])
 ll_utm = np.array([517000,3377000]) #Feb 2018

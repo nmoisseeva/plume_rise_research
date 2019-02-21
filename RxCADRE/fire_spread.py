@@ -9,7 +9,9 @@ from scipy.ndimage.interpolation import zoom
 import matplotlib.animation as animation
 from matplotlib import path
 from mpl_toolkits import basemap
-import mpl_toolkits.basemap.pyproj as pyproj
+# import mpl_toolkits.basemap.pyproj as pyproj
+import shapefile
+import pyproj
 import os.path
 import pickle
 import mpl_toolkits.mplot3d.axes3d as p3
@@ -18,7 +20,7 @@ from matplotlib import animation
 
 #====================INPUT===================
 # wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_nospinup_regrid'
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_22Feb2018_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/Feb2019/regrid/wrfout_L2G_regrid'
 
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 instruments_shape = '/Users/nmoisseeva/data/RxCADRE/instruments/HIP1'
@@ -35,8 +37,8 @@ nsamples = 20
 ign_lcn_l2g_x = np.append(np.linspace(525527.,524584.,nsamples),np.linspace(525432.,524517.,nsamples))
 ign_lcn_l2g_y = np.append(np.linspace(3378993.,3378385.,nsamples),np.linspace(3379091.,3378503.,nsamples))
 #end samples above 2nd and 3rd lines
-test_lcn_l2g_x = np.append(np.linspace(525491.,524543.,nsamples),np.linspace(525400.,524478.,nsamples))
-test_lcn_l2g_y = np.append(np.linspace(3379065.,3378441.,nsamples),np.linspace(3379149.,3378554.,nsamples))
+test_lcn_l2g_x = np.append(np.linspace(525474.,524540.,nsamples),np.linspace(525390.,524475.,nsamples))
+test_lcn_l2g_y = np.append(np.linspace(3379050.,3378430.,nsamples),np.linspace(3379135.,3378547.,nsamples))
 
 
 #define normals to fire spread for HIP1 - in order ['FB19', 'FB2', 'FB3', 'FB14', 'FB17', 'FB20', 'FB22']
@@ -44,9 +46,9 @@ ign_lcn_hip_x = [524604,524621,524607,524606,524604,524594,524577]
 ign_lcn_hip_y = [3378359,3378377,3378366,3378365,3378360,3378352,3378339]
 
 #original ignition line locations (from namelist.input)
-wrf_lines_x_start = [7528,7429,7312,7238] + ll_utm[0]
-wrf_lines_x_end = [6251,6187,6109,6031] + ll_utm[0]
-wrf_lines_y_start = [2011,2075,2181,2244] + ll_utm[1]
+wrf_lines_x_start = [8828,8729,8612,8549] + ll_utm[0]
+wrf_lines_x_end = [7551,7487,7409,7331] + ll_utm[0]
+wrf_lines_y_start = [2011,2075,2181,2284] + ll_utm[1]
 wrf_lines_y_end = [1179,1275,1388,1480] + ll_utm[1]
 
 #=================end of input===============
@@ -259,7 +261,7 @@ for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
-# plt.savefig(fig_dir + 'AveHx.pdf')
+plt.savefig(fig_dir + 'AveHx.pdf')
 plt.show()
 plt.close()
 
@@ -274,7 +276,7 @@ for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
-# plt.savefig(fig_dir + 'MaxHx.pdf')
+plt.savefig(fig_dir + 'MaxHx.pdf')
 plt.show()
 plt.close()
 
@@ -291,14 +293,14 @@ for patch, color in zip(box['boxes'], colors):
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('ROS $[m s^{-1}]$')
 plt.ylim([0,0.5])
-# plt.savefig(fig_dir + 'ROS.pdf')
+plt.savefig(fig_dir + 'ROS.pdf')
 plt.show()
 plt.close()
 
 plt.figure()
 x = np.reshape(FUTMx, np.shape(FWGSx))
 y = np.reshape(FUTMy, np.shape(FWGSy))
-plt.contourf(x[250:600,-900:-500],y[250:600,-900:-500],fhfx[60,250:600,-900:-500],cmap=plt.cm.gist_heat_r)
+plt.contourf(x[250:600,-900:-300],y[250:600,-900:-300],fhfx[60,250:600,-900:-300],cmap=plt.cm.gist_heat_r)
 plt.scatter(ign_lcn_l2g_x,ign_lcn_l2g_y, s=2, label='initial sample')
 plt.scatter(test_lcn_l2g_x,test_lcn_l2g_y,s=2, label='final sample')
 for nLine in range(4):
