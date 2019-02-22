@@ -1,18 +1,18 @@
-# from scipy.io import netcdf
-from Scientific.IO import NetCDF
+from scipy.io import netcdf
+# from Scientific.IO import NetCDF
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import netcdf
 import matplotlib as mpl
 from matplotlib import path
 from mpl_toolkits import basemap
-import mpl_toolkits.basemap.pyproj as pyproj
+import pyproj as pyproj
 import warnings
 import os
 warnings.filterwarnings("ignore")
 
-wrfinput='/Users/nmoisseeva/wrf/wrf-fire/WRFV3/test/em_fire/rxcadre/wrfinput_d01'
-input_fc = '/Users/nmoisseeva/code/plume/RxCADRE/sfire/input_fc'
+wrfinput='/Users/nmoisseeva/data/plume/RxCADRE/sfire/wrfinput_d01_Feb2019'
+input_fc = '/Users/nmoisseeva/code/plume/RxCADRE/sfire/input_fc_cat3'
 
 #lower left corner
 # ll_utm = np.array([518300,3377000]) #THIS IS THE PROPER ONE
@@ -27,11 +27,12 @@ fire_dict_utm = {'fireline1':{'start':np.array([525828,3379011]), 'end':np.array
 				'fireline2':{'start':np.array([525729,3379075]), 'end':np.array([524487,3378275])},\
 				'fireline3':{'start':np.array([525612,3379181]), 'end':np.array([524409,3378388])},\
 				'fireline4':{'start':np.array([525549,3379284]), 'end':np.array([524331,3378480])} }
-fuel_cat = 1
+fuel_cat = 3
 
 #======================end of input=======================
 print('Extracting NetCDF data from %s ' %wrfinput)
-nc_data = NetCDF.NetCDFFile(wrfinput, 'a')
+# nc_data = NetCDF.NetCDFFile(wrfinput, 'a')
+nc_data = netcdf.netcdf_file(wrfinput, mode ='a')
 
 #create a UTM grid
 UTMx = nc_data.variables['XLONG'][0,:,:] + ll_utm[0]
