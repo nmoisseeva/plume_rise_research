@@ -7,7 +7,7 @@ from scipy.io import netcdf
 from scipy import interpolate
 import os.path
 import wrf
-import cmocean
+
 
 #====================INPUT===================
 wrfdir = '/Users/nmoisseeva/data/plume/main/'
