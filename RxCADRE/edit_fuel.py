@@ -1,5 +1,4 @@
 from scipy.io import netcdf
-# from Scientific.IO import NetCDF
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import netcdf

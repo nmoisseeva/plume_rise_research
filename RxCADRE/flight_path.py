@@ -21,12 +21,12 @@ from matplotlib import animation
 
 
 #====================INPUT===================
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/Feb2019/regrid/wrfout_L2G_regrid'
+wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/Feb2019/regrid/wrfout_L2G_cat1obs_regrid'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
 disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
-interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_Feb2019_interp.npy'
+interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_cat1obs_interp.npy'
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 # ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
@@ -178,6 +178,10 @@ emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation 
 # plt.xlim([tsec[0],tsec[-1]])
 # plt.show()
 
+#plot plame height vs time
+plt.figure()
+plt.plot(disp_dict['time'][tidx],disp_dict['lcn'][tidx,2])
+plt.show()
 
 #plot of H2O slices
 plt.figure()
@@ -200,11 +204,13 @@ for nSlice in range(len(emis_dict['smoke'])):
 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
 	ax.fill_between(shade, 0,20, facecolor='gray', alpha=0.3, edgecolor='w')
 plt.ylim([0,15])
-plt.xlim([0,tsec[-1]])
+plt.xlim([0,tsec[-1]]) 	#full scope
+plt.xlim([9000,12000])	#hardcoded
+
 plt.xlabel('time [s]')
 plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
-# plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
+plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
 plt.show()
 #
 # #================================FLIGHT ANIMATION==================================
@@ -258,45 +264,10 @@ dict_bg_f = np.argmin(abs(disp_dict['time'] + model_ssm - bg_cork_ssm[1]))
 # dict_bg_s = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[0]))
 # dict_bg_f = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[1]))
 
-# s = np.argmax(disp_dict['lcn'][:,2]) 	#corkscrew starts at max height - get the time of max height after end of spinup
-# f = s + 250 								#corkscrew lasts ~500sec (250x 2 sec timesteps)
-# cleanf = np.argmin(disp_dict['lcn'][:,2])	#end of initial vertical profile (beginning of flight) - used as bg
-# h20 = np.array(disp_dict['H2O'])
-# h = np.array(disp_dict['lcn'])[:,2]
-# bg_h2o = disp_dict['H2O'][:cleanf]
-# bg_h = h[:cleanf]
-
-# #calculate H20 MR departure at corkscrew point locations (NOT MATCHED IN TIME - LAST SLID ONLY)
-# #H20 corkscrew profile from last frame
-# dist_cs, grid_id_cs = gridTree.query(np.array(disp_dict['lcn'])[s:f,0:2])
-# mod_val_cs = []
-# print('Finding nearest points....')
-# for nt in range(len(range(s,f))):
-# 	print('...tstep: %s') %nt
-# 	idxy,idxx = np.unravel_index(grid_id_cs[nt],np.shape(lat))
-# 	idxz = np.argmin(abs(lvl-disp_dict['lcn'][nt,2]))
-# 	mod_val_cs.append(qvapornan[-1,idxz,idxy,idxx]*1000000)
-# 	# mv = disp_dict['H2O'][tidx[nt]]		#in percent by volume
-
-# #define start and end of the corkscrew in sec from beginning of simulation
-# plt.figure(figsize=(9,5))
-# plt.subplot(1,2,1)
-# plt.title('(a) $CO_2$ PROFILE FROM CORKSCREW')
-# plt.scatter(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],color='black' )
-# plt.plot(disp_dict['CO2'][s:f],disp_dict['lcn'][s:f,2],'k--' )
-# plt.ylim([0,1700])
-# plt.xlabel('$CO_2$ mixing ratio [ppmv]')
-# plt.ylabel('height [m]')
-# plt.subplot(1,2,2)
-# plt.title('(b) $H_2O$ PROFILE FROM LES CORKSCREW')
-# plt.scatter(mod_val_cs,disp_dict['lcn'][s:f,2],color='blue' )
-# plt.plot(mod_val_cs,disp_dict['lcn'][s:f,2],'b--' )
-# plt.ylim([0,1700])
-# plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
-# plt.ylabel('height [m]')
-# plt.tight_layout()
-# plt.savefig(fig_dir + 'ProfilesCorkscrew.pdf')
-# plt.show()
+T0 = nc_data.variables['T'][0,:,:,:]
+Tprofile = T0[:,0,0]
+plt.plot(Tprofile, z[0,:-1,0,0])
+plt.show()
 
 
 #H2O and CO2 profiles from garage flights
@@ -316,7 +287,7 @@ plt.ylim([0,1700])
 plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
 plt.ylabel('height [m]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'ProfilesGarage.pdf')
+plt.savefig(fig_dir + 'ProfilesCorkscrew.pdf')
 plt.show()
 
 #H2O and CO2 profiles from garage flights
@@ -353,23 +324,35 @@ plt.savefig(fig_dir + 'H2OProfiles.pdf')
 plt.show()
 
 
-#vertical column evoluation
-column_evol = np.nansum(np.nansum(qinterp,2),2)
-column_evol[column_evol<0] = np.nan 			#mask negataives
-plt.pcolor(column_evol.T*1000,cmap=plt.cm.cubehelix_r)
-cbar = plt.colorbar()
-cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
-ax = plt.gca()
-ax.set_yticks(np.arange(0,numLvl,10))
-ax.set_yticklabels(lvl[::10])
-ax.set_xticks(np.arange(0,len(tsec),30))
-ax.set_xticklabels((tsec[::30]/60.).astype(int))
-plt.xlabel('time [min]')
-plt.ylabel('height [m]')
-plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
-plt.tight_layout()
-plt.savefig(fig_dir + 'SmokeColumn.pdf')
-plt.show()
+# #vertical column evoluation
+# column_evol = np.nansum(np.nansum(qinterp,2),2)
+# column_evol[column_evol<0] = np.nan 			#mask negataives
+# plt.pcolor(column_evol.T*1000,cmap=plt.cm.cubehelix_r)
+# cbar = plt.colorbar()
+# cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
+# ax = plt.gca()
+# ax.set_yticks(np.arange(0,numLvl,10))
+# ax.set_yticklabels(lvl[::10])
+# ax.set_xticks(np.arange(0,len(tsec),30))
+# ax.set_xticklabels((tsec[::30]/60.).astype(int))
+# plt.xlabel('time [min]')
+# plt.ylabel('height [m]')
+# plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
+# plt.tight_layout()
+# plt.savefig(fig_dir + 'SmokeColumn.pdf')
+# plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
 
 # #create a horizontall averaged plume profile (last slide)
 # plume_profile = np.nansum(qinterp[-1,:,:,:],2)

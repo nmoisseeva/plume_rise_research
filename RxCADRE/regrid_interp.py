@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore")
 
 datadir ='/Users/nmoisseeva/data/plume/RxCADRE/Feb2019'
 savedir ='/regrid'
-wrffile = 'wrfout_L2G'
+wrffile = 'wrfout_L2G_cat3strd'
 # ll_utm = np.array([518800,3377000])
 # ll_utm = np.array([519500,3377000])
 ll_utm = np.array([517000,3377000]) #Feb 2018

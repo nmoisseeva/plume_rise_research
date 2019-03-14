@@ -5,20 +5,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-datapath = './U.csv'
-data = np.genfromtxt(datapath,usecols=(1,2,3,4,5,6,7,8,9),skip_header=3,delimiter=',',dtype=float)
+datapath = './H.csv'
+data = np.genfromtxt(datapath,usecols=(1,2,3,4),skip_header=4,delimiter=',',dtype=float)
 
-
-freq = 30 #hz
+freq = 1 #hz
 ave_int = 1 #min
 num_pts = 60 * freq * ave_int
 data_samples = np.shape(data)[0] / num_pts
 
 
-#samples covering ignition
-# bad = range(160,190)
-# bad = []
-bad = range(14, 20)
+#samples covering ignition (HARDCODED starting at 12:27pm, with 10am spinup)
+bad = range(147, 1000)
 
 H = []
 
