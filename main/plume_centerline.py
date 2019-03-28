@@ -26,7 +26,7 @@ tag = 'W4S400F3R0'
 # tag = 'W4S400F13R0'
 # tag = 'W10S400F3R0'
 # tag = 'W4Sn400F3R0'
-fig_dir = '/Users/nmoisseeva/code/plume/main/figs/'
+figdir = '/Users/nmoisseeva/code/plume/main/figs/'
 
 lvl = np.arange(0,2500,40)	 			#vertical levels in m
 
@@ -193,9 +193,9 @@ axh.set_ylim([0,140])
 axh.set_xlim([0,74])
 axh.tick_params(axis='y', colors='red')
 ln = axh.plot(ghfx_tave, 'r-')
-plt.savefig(fig_dir + 'TimeAverage/AVE_hfx_w_qv_%s.pdf' %tag)
+plt.savefig(figdir + 'TimeAverage/AVE_hfx_w_qv_%s.pdf' %tag)
 plt.show()
-print('.....-->saved in: %s' %(fig_dir + 'TimeAverage/AVE_hfx_w_qv_%s.pdf' %tag))
+print('.....-->saved in: %s' %(figdir + 'TimeAverage/AVE_hfx_w_qv_%s.pdf' %tag))
 
 
 #plot contours
@@ -223,6 +223,6 @@ axh.set_ylim([0,140])
 axh.set_xlim([0,74])
 axh.tick_params(axis='y', colors='red')
 ln = axh.plot(ghfx_tave, 'r-')
-plt.savefig(fig_dir + 'TimeAverage/AVE_hfx_w_temp_%s.pdf' %tag)
+plt.savefig(figdir + 'TimeAverage/AVE_hfx_w_temp_%s.pdf' %tag)
 plt.show()
-print('.....-->saved in: %s' %(fig_dir + 'TimeAverage/AVE_hfx_w_temp_%s.pdf' %tag))
+print('.....-->saved in: %s' %(figdir + 'TimeAverage/AVE_hfx_w_temp_%s.pdf' %tag))
