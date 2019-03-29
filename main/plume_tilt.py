@@ -157,7 +157,7 @@ plt.title('NORMALIZED FIRELINE INTENSITY vs CumT')
 ax = plt.gca()
 sc = ax.scatter(fireLine[:,0]/(meanU),cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG)
 # sc = ax.scatter(fireLine[:,0]/(plume.read_tag('W',plume.tag)),cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG)
-for i, txt in enumerate(plume.read_tag('F',plume.tag)):
+for i, txt in enumerate(plume.read_tag('W',plume.tag)):
     ax.annotate(txt, (fireLine[i,0]/(meanU[i])+100,cumT[i]+100), fontsize=9)
 cbar=plt.colorbar(sc)
 cbar.set_label('surface heat flux [$W/m^2$]')

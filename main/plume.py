@@ -3,6 +3,7 @@
 
 import numpy as np
 import os.path
+import glob
 
 #input values for plume analysis
 #--------------------------------
@@ -11,10 +12,14 @@ figdir = '/Users/nmoisseeva/code/plume/main/figs/'
 lvl = np.arange(0,2500,40)	 	#vertical levels in m
 dx = 40.                        #horizontal grid spacing
 
-cs = 20                         #+/- grids for cross-section                               
+cs = 20                         #+/- grids for cross-section
+wi, wf = 10, 65
 
-dirlist = os.listdir(wrfdir+'interp/') 	#get all files in directory
-tag = [i[7:-4] for i in dirlist[1:]]    #W*S*F*R0
+
+# dirlist = os.listdir(wrfdir+'interp/') 	#get all files in directory
+dirpath = wrfdir+'interp/wrfinterp_*'
+dirlist = glob.glob(dirpath) #get all  interp files in directory
+tag = [i[len(dirpath)-1:-4] for i in dirlist]    #W*S*F*R0
 
 #common functions
 #--------------------------------
