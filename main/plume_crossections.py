@@ -2,6 +2,7 @@
 #March 2019
 
 import numpy as np
+import sys
 from scipy.io import netcdf
 import matplotlib.pyplot as plt
 import os.path
@@ -20,7 +21,7 @@ for nCase,Case in enumerate(plume.tag):
     print('Examining case: %s ' %Case)
 
     #----------check for interpolated data----------------------------
-    interppath = plume.wrfdir + 'interp/wrfinterp_' + Case + '.npy'
+    interppath = plume.wrfdir + 'interp/wrfinterp_' + Case + '.npz'
     wrfpath = plume.wrfdir + 'wrfout_'+ Case
     wrfdata = netcdf.netcdf_file(wrfpath, mode ='r')
     ncdict = wrf.extract_vars(wrfdata, None, ('GRNHFX'))
