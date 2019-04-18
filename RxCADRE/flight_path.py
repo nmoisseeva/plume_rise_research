@@ -42,7 +42,9 @@ runstart = '10:00:00' 					#start time (if restart run time of inital simulation
 runend = '13:15:00'
 corskcrew_ssm= [47183,47521]			#start and end of corskcrew maneuver in ssm
 bg_cork_ssm = [43975,44371] 			#start and end time of pre-burn corkscrew for background
-garage_ssm = [45237,47133] 				#start and end time of garage profile
+# garage_ssm = [45237,47133] 				#start and end time of garage profile
+garage_ssm = [45000,47200] 				#start and end time of garage profile
+
 #=================end of input===============
 
 
@@ -109,7 +111,7 @@ disp_dict = {}
 disp_array = np.genfromtxt(disp_data, skip_header=1, usecols = [1,2,3,4,5,7,8,9], delimiter=',')
 
 start_idx = np.argmin(abs(disp_array[:,0] - model_ssm))  #find simulation start time index
-disp_dict['time']= disp_array[start_idx:,0] - model_ssm +1
+disp_dict['time']= disp_array[start_idx:,0] - model_ssm + 1
 disp_dict['time'] = disp_dict['time'].astype(int)
 disp_dict['CO'] = disp_array[start_idx:,1]
 disp_dict['CO2'] = disp_array[start_idx:,2]
@@ -178,7 +180,7 @@ emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation 
 # plt.xlim([tsec[0],tsec[-1]])
 # plt.show()
 
-#plot plame height vs time
+#plot plane height vs time
 plt.figure()
 plt.plot(disp_dict['time'][tidx],disp_dict['lcn'][tidx,2])
 plt.show()
@@ -205,7 +207,7 @@ for nSlice in range(len(emis_dict['smoke'])):
 	ax.fill_between(shade, 0,20, facecolor='gray', alpha=0.3, edgecolor='w')
 plt.ylim([0,15])
 plt.xlim([0,tsec[-1]]) 	#full scope
-plt.xlim([9000,12000])	#hardcoded
+plt.xlim([9000,11000])	#hardcoded
 
 plt.xlabel('time [s]')
 plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')

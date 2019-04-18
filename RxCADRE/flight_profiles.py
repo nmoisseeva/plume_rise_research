@@ -1,8 +1,16 @@
+#April 2019
+#nmoisseeva@eoas.ubc.ca
+
 
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import netcdf
 import wrf
+import datetime as dt
+import matplotlib.dates as mdates
+import pandas as pd
+
+
 
 
 
@@ -17,8 +25,8 @@ runstart = '10:00:00' 					#start time (if restart run time of inital simulation
 #-------------------end of input--------------
 
 profiles_sec = np.array([[7367,7507],[7985,8357],[8813,8982]])
-
-
+profiles_start = ['12:02:30','12:13:00','12:27:00']
+profiles_end = ['12:05:30','12:19:00','12:29:30']
 #-----------------edited from within steps below------
 
 model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
@@ -28,31 +36,46 @@ model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
 qinterp = np.load(interp_path)   # load here the above pickle
 print('Interpolated data found at: %s' %interp_path)
 
-
 #extract and format dispersion data
 print('Importing dispersion data from %s' %disp_data)
 disp_dict = {}
 disp_array = np.genfromtxt(disp_data, skip_header=1, usecols = [1,2,3,4,5,7,8,9], delimiter=',')
-
 start_idx = np.argmin(abs(disp_array[:,0] - model_ssm))  #find simulation start time index
-disp_dict['time']= disp_array[start_idx:,0] - model_ssm +1
+disp_dict['time']= (disp_array[start_idx:,0] - model_ssm +1)
 disp_dict['time'] = disp_dict['time'].astype(int)
 disp_dict['CO'] = disp_array[start_idx:,1]
 disp_dict['CO2'] = disp_array[start_idx:,2]
 disp_dict['CH4'] = disp_array[start_idx:,3]
 disp_dict['H2O'] = disp_array[start_idx:,4]
 disp_dict['lcn'] = np.array(zip(disp_array[start_idx:,5],disp_array[start_idx:,6],disp_array[start_idx:,7]-sfc_hgt))
-disp_dict['meta']= 'time: seconds since restart run | \
+disp_dict['meta']= 'time: min since restart run | \
 					CO: Mixing ratio of carbon monoxide in units of parts per million by volume (ppmv) in dry air. | \
 					CO2: Mixing ratio of carbon dioxide in units of ppmv in dry air. | \
 					CH4: Mixing ratio of methane in units of ppmv in dry air. | \
 					H2O: Mixing ratio of water vapor in percent by volume. | \
 					lcn: (lat, lon, elevation) - coords in WGS84, elevation AGL'
 
+basetime = dt.datetime(year=2012,month=11,day=10)
+timestamp = [basetime + dt.timedelta(hours = 10, seconds = i) for i in disp_dict['time']]
+
+prof_dt_start = [dt.datetime.combine(basetime,dt.datetime.strptime(i, '%H:%M:%S').time()) for i in profiles_start]
+prof_dt_end = [dt.datetime.combine(basetime,dt.datetime.strptime(i, '%H:%M:%S').time()) for i in profiles_end]
 #plot plame height vs time
 plt.figure()
-plt.plot(disp_dict['time'],disp_dict['lcn'][:,2])
+plt.plot(timestamp,disp_dict['lcn'][:,2])
+ax = plt.gca()
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+for nProf in range(len(prof_dt_end)):
+	ax.fill_between(pd.date_range(prof_dt_start[nProf],prof_dt_end[nProf],freq='S'),0,2000,facecolor='green', alpha=0.2)
+plt.gcf().autofmt_xdate()
+plt.xlabel('time (CST)')
+plt.ylabel('airplane height [m]')
+plt.ylim([0,2000])
 plt.show()
+
+
+
+
 
 #load pre-burn moisture profile
 pre_burn_qv = np.genfromtxt(pre_moisture, skip_header=1, delimiter=',')

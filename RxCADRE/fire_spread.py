@@ -203,7 +203,7 @@ print('.....Avarage rate of spread based on HIP1: %s' %aveROS_hip)
 
 
 print("----------------Mid-section sample analysis------------------")
-print("Calculating sample heat fluxes on fire mesh:")
+print("Calculating ROS based on cross sections:")
 test_lcn_hfx = np.empty((len(ign_lcn_l2g_y),len(xtime))) * np.nan
 t_ign_l2g = [] 				#time of sample ignition storage
 for nPt, pt in enumerate(TESTgrid_id):
@@ -314,26 +314,3 @@ by_label = OrderedDict(zip(labels, handles))
 plt.legend(by_label.values(), by_label.keys())
 
 plt.show()
-
-
-
-# #plot mean ROS for the fire
-# plt.figure()
-# im = plt.contourf(rosnan[0:1000,1000:])
-# plt.colorbar()
-# plt.title('ROS [m/s]')
-# plt.show()
-
-# #plot peak heat flux
-# plt.figure()`
-# im = plt.contourf(hfxnanmax[0:100,100:])
-# plt.title('PEAK HFX DURING FIRE')
-# plt.colorbar()
-# plt.show()
-
-# #plot average heat flux
-# plt.figure()
-# im = plt.contourf(hfxnanmean[0:100,100:])
-# plt.colorbar()
-# plt.title('AVE HFX DURING FIRE')
-# plt.show()
