@@ -3,9 +3,9 @@
 *.npy
 *.nc
 */interp/*
-*sensitivity/*
-*comps/*
-*figs/*
+sensitivity/
+comps/
+figs/
 *wrfout*
 
 */main/figs
