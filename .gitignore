@@ -3,7 +3,9 @@
 *.npy
 *.nc
 */interp/*
-*/comps/westgrid/*
+*/sensitivity/*
+*/comps/*
+*/figs/*
 *wrfout*
 
 */main/figs
