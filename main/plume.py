@@ -17,10 +17,10 @@ wi, wf = 10, 65
 
 
 # dirlist = os.listdir(wrfdir+'interp/') 	#get all files in directory
-dirpath = wrfdir+'interp/wrfinterp_*'
+dirpath = wrfdir+'interp/wrfave_*'
 dirlist = glob.glob(dirpath) #get all  interp files in directory
 tag = [i[len(dirpath)-1:-4] for i in dirlist]    #W*S*F*R0
-
+# tag = ['W8S400F7R0']
 #common functions
 #--------------------------------
 #tag reading function read_tag(variable type, string array)

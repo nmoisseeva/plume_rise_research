@@ -7,12 +7,15 @@ import matplotlib.pyplot as plt
 from Scientific.IO import NetCDF
 from scipy.io import netcdf
 from scipy.spatial import KDTree
+from scipy import stats
 import wrf
 
 datapath = './U.csv'
 data = np.genfromtxt(datapath,usecols=(1,2,3,4,5,6,7,8),skip_header=3,delimiter=',',dtype=float)
 csu_lcn = [525803.12, 3378544.15] #[30.539,86.731]
 ll_utm = np.array([517000,3377000]) #Feb 2019
+fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
+
 
 freq = 0.5 #hz of wind measurements
 ave_int = 1 #min
@@ -42,10 +45,15 @@ nT,nZ,nY,nX = np.shape(z)
 num_pts = int(60 * freq * ave_int)
 data_samples = int(np.shape(data)[0] / num_pts)
 uCSU = []
+dirCSU = []
 for nSample in range(data_samples):
 	subset = data[nSample*num_pts:(nSample+1)*num_pts,(0,2,4,6)]
 	ave1min = np.mean(subset,0)
 	uCSU.append(ave1min)
+
+	dirset = data[nSample*num_pts:(nSample+1)*num_pts,7]
+	dirave1min = np.mean(dirset,0)
+	dirCSU.append(dirave1min)
 
 #get grid location of where CSU is
 grid_coord_atm = zip(UTMy.ravel(),UTMx.ravel())
@@ -66,6 +74,7 @@ for nSample in range(45):
 	ave1min = np.mean(subset,0)
 	uWRF.append(ave1min)
 
+
 #=======================PLOTTING=======================
 plt.title('CSU (6.2m,11.2m) vs WRF (~8m) WINDSPEEDS ')
 plt.plot(np.array(uWRF)[:,0], label='WRF ~8m')
@@ -85,5 +94,26 @@ plt.plot(np.array(uCSU)[-45:,3], label='CSU winds 30.7m')
 plt.xlabel('minutes')
 plt.ylabel('wind speed [m/s]')
 plt.legend()
+plt.show()
+plt.close()
+
+
+
+#------create a regression line for wind------
+
+xaxis = np.arange(122)
+m, b, r_value, p_value, std_err = stats.linregress(xaxis,np.array(dirCSU)[-122:])
+fit = b + m * xaxis
+
+plt.title('CSU (30.7m) WIND DIRECTION')
+plt.scatter(xaxis,np.array(dirCSU)[-122:])
+plt.plot(xaxis,fit,'r--')
+plt.xlabel('time (CST)')
+plt.ylabel('wind direction [deg]')
+plt.ylim([40,220])
+ax = plt.gca()
+ax.set_xticks(np.arange(0,121,30))
+ax.set_xticklabels(['11:10','11:40','12:10','12:40','13:10'])
+plt.savefig(fig_dir + 'WindDir.pdf')
 plt.show()
 plt.close()

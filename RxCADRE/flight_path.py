@@ -17,6 +17,10 @@ import pickle
 import mpl_toolkits.mplot3d.axes3d as p3
 import mpl_toolkits.mplot3d as a3
 from matplotlib import animation
+import pandas as pd
+import matplotlib.dates as mdates
+
+
 
 
 
@@ -79,6 +83,9 @@ else:
 tsec = nc_data.variables['XTIME'][:] * 60. 		#get time in seconds since spinup start
 model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
 
+#convert all timestamps to datetime objects
+basetime = dt.datetime(year=2012,month=11,day=10)
+timestamp = [basetime + dt.timedelta(hours = 10, seconds = i) for i in disp_dict['time']]
 
 #==========================VERTICAL INTERPOLATION============================
 numLvl = len(lvl)
@@ -146,6 +153,7 @@ dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx][:,0:2])
 # qvapornan[qvapornan<1e-30] = np.nan
 mod_val, obs_val = np.empty((len(tsec))) * np.nan, np.empty((len(tsec))) * np.nan
 obs_h = []
+obs_lon, obs_lat = [],[]
 print('Finding nearest points....')
 for nt in range(len(tsec)):
 	print('...tstep: %s') %nt
@@ -154,7 +162,8 @@ for nt in range(len(tsec)):
 	mod_val[nt] = qinterp[nt,idxz,idxy,idxx]
 	obs_val[nt] = disp_dict['CO2'][tidx[nt]]		#in percent by volume
 	obs_h.append(disp_dict['lcn'][tidx][nt][2])
-
+	obs_lon.append(disp_dict['lcn'][tidx][nt][1])
+	obs_lat.append(disp_dict['lcn'][tidx][nt][0])
 #================================EMISSIONS==================================
 print('Importing emissions data from %s' %emis_data)
 #extract and format emissions data
@@ -168,48 +177,35 @@ emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation 
 					lcn: (lat, lon, elevation) - coords in WGS84, elevation MSL'
 
 #================================PLOTTING==================================
-# #plot of CO2 slices
+
+#
+# #plot of H2O slices
 # plt.figure()
-# plt.title('CO2 anomalies')
-# plt.scatter(disp_dict['time'],disp_dict['CO2'])
+# plt.title('H2O')
+# plt.scatter(disp_dict['time'],disp_dict['H2O'])
 # ax = plt.gca()
 # for nSlice in range(len(emis_dict['smoke'])):
 # 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
-# 	ax.fill_between(shade, 390,440, facecolor='gray', alpha=0.1, edgecolor='w')
-# plt.ylim([390,440])
-# plt.xlim([tsec[0],tsec[-1]])
+# 	ax.fill_between(shade, 0,1.5, facecolor='gray', alpha=0.1, edgecolor='w')
+# plt.ylim([0,1.5])
+# # plt.xlim([tsec[0],tsec[-1]])
 # plt.show()
-
-#plot plane height vs time
-plt.figure()
-plt.plot(disp_dict['time'][tidx],disp_dict['lcn'][tidx,2])
-plt.show()
-
-#plot of H2O slices
-plt.figure()
-plt.title('H2O')
-plt.scatter(disp_dict['time'],disp_dict['H2O'])
-ax = plt.gca()
-for nSlice in range(len(emis_dict['smoke'])):
-	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
-	ax.fill_between(shade, 0,1.5, facecolor='gray', alpha=0.1, edgecolor='w')
-plt.ylim([0,1.5])
-# plt.xlim([tsec[0],tsec[-1]])
-plt.show()
 
 #plot of model H20 slices overlayed with real emissions
 plt.title('SIMULATED $Q_v$ ANOMALY ALONG FLIGHT PATH')
-plt.scatter(disp_dict['time'][tidx], mod_val*1000000,c='red')
-plt.plot(disp_dict['time'][tidx], mod_val*1000000,'b--')
+plt.plot(np.array(timestamp)[tidx], mod_val*1000000,'ro')
+plt.plot(np.array(timestamp)[tidx], mod_val*1000000,'b--')
 ax = plt.gca()
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 for nSlice in range(len(emis_dict['smoke'])):
-	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
-	ax.fill_between(shade, 0,20, facecolor='gray', alpha=0.3, edgecolor='w')
+	smoke_start = basetime + dt.timedelta(hours = 10, seconds = emis_dict['smoke'][nSlice][0])
+	smoke_end =  basetime + dt.timedelta(hours = 10, seconds = emis_dict['smoke'][nSlice][1])
+	ax.fill_between(pd.date_range(smoke_start,smoke_end,freq='S'),0,20,facecolor='gray', alpha=0.3)
 plt.ylim([0,15])
-plt.xlim([0,tsec[-1]]) 	#full scope
-plt.xlim([9000,11000])	#hardcoded
+plt.gcf().autofmt_xdate()
+plt.xlim([dt.datetime(year=2012,month=11,day=10,hour=12,minute=27),dt.datetime(year=2012,month=11,day=10,hour=13,minute=04)])	#hardcoded
 
-plt.xlabel('time [s]')
+plt.xlabel('time (CST)')
 plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
 plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
@@ -218,7 +214,7 @@ plt.show()
 # #================================FLIGHT ANIMATION==================================
 fig = plt.figure()
 ax = p3.Axes3D(fig)
-
+ax = plt.gca()
 # create initial frame
 point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
 ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
@@ -237,7 +233,7 @@ for item in emis_dict['smoke']:
 # move the point position at every frame
 def update_point(n, disp_dict,smoky,point):
     point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
-    point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
+    # point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
     time_text.set_text('Time (sec) = %s' %(n*dt))
     if disp_dict['time'][n] in smoky:
     	point.set_color('r')
@@ -249,6 +245,43 @@ def update_point(n, disp_dict,smoky,point):
 ani=animation.FuncAnimation(fig, update_point, 3000, fargs=(disp_dict,smoky,point), interval=15)
 # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
 plt.show()
+
+
+
+fig = plt.figure()
+ax = p3.Axes3D(fig)
+ax = plt.gca()
+# create initial frame
+point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
+ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
+line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
+ax.legend()
+ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
+ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
+ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
+time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
+
+#make a list of all times within plume from emissions
+smoky = []
+for item in emis_dict['smoke']:
+	smoky.extend(np.arange(item[0],item[1]))
+
+# move the point position at every frame
+def update_point(n, disp_dict,smoky,point):
+    point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
+    # point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
+    time_text.set_text('Time (sec) = %s' %(n*dt))
+    if disp_dict['time'][n] in smoky:
+    	point.set_color('r')
+    else:
+    	point.set_color('k')
+    return point, time_text,
+
+#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+ani=animation.FuncAnimation(fig, update_point, 3000, fargs=(disp_dict,smoky,point), interval=15)
+# ani.save('./test_ani.gif', writer='imagemagick',fps=120)
+plt.show()
+
 
 
 #================================VIRTICAL PROFILE==================================
@@ -326,50 +359,35 @@ plt.savefig(fig_dir + 'H2OProfiles.pdf')
 plt.show()
 
 
-# #vertical column evoluation
-# column_evol = np.nansum(np.nansum(qinterp,2),2)
-# column_evol[column_evol<0] = np.nan 			#mask negataives
-# plt.pcolor(column_evol.T*1000,cmap=plt.cm.cubehelix_r)
-# cbar = plt.colorbar()
-# cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
-# ax = plt.gca()
-# ax.set_yticks(np.arange(0,numLvl,10))
-# ax.set_yticklabels(lvl[::10])
-# ax.set_xticks(np.arange(0,len(tsec),30))
-# ax.set_xticklabels((tsec[::30]/60.).astype(int))
-# plt.xlabel('time [min]')
-# plt.ylabel('height [m]')
-# plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
-# plt.tight_layout()
-# plt.savefig(fig_dir + 'SmokeColumn.pdf')
-# plt.show()
+#vertical column evoluation
+column_evol = np.nansum(np.nansum(qinterp,2),2)
+column_evol[column_evol<0] = np.nan 			#mask negataives
+plt.pcolor(column_evol.T*1000,cmap=plt.cm.cubehelix_r)
+cbar = plt.colorbar()
+cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
+ax = plt.gca()
+ax.set_yticks(np.arange(0,numLvl,10))
+ax.set_yticklabels(lvl[::10])
+ax.set_xticks(np.arange(0,len(tsec),30))
+ax.set_xticklabels((tsec[::30]/60.).astype(int))
+plt.xlabel('time [min]')
+plt.ylabel('height [m]')
+plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
+plt.tight_layout()
+plt.savefig(fig_dir + 'SmokeColumn.pdf')
+plt.show()
 
-
-
-
-
-
-
-
-
-
-
-
-
-# #create a horizontall averaged plume profile (last slide)
-# plume_profile = np.nansum(qinterp[-1,:,:,:],2)
-# plt.pcolor(plume_profile * 1000,cmap=plt.cm.PuBu)
-# cbar = plt.colorbar()
-# cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
-# ax = plt.gca()
-# ax.set_yticks(np.arange(0,numLvl,5))
-# ax.set_yticklabels(lvl[::5])
-# plt.xlabel('grid #')
-# plt.ylabel('height [m]')
-# plt.title('TOTAL $Q_v$ ANOMALY (HORIZONTALLY AVERAGED) at $t_{end}$')
-# plt.tight_layout()
-# plt.savefig(fig_dir + 'AvePlume_Tend.pdf')
-# plt.show()
+#top view of smoke for corkscrew with average obs location
+cs_lon =  np.mean(disp_dict['lcn'][dict_c_s:dict_c_f,1])
+cs_lat = np.mean(disp_dict['lcn'][dict_c_s:dict_c_f,0])
+plt.title('TOP VIEW CORKSCREW')
+smokeim = np.nansum(qinterp[258,:,:,:],0) * 1000
+im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
+bm.scatter(cs_lon,cs_lat,4,marker='*',color='r',origin='lower')
+plt.colorbar(im, label='total column $H_{2}O$ mixing ratio anomaly [mg/kg]')
+plt.tight_layout()
+# plt.savefig(fig_dir + 'H2OProfiles.pdf')
+plt.show()
 
 
 # #=============================ANIMATION OF CW ave plume==================================
@@ -398,7 +416,7 @@ plt.show()
 # # line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
 # # ax.legend()
 # # ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
-# # ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
+# # ax.set_ylim([min(disp_dict['lcn'][:,1]), maxs(disp_dict['lcn'][:,1])])
 # # ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
 # # ax.colorbar()
 # # time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
