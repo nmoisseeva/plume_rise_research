@@ -9,7 +9,8 @@ import glob
 #--------------------------------
 wrfdir = '/Users/nmoisseeva/data/plume/main/'
 figdir = '/Users/nmoisseeva/code/plume/main/figs/'
-lvl = np.arange(0,2500,40)	 	#vertical levels in m
+dz = 40
+lvl = np.arange(0,2500,dz)	 	#vertical levels in m
 dx = 40.                        #horizontal grid spacing
 
 cs = 20                         #+/- grids for cross-section

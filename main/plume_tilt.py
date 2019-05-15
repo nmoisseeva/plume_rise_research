@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from scipy.io import netcdf
 from scipy import interpolate
 import os.path
-import wrf
-import cmocean
+#import wrf
+#import cmocean
 import sys
 import imp
 
@@ -63,14 +63,26 @@ for nCase,Case in enumerate(plume.tag):
 
 	#get plume tilt through linear regression of max concentration values
 	tilt = np.poly1d(np.polyfit(qmax_idx,plume.lvl[np.isfinite(qmax_profile)],1))
-	#get average fireline intensity and wind
-	U = np.nanmean(avedict['u'][3:,0]) #exclude bottom three layers due to friction
-	ignited = [i for i in avedict['ghfx'] if i > 2]
-	totI = sum(np.array(ignited)*plume.dx)
+
+	#get fireline intensity and wind
+	# U = np.nanmean(avedict['u'][3:,0]) #exclude bottom three layers due to friction
+	U = avedict['u'][2,0]
+
+	ignited = np.array([i for i in avedict['ghfx'] if i > 2])
+
+
+	# #calculate total flux from ground and fire
+	# fireI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 )
+	# grndI = plume.read_tag('S',[Case])[0]* plume.dx * len(ignited)/(1.2 * 1005)
+	# totI = fireI + grndI
+
+	totI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
+
 	print('Mean wind speed: %s std %.2f' %(U,np.nanstd(avedict['u'][3:,0])))
 
 	#store data
 	meanU[nCase] = U
+
 	plumeTilt[nCase] = tilt.c[0]
 	fireLine[nCase,:] = totI,len(ignited)
 	plume_tops[nCase] = plume.lvl[len(wmax_idx)-1]
@@ -80,7 +92,11 @@ for nCase,Case in enumerate(plume.tag):
 	qslicewtop = avedict['qvapor'][:,wmax_idx[-1]] #This should be the proper definition
 
 	#get "cumulutive" temperature for the profile
-	cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0]*plume.dx)
+	cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0]*plume.dz)
+
+	#get cumulative delT
+	# delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
+	# cumT[nCase] = np.sum(delT * plume.dz)
 
 	#===========================plotting===========================
 	#vertical concentration slice at donwind locations of wmax and qmax
@@ -125,7 +141,8 @@ for nCase,Case in enumerate(plume.tag):
 
 #---------------------calculations over all plumes--------------
 normI = fireLine[:,0]/(meanU) #normalized fire intensity
-
+print('Variability of normalized intensity:')
+print(np.std(normI))
 
 #-------------subplots of tilt predictors-----------
 #create scatter plots of tilts vs other variables
@@ -153,7 +170,7 @@ plt.colorbar(ax3,label='windspeed [m/s]')
 
 plt.tight_layout()
 plt.savefig(plume.figdir + 'tilt_subplots.pdf')
-plt.show()
+# plt.show()
 plt.close()
 
 
@@ -170,19 +187,28 @@ plt.colorbar(ax1,label='wind speed [m/s]')
 plt.tight_layout()
 plt.savefig(plume.figdir + 'I_cumT.pdf')
 plt.show()
+plt.close()
+
+
+
+#get linear regression for the normalized fireLine
+regF = np.poly1d(np.polyfit(normI,cumT,1))
+
 
 plt.title('NORMALIZED FIRELINE INTENSITY vs CumT')
 ax = plt.gca()
 sc = ax.scatter(normI,cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
+plt.plot(normI, regF(normI))
 # sc = ax.scatter(fireLine[:,0]/(plume.read_tag('W',plume.tag)),cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG)
 for i, txt in enumerate(plume.read_tag('W',plume.tag)):
     ax.annotate(txt, (normI[i]+100,cumT[i]+100), fontsize=9)
 plt.colorbar(sc, label='surface heat flux [$W/m^{2}$]')
-plt.xlabel('normalized fireline intensity [$kJ/m^{2}$]')
+plt.xlabel('normalized fireline intensity [$K m$]')
 plt.ylabel('cumulative temperature [K m]')
 plt.tight_layout()
 plt.savefig(plume.figdir + 'normI_cumT.pdf')
 plt.show()
+plt.close()
 
 
 
@@ -204,7 +230,8 @@ for nCase,Case in enumerate(plume.tag):
 	plt.xlabel('normalized $H_2O$ profile [g s / kg m]')
 	plt.ylim([0,2])
 plt.savefig(plume.figdir + 'normProfsI.pdf')
-plt.show()
+# plt.show()
+plt.close()
 
 
 plt.figure(figsize=(12,6))
@@ -225,4 +252,5 @@ for nCase,Case in enumerate(plume.tag):
 	plt.xlabel('normalized $H_2O$ profile [g s / kg m]')
 	plt.ylim([0,2])
 plt.savefig(plume.figdir + 'normProfsHFX.pdf')
-plt.show()
+# plt.show()
+plt.close()
