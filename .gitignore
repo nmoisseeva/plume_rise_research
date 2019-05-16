@@ -9,4 +9,5 @@
 /comps/
 **figs/
 *wrfout*
+*/figs/*
 */main/figs

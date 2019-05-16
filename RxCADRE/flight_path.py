@@ -10,7 +10,6 @@ from scipy.spatial import KDTree
 import matplotlib.animation as animation
 from matplotlib import path
 from mpl_toolkits import basemap
-#import mpl_toolkits.basemap.pyproj as pyproj
 import pyproj
 import os.path
 import pickle
@@ -19,6 +18,7 @@ import mpl_toolkits.mplot3d as a3
 from matplotlib import animation
 import pandas as pd
 import matplotlib.dates as mdates
+import datetime as dt
 
 
 
@@ -33,8 +33,7 @@ emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_201211
 interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_cat1obs_interp.npy'
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
-# ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
-# ll_utm = np.array([518300,3377000]) 	#Jan 2018
+
 ll_utm = np.array([517000,3377000]) #Feb 2018
 basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
 
@@ -46,9 +45,9 @@ runstart = '10:00:00' 					#start time (if restart run time of inital simulation
 runend = '13:15:00'
 corskcrew_ssm= [47183,47521]			#start and end of corskcrew maneuver in ssm
 bg_cork_ssm = [43975,44371] 			#start and end time of pre-burn corkscrew for background
-# garage_ssm = [45237,47133] 				#start and end time of garage profile
 garage_ssm = [45000,47200] 				#start and end time of garage profile
 
+animations = 1
 #=================end of input===============
 
 
@@ -82,10 +81,6 @@ else:
 #extract model time info
 tsec = nc_data.variables['XTIME'][:] * 60. 		#get time in seconds since spinup start
 model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
-
-#convert all timestamps to datetime objects
-basetime = dt.datetime(year=2012,month=11,day=10)
-timestamp = [basetime + dt.timedelta(hours = 10, seconds = i) for i in disp_dict['time']]
 
 #==========================VERTICAL INTERPOLATION============================
 numLvl = len(lvl)
@@ -138,7 +133,13 @@ pre_burn_qv = np.genfromtxt(pre_moisture, skip_header=1, delimiter=',')
 
 #get indecies of samples corresponding to model output times
 tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec] #times since start
-dt = disp_dict['time'][1] - disp_dict['time'][0]
+delt = disp_dict['time'][1] - disp_dict['time'][0]
+
+
+#convert all timestamps to datetime objects
+basetime = dt.datetime(year=2012,month=11,day=10)
+timestamp = [basetime + dt.timedelta(hours = 10, seconds = i) for i in disp_dict['time']]
+
 
 #construct KDtree from idealized grid
 lat = nc_data.variables['XLAT'][0,:,:]
@@ -178,19 +179,6 @@ emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation 
 
 #================================PLOTTING==================================
 
-#
-# #plot of H2O slices
-# plt.figure()
-# plt.title('H2O')
-# plt.scatter(disp_dict['time'],disp_dict['H2O'])
-# ax = plt.gca()
-# for nSlice in range(len(emis_dict['smoke'])):
-# 	shade = np.arange(emis_dict['smoke'][nSlice][0],emis_dict['smoke'][nSlice][1])
-# 	ax.fill_between(shade, 0,1.5, facecolor='gray', alpha=0.1, edgecolor='w')
-# plt.ylim([0,1.5])
-# # plt.xlim([tsec[0],tsec[-1]])
-# plt.show()
-
 #plot of model H20 slices overlayed with real emissions
 plt.title('SIMULATED $Q_v$ ANOMALY ALONG FLIGHT PATH')
 plt.plot(np.array(timestamp)[tidx], mod_val*1000000,'ro')
@@ -212,75 +200,88 @@ plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
 plt.show()
 #
 # #================================FLIGHT ANIMATION==================================
-fig = plt.figure()
-ax = p3.Axes3D(fig)
-ax = plt.gca()
-# create initial frame
-point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
-ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
-line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
-ax.legend()
-ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
-ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
-ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
-time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
+# fig = plt.figure()
+# ax = p3.Axes3D(fig)
+# ax = plt.gca()
+# # create initial frame
+# point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
+# ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
+# line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
+# ax.legend()
+# ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
+# ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
+# ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
+# time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
+#
+# #make a list of all times within plume from emissions
+# smoky = []
+# for item in emis_dict['smoke']:
+# 	smoky.extend(np.arange(item[0],item[1]))
+#
+# # move the point position at every frame
+# def update_point(n, disp_dict,smoky,point):
+#     point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
+#     # point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
+#     time_text.set_text('Time (sec) = %s' %(n*delt))
+#     if disp_dict['time'][n] in smoky:
+#     	point.set_color('r')
+#     else:
+#     	point.set_color('k')
+#     return point, time_text,
+#
+# #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+# ani=animation.FuncAnimation(fig, update_point, 3000, fargs=(disp_dict,smoky,point), interval=15)
+# # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
+# plt.show()
+# plt.close()
 
-#make a list of all times within plume from emissions
-smoky = []
-for item in emis_dict['smoke']:
-	smoky.extend(np.arange(item[0],item[1]))
+if animations:
+	print('Animating top view of flight....')
+	fig = plt.figure()
 
-# move the point position at every frame
-def update_point(n, disp_dict,smoky,point):
-    point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
-    # point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
-    time_text.set_text('Time (sec) = %s' %(n*dt))
-    if disp_dict['time'][n] in smoky:
-    	point.set_color('r')
-    else:
-    	point.set_color('k')
-    return point, time_text,
+	# create initial frame
+	smokeim = np.nansum(qinterp[0,:,:,:],0) * 1000
+	im = plt.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
 
-#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-ani=animation.FuncAnimation(fig, update_point, 3000, fargs=(disp_dict,smoky,point), interval=15)
-# ani.save('./test_ani.gif', writer='imagemagick',fps=120)
+	scat = bm.scatter(disp_dict['lcn'][0,1],disp_dict['lcn'][0,0],40,marker='o')
+
+	#make a list of all times within plume from emissions
+	smoky = []
+	for item in emis_dict['smoke']:
+	    smoky.extend(np.arange(item[0],item[1]))
+
+	# move the point position at every frame
+	def update_point(n, disp_dict,smoky,scat,im):
+	    i = int(np.floor(n/5.))
+	    del im
+	    smokeim = np.nansum(qinterp[i,:,:,:],0) * 1000
+	    im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
+	    # im.set_data(smokeim)
+	    scat.set_offsets(np.c_[disp_dict['lcn'][n,1],disp_dict['lcn'][n,0]])
+
+	    if disp_dict['time'][n] in smoky:
+	    	scat.set_color('r')
+	    else:
+	    	scat.set_color('k')
+	    # return scat, im,
+
+	#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+	ani=animation.FuncAnimation(fig, update_point, 1349, fargs=(disp_dict,smoky,scat,im), interval=15)
+	ani.save(fig_dir + 'FlightTopView.gif', writer='imagemagick',fps=120)
+	# plt.show()
+	plt.close()
+
+#top view of smoke for corkscrew with average obs location
+cs_lon =  np.mean(disp_dict['lcn'][dict_c_s:dict_c_f,1])
+cs_lat = np.mean(disp_dict['lcn'][dict_c_s:dict_c_f,0])
+smokeim = np.nansum(qinterp[258,:,:,:],0) * 1000
+im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
+bm.scatter(cs_lon,cs_lat,40,marker='*',color='r')
+plt.colorbar(im, label='total column $H_{2}O$ mixing ratio anomaly [mg/kg]')
+plt.tight_layout()
+plt.savefig(fig_dir + 'CSLocation.pdf')
 plt.show()
 
-
-
-fig = plt.figure()
-ax = p3.Axes3D(fig)
-ax = plt.gca()
-# create initial frame
-point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
-ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
-line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
-ax.legend()
-ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
-ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
-ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
-time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
-
-#make a list of all times within plume from emissions
-smoky = []
-for item in emis_dict['smoke']:
-	smoky.extend(np.arange(item[0],item[1]))
-
-# move the point position at every frame
-def update_point(n, disp_dict,smoky,point):
-    point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
-    # point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
-    time_text.set_text('Time (sec) = %s' %(n*dt))
-    if disp_dict['time'][n] in smoky:
-    	point.set_color('r')
-    else:
-    	point.set_color('k')
-    return point, time_text,
-
-#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-ani=animation.FuncAnimation(fig, update_point, 3000, fargs=(disp_dict,smoky,point), interval=15)
-# ani.save('./test_ani.gif', writer='imagemagick',fps=120)
-plt.show()
 
 
 
@@ -383,10 +384,10 @@ cs_lat = np.mean(disp_dict['lcn'][dict_c_s:dict_c_f,0])
 plt.title('TOP VIEW CORKSCREW')
 smokeim = np.nansum(qinterp[258,:,:,:],0) * 1000
 im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
-bm.scatter(cs_lon,cs_lat,4,marker='*',color='r',origin='lower')
+bm.scatter(cs_lon,cs_lat,40,marker='*',color='r')
 plt.colorbar(im, label='total column $H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
-# plt.savefig(fig_dir + 'H2OProfiles.pdf')
+plt.savefig(fig_dir + 'CSLocation.pdf')
 plt.show()
 
 
@@ -424,7 +425,7 @@ plt.show()
 # # move the point position at every frame
 # def update_plot(n, cw_ave,cntr):
 #     cntr = plt.contourf(cw_sum[n,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
-#     # time_text.set_text('Time (sec) = %s' %(n*dt))
+#     # time_text.set_text('Time (sec) = %s' %(n*delt))
 #     return cntr,
 
 # #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
