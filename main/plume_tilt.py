@@ -36,6 +36,7 @@ charU = np.empty(len(plume.tag)) 		#characteristic wind speed (could be mean BL 
 plumeTilt = np.empty(len(plume.tag))
 fireLine = np.empty((len(plume.tag),2)) #intensity, width
 Qprofiles = np.empty((len(plume.tag),len(plume.lvl)))
+exT = np.empty(len(plume.tag))
 
 for nCase,Case in enumerate(plume.tag):
 	print('Examining case: %s ' %Case)
@@ -61,6 +62,18 @@ for nCase,Case in enumerate(plume.tag):
 	wmax_idx = np.nanargmax(wave_plume[np.isfinite(wmax_profile)],1)		#get downwind location (index)
 	watq_profile = np.array([avedict['w'][ni,i] for ni, i in enumerate(qmax_idx)])	#get the profiles
 
+	tmax_profile = np.nanmax(avedict['temp'],1)
+	tmax_profile[np.isnan(qmax_profile)] = np.nan
+	tmax_idx = np.nanargmax(avedict['temp'][np.isfinite(tmax_profile)],1)
+	watt_profile = np.array([avedict['w'][ni,i] for ni, i in enumerate(tmax_idx)])
+
+	#calculate temeperature excess(option1)
+	t_at_wmax = np.array([avedict['temp'][ni,i] for ni, i in enumerate(wmax_idx)])
+	exT[nCase] = np.sum(t_at_wmax-avedict['temp'][:len(wmax_idx),0])
+	# #calculate temeprature excess (option 2)
+	# t_at_wmax = np.array([avedict['temp'][ni,i] for ni, i in enumerate(wmax_idx)])
+	# tmax_profile = np.nanmax(avedict['temp'],1)
+	# exT[nCase] = np.sum(tmax_profile[:len(wmax_idx)]-avedict['temp'][:len(wmax_idx),0])
 
 
 
@@ -84,7 +97,8 @@ for nCase,Case in enumerate(plume.tag):
 	# fireI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 )
 	# grndI = plume.read_tag('S',[Case])[0]* plume.dx * len(ignited)/(1.2 * 1005)
 	# totI = fireI + grndI
-	totI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
+	# totI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
+	totI = sum(ignited) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
 
 
 	plumeTilt[nCase] = tilt.c[0]
@@ -92,35 +106,46 @@ for nCase,Case in enumerate(plume.tag):
 	plume_tops[nCase] = plume.lvl[len(wmax_idx)-1]
 	print('plume top: %s' %plume.lvl[len(wmax_idx)-1])
 
+
 	#create a vertical slize based at a single downwind location of maximum plume rise
 	qslicewtop = avedict['qvapor'][:,wmax_idx[-1]] #This should be the proper definition
 
-	#get "cumulutive" temperature for the profile
-	cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0]*plume.dz)
+	# #get "cumulutive" temperature for the profile
+	# cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0]*plume.dz)
 	#
-	# #get cumulative delT
+	# #get cumulative T based on  delT
 	# delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
 	# cumT[nCase] = np.sum(delT * plume.dz)
 
+	#get cumulative T based on  delT
+	delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
+	cumT[nCase] = np.sum(delT) + avedict['temp'][0,0]
+
+	# #get "cumulutive" temperature for the profile assuming uniform grid (in both dx and dz)
+	# cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0])
+
+	print('Excess temp along wmax: %d.02; NormI/dx: %d.02' %(exT[nCase],fireLine[nCase,0]/(charU[nCase]*plume.dx)))
 
 
 	#===========================plotting===========================
 	#vertical concentration slice at donwind locations of wmax and qmax
-	plt.figure(figsize=(18,6))
+	plt.figure(figsize=(12,12))
 	plt.suptitle('%s' %Case)
-	plt.subplot(1,3,1)
+	plt.subplot(2,2,1)
 	plt.title('VALUE ALONG MAX PROFILE OF W, MAX AND MIN U')
 	plt.plot(wmax_profile,plume.lvl,'.-',label='$w_{max}$')
 	plt.plot(watq_profile,plume.lvl[np.isfinite(qmax_profile)],'k.-',label='$w_{qmax}$')
+	plt.plot(watt_profile,plume.lvl[np.isfinite(tmax_profile)],'r.-',label='$w_{tmax}$')
 	plt.xlabel('velocity [m/s]')
 	plt.ylabel('height [m]')
 	plt.legend()
 	plt.ylim([0,plume.lvl[-1]])
-	plt.subplot(1,3,2)
 
+	plt.subplot(2,2,2)
 	plt.title('HORIZONTAL LOCATION OF EXTREMA')
 	plt.plot(wmax_idx,plume.lvl[np.isfinite(wmax_profile)],'.-',label='$w_{max}$')
 	plt.plot(qmax_idx,plume.lvl[np.isfinite(qmax_profile)],'k.--',label='$q_{max}$')
+	plt.plot(tmax_idx,plume.lvl[np.isfinite(tmax_profile)],'r.--',label='$t_{max}$')
 	plt.plot(qmax_idx, tilt(qmax_idx))
 	plt.xlabel('x distance [m]')
 	ax = plt.gca()
@@ -129,17 +154,27 @@ for nCase,Case in enumerate(plume.tag):
 	plt.ylabel('height [m]')
 	plt.ylim([0,plume.lvl[-1]])
 	plt.legend()
-	plt.subplot(1,3,3)
 
+	plt.subplot(2,2,3)
 	plt.title('Q CONCENTRATION DOWNWIND (SLICE)')
 	plt.plot(qslicewtop, plume.lvl, 'g.--', label='based on $w_{top}$')
 	plt.xlabel('water vapor [g/kg]')
 	plt.ylabel('height [m]')
 	plt.ylim([0,plume.lvl[-1]])
 	plt.legend()
-	plt.savefig(plume.figdir + 'profiles_%s.pdf' %Case)
+
+	plt.subplot(2,2,4)
+	plt.title('PLUME vs AMBIENT TEMPERATURE')
+	plt.plot(t_at_wmax,plume.lvl[:len(wmax_idx)],c = 'orange',label='in-plume temperature')
+	plt.plot(avedict['temp'][:len(wmax_idx),0],plume.lvl[:len(wmax_idx)],label='ambient temperature')
+	plt.xlabel('temperature [K]')
+	plt.ylabel('height [m]')
+	plt.legend()
+	plt.ylim([0,plume.lvl[-1]])
 	# plt.show()
+	plt.savefig(plume.figdir + 'profiles_%s.pdf' %Case)
 	plt.close()
+
 
 	Qprofiles[nCase,:] = qslicewtop
 	# plt.plot(avedict['temp'][0:len(wmax_idx),0],plume.lvl[:len(wmax_idx)])
@@ -207,8 +242,8 @@ ax = plt.gca()
 sc = ax.scatter(normI,cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
 plt.plot(normI, regF(normI))
 # sc = ax.scatter(fireLine[:,0]/(plume.read_tag('W',plume.tag)),cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG)
-for i, txt in enumerate(plume.read_tag('W',plume.tag)):
-    ax.annotate(txt, (normI[i]+100,cumT[i]+100), fontsize=9)
+# for i, txt in enumerate(plume.read_tag('W',plume.tag)):
+#     ax.annotate(txt, (normI[i]+100,cumT[i]+100), fontsize=9)
 plt.colorbar(sc, label='surface heat flux [$W/m^{2}$]')
 plt.xlabel('normalized fireline intensity [$K m$]')
 plt.ylabel('cumulative temperature [K m]')
@@ -220,19 +255,6 @@ plt.close()
 
 
 
-plt.title('NORMALIZED FIRELINE INTENSITY vs CumT')
-ax = plt.gca()
-sc = ax.scatter(normI/fireLine[:,1],cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
-# sc = ax.scatter(fireLine[:,0]/(plume.read_tag('W',plume.tag)),cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG)
-for i, txt in enumerate(plume.read_tag('W',plume.tag)):
-    ax.annotate(txt, (normI[i]+100,cumT[i]+100), fontsize=9)
-plt.colorbar(sc, label='surface heat flux [$W/m^{2}$]')
-plt.xlabel('normalized fireline intensity [$K m$]')
-plt.ylabel('cumulative temperature [K m]')
-plt.tight_layout()
-# plt.savefig(plume.figdir + 'normI_cumT.pdf')
-plt.show()
-plt.close()
 
 
 
