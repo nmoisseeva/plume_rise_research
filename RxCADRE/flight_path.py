@@ -199,50 +199,50 @@ plt.tight_layout()
 plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
 plt.show()
 #
-# #================================FLIGHT ANIMATION==================================
-# fig = plt.figure()
-# ax = p3.Axes3D(fig)
-# ax = plt.gca()
-# # create initial frame
-# point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
-# ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
-# line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
-# ax.legend()
-# ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
-# ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
-# ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
-# time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
-#
-# #make a list of all times within plume from emissions
-# smoky = []
-# for item in emis_dict['smoke']:
-# 	smoky.extend(np.arange(item[0],item[1]))
-#
-# # move the point position at every frame
-# def update_point(n, disp_dict,smoky,point):
-#     point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
-#     # point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
-#     time_text.set_text('Time (sec) = %s' %(n*delt))
-#     if disp_dict['time'][n] in smoky:
-#     	point.set_color('r')
-#     else:
-#     	point.set_color('k')
-#     return point, time_text,
-#
-# #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-# ani=animation.FuncAnimation(fig, update_point, 3000, fargs=(disp_dict,smoky,point), interval=15)
-# # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
-# plt.show()
-# plt.close()
+#================================FLIGHT ANIMATION==================================
+fig = plt.figure()
+ax = p3.Axes3D(fig)
+ax = plt.gca()
+# create initial frame
+point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
+ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
+line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
+ax.legend()
+ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
+ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
+ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
+time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
+
+#make a list of all times within plume from emissions
+smoky = []
+for item in emis_dict['smoke']:
+	smoky.extend(np.arange(item[0],item[1]))
+
+# move the point position at every frame
+def update_point(n, disp_dict,smoky,point):
+    point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
+    point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
+    time_text.set_text('Time (sec) = %s' %(n*delt))
+    if disp_dict['time'][n] in smoky:
+    	point.set_color('r')
+    else:
+    	point.set_color('k')
+    return point, time_text,
+
+#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+ani=animation.FuncAnimation(fig, update_point, 1500, fargs=(disp_dict,smoky,point), interval=15)
+# ani.save('./test_ani.gif', writer='imagemagick',fps=120)
+plt.show()
+plt.close()
 
 if animations:
 	print('Animating top view of flight....')
 	fig = plt.figure()
 
+	#
 	# create initial frame
 	smokeim = np.nansum(qinterp[0,:,:,:],0) * 1000
-	im = plt.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
-
+	im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
 	scat = bm.scatter(disp_dict['lcn'][0,1],disp_dict['lcn'][0,0],40,marker='o')
 
 	#make a list of all times within plume from emissions
@@ -252,21 +252,25 @@ if animations:
 
 	# move the point position at every frame
 	def update_point(n, disp_dict,smoky,scat,im):
-	    i = int(np.floor(n/5.))
+	    print n
+	    m = tidx[n]
+	    # i = int(np.floor(n/5.))
 	    del im
-	    smokeim = np.nansum(qinterp[i,:,:,:],0) * 1000
-	    im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
+	    smokeim = np.nansum(qinterp[n,:,:,:],0) * 1000
+	    im = bm.imshow(smokeim, cmap = plt.cm.bone_r)
 	    # im.set_data(smokeim)
-	    scat.set_offsets(np.c_[disp_dict['lcn'][n,1],disp_dict['lcn'][n,0]])
+	    scat.set_offsets(np.c_[disp_dict['lcn'][m,1],disp_dict['lcn'][m,0]])
+	    # plt.gca().set_title('')
 
-	    if disp_dict['time'][n] in smoky:
+	    if disp_dict['time'][m] in smoky:
 	    	scat.set_color('r')
 	    else:
 	    	scat.set_color('k')
-	    # return scat, im,
 
 	#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-	ani=animation.FuncAnimation(fig, update_point, 1349, fargs=(disp_dict,smoky,scat,im), interval=15)
+	# ani=animation.FuncAnimation(fig, update_point, 1349, fargs=(disp_dict,smoky,scat,im), interval=10)
+	ani=animation.FuncAnimation(fig, update_point, 269, fargs=(disp_dict,smoky,scat,im),interval = 100, repeat=0)
+
 	ani.save(fig_dir + 'FlightTopView.gif', writer='imagemagick',fps=120)
 	# plt.show()
 	plt.close()
