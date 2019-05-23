@@ -47,7 +47,7 @@ corskcrew_ssm= [47183,47521]			#start and end of corskcrew maneuver in ssm
 bg_cork_ssm = [43975,44371] 			#start and end time of pre-burn corkscrew for background
 garage_ssm = [45000,47200] 				#start and end time of garage profile
 
-animations = 1
+animations = 0
 #=================end of input===============
 
 
@@ -200,40 +200,40 @@ plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
 plt.show()
 #
 #================================FLIGHT ANIMATION==================================
-fig = plt.figure()
-ax = p3.Axes3D(fig)
-ax = plt.gca()
-# create initial frame
-point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
-ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
-line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
-ax.legend()
-ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
-ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
-ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
-time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
-
-#make a list of all times within plume from emissions
-smoky = []
-for item in emis_dict['smoke']:
-	smoky.extend(np.arange(item[0],item[1]))
-
-# move the point position at every frame
-def update_point(n, disp_dict,smoky,point):
-    point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
-    point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
-    time_text.set_text('Time (sec) = %s' %(n*delt))
-    if disp_dict['time'][n] in smoky:
-    	point.set_color('r')
-    else:
-    	point.set_color('k')
-    return point, time_text,
-
-#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-ani=animation.FuncAnimation(fig, update_point, 1500, fargs=(disp_dict,smoky,point), interval=15)
-# ani.save('./test_ani.gif', writer='imagemagick',fps=120)
-plt.show()
-plt.close()
+# fig = plt.figure()
+# ax = p3.Axes3D(fig)
+# ax = plt.gca()
+# # create initial frame
+# point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
+# ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
+# line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
+# ax.legend()
+# ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
+# ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
+# ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
+# time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
+#
+# #make a list of all times within plume from emissions
+# smoky = []
+# for item in emis_dict['smoke']:
+# 	smoky.extend(np.arange(item[0],item[1]))
+#
+# # move the point position at every frame
+# def update_point(n, disp_dict,smoky,point):
+#     point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
+#     point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
+#     time_text.set_text('Time (sec) = %s' %(n*delt))
+#     if disp_dict['time'][n] in smoky:
+#     	point.set_color('r')
+#     else:
+#     	point.set_color('k')
+#     return point, time_text,
+#
+# #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+# ani=animation.FuncAnimation(fig, update_point, 1500, fargs=(disp_dict,smoky,point), interval=15)
+# # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
+# plt.show()
+# plt.close()
 
 if animations:
 	print('Animating top view of flight....')
@@ -304,10 +304,10 @@ dict_bg_f = np.argmin(abs(disp_dict['time'] + model_ssm - bg_cork_ssm[1]))
 # dict_bg_s = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[0]))
 # dict_bg_f = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[1]))
 
-T0 = nc_data.variables['T'][0,:,:,:]
-Tprofile = T0[:,0,0]
-plt.plot(Tprofile, z[0,:-1,0,0])
-plt.show()
+# T0 = nc_data.variables['T'][0,:,:,:]
+# Tprofile = T0[:,0,0]
+# plt.plot(Tprofile, z[0,:-1,0,0])
+# plt.show()
 
 
 #H2O and CO2 profiles from garage flights
@@ -349,19 +349,19 @@ plt.ylabel('height [m]')
 plt.tight_layout()
 plt.savefig(fig_dir + 'ProfilesGarage.pdf')
 plt.show()
-
-#H2O profiles from corkscrew and earlier
-plt.title('$H_2O$ PROFILES')
-plt.plot(pre_burn_qv[:,1],pre_burn_qv[:,0],':', label='pre-burn $H_2O$ profile from sounding')
-plt.plot(disp_dict['H2O'][dict_bg_s:dict_bg_f],disp_dict['lcn'][dict_bg_s:dict_bg_f,2],'g--',label='pre-burn $H_2O$ profile from flight ')
-plt.plot(disp_dict['H2O'][dict_c_s:dict_c_f],disp_dict['lcn'][dict_c_s:dict_c_f,2],'r-.',label='in-plume $H_2O$ profile from flight' )
-plt.ylim([0,1700])
-plt.xlabel('$H_2O$ mixing ratio [%]')
-plt.ylabel('height [m]')
-plt.tight_layout()
-plt.legend(loc='lower left')
-plt.savefig(fig_dir + 'H2OProfiles.pdf')
-plt.show()
+#
+# #H2O profiles from corkscrew and earlier
+# plt.title('$H_2O$ PROFILES')
+# plt.plot(pre_burn_qv[:,1],pre_burn_qv[:,0],':', label='pre-burn $H_2O$ profile from sounding')
+# plt.plot(disp_dict['H2O'][dict_bg_s:dict_bg_f],disp_dict['lcn'][dict_bg_s:dict_bg_f,2],'g--',label='pre-burn $H_2O$ profile from flight ')
+# plt.plot(disp_dict['H2O'][dict_c_s:dict_c_f],disp_dict['lcn'][dict_c_s:dict_c_f,2],'r-.',label='in-plume $H_2O$ profile from flight' )
+# plt.ylim([0,1700])
+# plt.xlabel('$H_2O$ mixing ratio [%]')
+# plt.ylabel('height [m]')
+# plt.tight_layout()
+# plt.legend(loc='lower left')
+# plt.savefig(fig_dir + 'H2OProfiles.pdf')
+# plt.show()
 
 
 #vertical column evoluation
@@ -374,7 +374,7 @@ ax = plt.gca()
 ax.set_yticks(np.arange(0,numLvl,10))
 ax.set_yticklabels(lvl[::10])
 ax.set_xticks(np.arange(0,len(tsec),30))
-ax.set_xticklabels((tsec[::30]/60.).astype(int))
+ax.set_xticklabels(timestamp[::30])
 plt.xlabel('time [min]')
 plt.ylabel('height [m]')
 plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
