@@ -171,6 +171,7 @@ for nCase,Case in enumerate(plume.tag):
 	plt.ylabel('height [m]')
 	plt.legend()
 	plt.ylim([0,plume.lvl[-1]])
+	plt.xlim([385,330])
 	# plt.show()
 	plt.savefig(plume.figdir + 'profiles_%s.pdf' %Case)
 	plt.close()
