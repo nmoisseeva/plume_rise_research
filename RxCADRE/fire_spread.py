@@ -189,6 +189,9 @@ for nPt, pt in enumerate(Agrid_id):
 	hip1_ave_atm.append(pt_ave)
 	print('..... Sensor %s: hfx = %s kW/m2, maxhfx = %s kW/m2' %(hip1_tag[nPt],pt_ave,pt_hfxmax))
 
+print('..... Average average heat flux of the fire (HIP1): %.2f kW m-2' %np.nanmean(hip1_ave_atm))
+print('..... Average peak flux of the fire (HIP1): %.2f kW m-2' %np.nanmean(hip1_max_atm))
+
 print("Calculating ROS for HIP1:")
 # #calculate ROS for hip1
 dt_hip = []
