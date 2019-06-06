@@ -29,18 +29,21 @@ profile_dict['meta'] = 'wmax: profiles of maximum velocity; \
 						q_wmax: tracer profile at downwind location of maximum vertical velocity \
 						tilt: grid number of wmax profile locations'
 
-# tilt_vars = np.empty((len(tag),4))
-plume_tops = np.empty(len(plume.tag))
-cumT = np.empty(len(plume.tag))
-charU = np.empty(len(plume.tag)) 		#characteristic wind speed (could be mean BL or near surface)
-plumeTilt = np.empty(len(plume.tag))
-fireLine = np.empty((len(plume.tag),2)) #intensity, width
-Qprofiles = np.empty((len(plume.tag),len(plume.lvl)))
-exT = np.empty(len(plume.tag))
+RunList = [i for i in plume.tag if i not in plume.exclude_runs]
+runCnt = len(RunList)
 
-for nCase,Case in enumerate(plume.tag):
+plume_tops = np.empty(runCnt) * np.nan
+cumT = np.empty(runCnt)* np.nan
+charU = np.empty(runCnt) * np.nan		#characteristic wind speed (could be mean BL or near surface)
+plumeTilt = np.empty(runCnt)* np.nan
+fireLine = np.empty((runCnt,2))* np.nan #intensity, width
+Qprofiles = np.empty((runCnt,len(plume.lvl)))* np.nan
+exT = np.empty(runCnt)* np.nan
+
+for nCase,Case in enumerate(RunList):
+	if Case in plume.exclude_runs:
+		continue
 	print('Examining case: %s ' %Case)
-
 	#----------check for interpolated data----------------------------
 	avepath = plume.wrfdir + 'interp/wrfave_' + Case + '.npy'
 
@@ -135,7 +138,7 @@ for nCase,Case in enumerate(plume.tag):
 	plt.title('VALUE ALONG MAX PROFILE OF W, MAX AND MIN U')
 	plt.plot(wmax_profile,plume.lvl,'.-',label='$w_{max}$')
 	plt.plot(watq_profile,plume.lvl[np.isfinite(qmax_profile)],'k.-',label='$w_{qmax}$')
-	plt.plot(watt_profile,plume.lvl[np.isfinite(tmax_profile)],'r.-',label='$w_{tmax}$')
+	# plt.plot(watt_profile,plume.lvl[np.isfinite(tmax_profile)],'r.-',label='$w_{tmax}$')
 	plt.xlabel('velocity [m/s]')
 	plt.ylabel('height [m]')
 	plt.legend()
@@ -145,7 +148,7 @@ for nCase,Case in enumerate(plume.tag):
 	plt.title('HORIZONTAL LOCATION OF EXTREMA')
 	plt.plot(wmax_idx,plume.lvl[np.isfinite(wmax_profile)],'.-',label='$w_{max}$')
 	plt.plot(qmax_idx,plume.lvl[np.isfinite(qmax_profile)],'k.--',label='$q_{max}$')
-	plt.plot(tmax_idx,plume.lvl[np.isfinite(tmax_profile)],'r.--',label='$t_{max}$')
+	# plt.plot(tmax_idx,plume.lvl[np.isfinite(tmax_profile)],'r.--',label='$t_{max}$')
 	plt.plot(qmax_idx, tilt(qmax_idx))
 	plt.xlabel('x distance [m]')
 	ax = plt.gca()
@@ -171,7 +174,7 @@ for nCase,Case in enumerate(plume.tag):
 	plt.ylabel('height [m]')
 	plt.legend()
 	plt.ylim([0,plume.lvl[-1]])
-	plt.xlim([385,330])
+	plt.xlim([285,330])
 	# plt.show()
 	plt.savefig(plume.figdir + 'profiles_%s.pdf' %Case)
 	plt.close()
@@ -240,7 +243,7 @@ print(regF)
 
 plt.title('NORMALIZED FIRELINE INTENSITY vs CumT')
 ax = plt.gca()
-sc = ax.scatter(normI,cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
+sc = ax.scatter(normI,cumT, c=plume.read_tag('S',RunList), cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
 plt.plot(normI, regF(normI))
 # sc = ax.scatter(fireLine[:,0]/(plume.read_tag('W',plume.tag)),cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG)
 # for i, txt in enumerate(plume.read_tag('W',plume.tag)):
@@ -265,7 +268,7 @@ plt.close()
 plt.figure(figsize=(12,6))
 clr = plt.cm.plasma(plt.Normalize()(fireLine[:,0]))
 # clr[..., -1] = plt.Normalize()(fireLine[:,0])
-for nCase,Case in enumerate(plume.tag):
+for nCase,Case in enumerate(RunList):
 	plt.subplot(1,2,2)
 	plt.title('NORMALIZED VERTICAL Q/Qmax PROFILES')
 	plt.plot(Qprofiles[nCase,:]/(np.max(Qprofiles[nCase,:])),plume.lvl/plume_tops[nCase],c=clr[nCase] )
@@ -285,9 +288,9 @@ plt.close()
 
 
 plt.figure(figsize=(12,6))
-clr = plt.cm.PiYG_r(plt.Normalize(-200,200)(plume.read_tag('S',plume.tag)))
+clr = plt.cm.PiYG_r(plt.Normalize(-200,200)(plume.read_tag('S',RunList)))
 clr[..., -1] = plt.Normalize()(fireLine[:,0])
-for nCase,Case in enumerate(plume.tag):
+for nCase,Case in enumerate(RunList):
 	plt.subplot(1,2,2)
 	plt.title('NORMALIZED VERTICAL Q/Qmax PROFILES')
 	plt.plot(Qprofiles[nCase,:]/(np.max(Qprofiles[nCase,:])),plume.lvl/plume_tops[nCase],c=clr[nCase] )
