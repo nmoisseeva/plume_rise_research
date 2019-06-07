@@ -24,7 +24,7 @@ tag = [i[len(dirpath)-1:-4] for i in dirlist]    #W*S*F*R0
 # tag = ['W8S400F7R0']
 
 #exclude list
-exclude_runs = ['W4S400F9R0','W1S400F7R0','W2S400F1R0','W2S400F3R0','W8S400F1R0','W7S0F4R0','W4S400F8R0','W4S400F1R0','W4S400F13R0','W11S400F10R0','W12S400F1R0']
+exclude_runs = ['W4S400F9R0','W1S400F7R0','W2S400F1R0','W2S400F3R0','W8S400F1R0','W7S0F4R0','W4S400F8R0','W4S400F1R0','W4S400F13R0','W11S400F10R0','W12S400F1R0','W9S0F4R0','W3S0F4R0']
 
 
 #common functions
@@ -45,5 +45,7 @@ def read_tag(str_tag, str_array):
                 out_array.append(int(numbers[1]))
         elif str_tag=='F':
             out_array.append(int(numbers[2]))
+        elif str_tag=='R':
+            out_array.append(int(numbers[3]))
     out_array = np.array(out_array)
     return out_array

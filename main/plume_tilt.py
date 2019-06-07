@@ -100,8 +100,8 @@ for nCase,Case in enumerate(RunList):
 	# fireI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 )
 	# grndI = plume.read_tag('S',[Case])[0]* plume.dx * len(ignited)/(1.2 * 1005)
 	# totI = fireI + grndI
-	# totI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
-	totI = sum(ignited) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
+	totI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
+	# totI = sum(ignited) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
 
 
 	plumeTilt[nCase] = tilt.c[0]
@@ -113,16 +113,16 @@ for nCase,Case in enumerate(RunList):
 	#create a vertical slize based at a single downwind location of maximum plume rise
 	qslicewtop = avedict['qvapor'][:,wmax_idx[-1]] #This should be the proper definition
 
-	# #get "cumulutive" temperature for the profile
-	# cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0]*plume.dz)
+	#get "cumulutive" temperature for the profile
+	cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0]*plume.dz)
 	#
 	# #get cumulative T based on  delT
 	# delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
-	# cumT[nCase] = np.sum(delT * plume.dz)
+	# cumT[nCase] = np.sum(delT *	 plume.dz)
 
-	#get cumulative T based on  delT
-	delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
-	cumT[nCase] = np.sum(delT) + avedict['temp'][0,0]
+	# #get cumulative T based on  delT
+	# delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
+	# cumT[nCase] = np.sum(delT) + avedict['temp'][0,0]
 
 	# #get "cumulutive" temperature for the profile assuming uniform grid (in both dx and dz)
 	# cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0])
@@ -187,6 +187,8 @@ for nCase,Case in enumerate(RunList):
 
 #---------------------calculations over all plumes--------------
 normI = fireLine[:,0]/(charU) #normalized fire intensity
+Rtag = np.array([i for i in plume.read_tag('R',RunList)])  #list of initialization rounds (different soundings)
+
 print('Variability of normalized intensity:')
 print(np.std(normI))
 
@@ -220,6 +222,7 @@ plt.savefig(plume.figdir + 'tilt_subplots.pdf')
 plt.close()
 
 
+
 plt.title('FIRELINE INTENSITY vs CumT')
 ax1 = plt.scatter(fireLine[:,0],cumT, c=charU)
 # ax = plt.gca()
@@ -239,16 +242,19 @@ plt.close()
 
 #get linear regression for the normalized fireLine
 regF = np.poly1d(np.polyfit(normI,cumT,1))
+# mrkr = ['s' if i==1 else 'o' for i in plume.read_tag('R',RunList)]
 print(regF)
 
 plt.title('NORMALIZED FIRELINE INTENSITY vs CumT')
 ax = plt.gca()
-sc = ax.scatter(normI,cumT, c=plume.read_tag('S',RunList), cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
+sc0 = ax.scatter(normI[Rtag==0],cumT[Rtag==0],marker='o', c=plume.read_tag('S',RunList)[Rtag==0], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
+sc1 = ax.scatter(normI[Rtag==1],cumT[Rtag==1],marker='s', c=plume.read_tag('S',RunList)[Rtag==1], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
+
 plt.plot(normI, regF(normI))
 # sc = ax.scatter(fireLine[:,0]/(plume.read_tag('W',plume.tag)),cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG)
 # for i, txt in enumerate(plume.read_tag('W',plume.tag)):
 #     ax.annotate(txt, (normI[i]+100,cumT[i]+100), fontsize=9)
-plt.colorbar(sc, label='surface heat flux [$W/m^{2}$]')
+plt.colorbar(sc0, label='surface heat flux [$W/m^{2}$]')
 plt.xlabel('normalized fireline intensity [$K m$]')
 plt.ylabel('cumulative temperature [K m]')
 plt.tight_layout()
@@ -289,6 +295,7 @@ plt.close()
 
 plt.figure(figsize=(12,6))
 clr = plt.cm.PiYG_r(plt.Normalize(-200,200)(plume.read_tag('S',RunList)))
+
 clr[..., -1] = plt.Normalize()(fireLine[:,0])
 for nCase,Case in enumerate(RunList):
 	plt.subplot(1,2,2)
