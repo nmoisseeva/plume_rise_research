@@ -55,12 +55,13 @@ for nCase,Case in enumerate(RunList):
 
 	#extract lcoations of max w, q, u, and minimum u
 	qmax_profile = np.nanmax(avedict['qvapor'],1) 	#get max q profile
-	qmax_profile[qmax_profile<0.1] = np.nan
+	top_threshold = max(qmax_profile)*0.01
+	qmax_profile[qmax_profile<top_threshold] = np.nan
 	qmax_idx = np.nanargmax(avedict['qvapor'][np.isfinite(qmax_profile)],1)		#get donwind location
 	qmax_meters = qmax_idx*plume.dx
 
 	wave_plume = avedict['w'].copy()
-	wave_plume[avedict['qvapor']<0.1] = np.nan 		#mask where there is no plume
+	wave_plume[avedict['qvapor']<top_threshold] = np.nan 		#mask where there is no plume
 	wmax_profile = np.nanmax(wave_plume,1) 		#get the profiles
 	wmax_idx = np.nanargmax(wave_plume[np.isfinite(wmax_profile)],1)		#get downwind location (index)
 	watq_profile = np.array([avedict['w'][ni,i] for ni, i in enumerate(qmax_idx)])	#get the profiles
@@ -251,9 +252,8 @@ sc0 = ax.scatter(normI[Rtag==0],cumT[Rtag==0],marker='o', c=plume.read_tag('S',R
 sc1 = ax.scatter(normI[Rtag==1],cumT[Rtag==1],marker='s', c=plume.read_tag('S',RunList)[Rtag==1], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
 
 plt.plot(normI, regF(normI))
-# sc = ax.scatter(fireLine[:,0]/(plume.read_tag('W',plume.tag)),cumT, c=plume.read_tag('S',plume.tag), cmap=plt.cm.PiYG)
-# for i, txt in enumerate(plume.read_tag('W',plume.tag)):
-#     ax.annotate(txt, (normI[i]+100,cumT[i]+100), fontsize=9)
+for i, txt in enumerate(plume.read_tag('F',RunList)):
+    ax.annotate(txt, (normI[i]+100,cumT[i]+100), fontsize=9)
 plt.colorbar(sc0, label='surface heat flux [$W/m^{2}$]')
 plt.xlabel('normalized fireline intensity [$K m$]')
 plt.ylabel('cumulative temperature [K m]')
