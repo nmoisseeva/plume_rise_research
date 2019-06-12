@@ -55,7 +55,8 @@ for nCase,Case in enumerate(RunList):
 
 	#extract lcoations of max w, q, u, and minimum u
 	qmax_profile = np.nanmax(avedict['qvapor'],1) 	#get max q profile
-	top_threshold = max(qmax_profile)*0.01
+	top_threshold = max(qmax_profile)*0.001 	#variable threshold
+	# top_threshold = 0.1 						#hardcoded threshold
 	qmax_profile[qmax_profile<top_threshold] = np.nan
 	qmax_idx = np.nanargmax(avedict['qvapor'][np.isfinite(qmax_profile)],1)		#get donwind location
 	qmax_meters = qmax_idx*plume.dx
@@ -73,6 +74,10 @@ for nCase,Case in enumerate(RunList):
 
 	#calculate temeperature excess(option1)
 	t_at_wmax = np.array([avedict['temp'][ni,i] for ni, i in enumerate(wmax_idx)])
+	# #check if max temp location near ground is same as max velocity - it's not most of the time!!!! but this desn't mean we should use it
+	# surfaceT_idx = np.nanargmax(avedict['temp'][0,:])
+	# if surfaceT_idx != wmax_idx[0]:
+	# 	t_at_wmax[0] = avedict['temp'][0,surfaceT_idx]
 	exT[nCase] = np.sum(t_at_wmax-avedict['temp'][:len(wmax_idx),0])
 	# #calculate temeprature excess (option 2)
 	# t_at_wmax = np.array([avedict['temp'][ni,i] for ni, i in enumerate(wmax_idx)])
@@ -149,7 +154,7 @@ for nCase,Case in enumerate(RunList):
 	plt.title('HORIZONTAL LOCATION OF EXTREMA')
 	plt.plot(wmax_idx,plume.lvl[np.isfinite(wmax_profile)],'.-',label='$w_{max}$')
 	plt.plot(qmax_idx,plume.lvl[np.isfinite(qmax_profile)],'k.--',label='$q_{max}$')
-	# plt.plot(tmax_idx,plume.lvl[np.isfinite(tmax_profile)],'r.--',label='$t_{max}$')
+	plt.plot(tmax_idx,plume.lvl[np.isfinite(tmax_profile)],'r.--',label='$t_{max}$')
 	plt.plot(qmax_idx, tilt(qmax_idx))
 	plt.xlabel('x distance [m]')
 	ax = plt.gca()
