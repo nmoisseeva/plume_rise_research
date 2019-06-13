@@ -71,7 +71,7 @@ for nCase,Case in enumerate(plume.tag):
     axh.set_xticks(np.arange(0,dimX,int(dimX/10)))
     axh.set_xticklabels((np.arange(0,dimX,int(dimX/10))*plume.dx/1000).astype(int))
     axh.tick_params(axis='y', colors='red')
-    ln = axh.plot(csdict['ghfx'][0,:]/1000, 'r-')
+    ln = axh.plot(csdict['ghfx'][0,:], 'r-')
     # fig.tight_layout()
 
 
@@ -89,7 +89,7 @@ for nCase,Case in enumerate(plume.tag):
         axh.set_xlim([0,dimX])
         axh.set_xticks(np.arange(0,dimX,int(dimX/10)))
         axh.set_xticklabels((np.arange(0,dimX,int(dimX/10))*plume.dx/1000).astype(int))
-        ln = axh.plot(csdict['ghfx'][n,:]/1000, 'r-')
+        ln = axh.plot(csdict['ghfx'][n,:], 'r-')
         axh.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
         # fig   .tight_layout()
 
@@ -97,7 +97,7 @@ for nCase,Case in enumerate(plume.tag):
 
     #plot all frames
     ani=animation.FuncAnimation(fig, update_plot, dimT, fargs=(csdict,cntrf,cntr), interval=3)
-    # plt.show()
+    plt.show()
     ani.save(plume.figdir + 'anim/u/u%s.mp4' %Case, writer='ffmpeg',fps=10, dpi=250)
     plt.close()
     print('.....saved in: %s' %(plume.figdir + 'anim/u/u%s.mp4' %Case))
@@ -130,13 +130,13 @@ for nCase,Case in enumerate(plume.tag):
     axh.set_xticks(np.arange(0,dimX,int(dimX/10)))
     axh.set_xticklabels((np.arange(0,dimX,int(dimX/10))*plume.dx/1000).astype(int))
     axh.tick_params(axis='y', colors='red')
-    ln = axh.plot(csdict['ghfx'][0,:]/1000, 'r-')
+    ln = axh.plot(csdict['ghfx'][0,:], 'r-')
     # fig.tight_layout()
 
 
     def update_plot(n,csdict,cntrf,cntr):
         ax.clear()
-        ax.set_title('HORIZONTAL VELOCITY CONVERGENCE: %s' %Case)
+        ax.set_title('VERTICAL VELOCITY: %s' %Case)
         cntrf = ax.contourf(csdict['w'][n,:,:],cmap=plt.cm.PRGn_r, levels=wLevels,extend='both')
         cntr = ax.contour(csdict['qvapor'][n,:,:], cmap=plt.cm.Greys,levels=qLevels,linewidths=0.6)
         ax.set_xlabel('horizontal distance [km]')
@@ -148,7 +148,7 @@ for nCase,Case in enumerate(plume.tag):
         axh.set_xlim([0,dimX])
         axh.set_xticks(np.arange(0,dimX,int(dimX/10)))
         axh.set_xticklabels((np.arange(0,dimX,int(dimX/10))*plume.dx/1000).astype(int))
-        ln = axh.plot(csdict['ghfx'][n,:]/1000, 'r-')
+        ln = axh.plot(csdict['ghfx'][n,:], 'r-')
         axh.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
         # fig   .tight_layout()
         return cntrf, ln, cntr,
