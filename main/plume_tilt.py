@@ -49,7 +49,7 @@ for nCase,Case in enumerate(RunList):
 
 	if os.path.isfile(avepath):
 		print('Averaged data found at: %s' %avepath)
-		avedict = np.load(avepath).item()   # load here the above pickle
+		avedict = np.load(avepath,allow_pickle=True).item()   # load here the above pickle
 	else:
 		sys.exit('ERROR: no averaged data found - run prep_plumes.py first!')
 
