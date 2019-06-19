@@ -97,7 +97,7 @@ for nCase,Case in enumerate(plume.tag):
 
     #plot all frames
     ani=animation.FuncAnimation(fig, update_plot, dimT, fargs=(csdict,cntrf,cntr), interval=3)
-    plt.show()
+    # plt.show()
     ani.save(plume.figdir + 'anim/u/u%s.mp4' %Case, writer='ffmpeg',fps=10, dpi=250)
     plt.close()
     print('.....saved in: %s' %(plume.figdir + 'anim/u/u%s.mp4' %Case))

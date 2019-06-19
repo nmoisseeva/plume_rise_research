@@ -118,17 +118,17 @@ for nCase,Case in enumerate(RunList):
 
 	#create a vertical slize based at a single downwind location of maximum plume rise
 	qslicewtop = avedict['qvapor'][:,wmax_idx[-1]] #This should be the proper definition
-
-	#get "cumulutive" temperature for the profile
-	cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0]*plume.dz)
 	#
-	# #get cumulative T based on  delT
-	# delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
-	# cumT[nCase] = np.sum(delT *	 plume.dz)
+	# #get "cumulutive" temperature for the profile
+	# cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0]*plume.dz)
+
+	#get cumulative T based on  delT
+	delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
+	cumT[nCase] = np.sum(delT *	 plume.dz)
 
 	# #get cumulative T based on  delT
 	# delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
-	# cumT[nCase] = np.sum(delT) + avedict['temp'][0,0]
+	# cumT[nCase] = np.sum(delT) + avedict['temp'][0,5]
 
 	# #get "cumulutive" temperature for the profile assuming uniform grid (in both dx and dz)
 	# cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0])
@@ -184,7 +184,6 @@ for nCase,Case in enumerate(RunList):
 	# plt.show()
 	plt.savefig(plume.figdir + 'profiles_%s.pdf' %Case)
 	plt.close()
-
 
 	Qprofiles[nCase,:] = qslicewtop
 	# plt.plot(avedict['temp'][0:len(wmax_idx),0],plume.lvl[:len(wmax_idx)])
@@ -247,16 +246,20 @@ plt.close()
 
 
 #get linear regression for the normalized fireLine
-regF = np.poly1d(np.polyfit(normI,cumT,1))
+regR0 = np.poly1d(np.polyfit(normI[Rtag==0],cumT[Rtag==0],1))
+regR1 = np.poly1d(np.polyfit(normI[Rtag==1],cumT[Rtag==1],1))
 # mrkr = ['s' if i==1 else 'o' for i in plume.read_tag('R',RunList)]
-print(regF)
+print(regR0)
+print(regR1)
 
 plt.title('NORMALIZED FIRELINE INTENSITY vs CumT')
 ax = plt.gca()
 sc0 = ax.scatter(normI[Rtag==0],cumT[Rtag==0],marker='o', c=plume.read_tag('S',RunList)[Rtag==0], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
 sc1 = ax.scatter(normI[Rtag==1],cumT[Rtag==1],marker='s', c=plume.read_tag('S',RunList)[Rtag==1], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
 
-plt.plot(normI, regF(normI))
+plt.plot(normI[Rtag==0], regR0(normI[Rtag==0]))
+plt.plot(normI[Rtag==1], regR1(normI[Rtag==1]))
+
 for i, txt in enumerate(plume.read_tag('F',RunList)):
     ax.annotate(txt, (normI[i]+100,cumT[i]+100), fontsize=9)
 plt.colorbar(sc0, label='surface heat flux [$W/m^{2}$]')
@@ -299,9 +302,10 @@ plt.close()
 
 
 plt.figure(figsize=(12,6))
-clr = plt.cm.PiYG_r(plt.Normalize(-200,200)(plume.read_tag('S',RunList)))
+# clr = plt.cm.PiYG_r(plt.Normalize(-200,200)(plume.read_tag('S',RunList))) 	#color by surface flux
+clr = plt.cm.viridis(plt.Normalize(2,12)(charU)) 								#color by windspeed
 
-clr[..., -1] = plt.Normalize()(fireLine[:,0])
+clr[..., -1] = plt.Normalize()(fireLine[:,0]) 									#add opacity based on fire intensity
 for nCase,Case in enumerate(RunList):
 	plt.subplot(1,2,2)
 	plt.title('NORMALIZED VERTICAL Q/Qmax PROFILES')
