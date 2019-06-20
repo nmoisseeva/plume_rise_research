@@ -26,6 +26,12 @@ for nCase,Case in enumerate(plume.tag):
 
     dimT, dimZ, dimX = np.shape(csdict['temp'])
 
+    #save initial temperature prfile
+    profpath = plume.wrfdir + 'interp/profT0' + Case + '.npy'
+    profileT = np.mean(csdict['temp'][0,:,:],1)
+    np.save(profpath,profileT)
+
+
     fig = plt.figure(figsize=(12,6))
     for nTime,Time in enumerate(np.arange(0,dimT,15)):
         plt.plot(csdict['w'][Time,1,:], label='%d min' %(Time*15/60.))

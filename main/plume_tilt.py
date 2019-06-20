@@ -17,6 +17,8 @@ import imp
 import plume
 imp.reload(plume) 	#force load each time
 
+preIgnT = 1 		#boolean: whether to use pre-ignition temp profile or averaged upwind profile
+
 #=================end of input===============
 
 print('ANALYSIS OF PLUME TILT')
@@ -53,7 +55,7 @@ for nCase,Case in enumerate(RunList):
 	else:
 		sys.exit('ERROR: no averaged data found - run prep_plumes.py first!')
 
-	#extract lcoations of max w, q, u, and minimum u
+	#extract lcoations of max q, w, temp ------------------------------
 	qmax_profile = np.nanmax(avedict['qvapor'],1) 	#get max q profile
 	top_threshold = max(qmax_profile)*0.001 	#variable threshold
 	# top_threshold = 0.1 						#hardcoded threshold
@@ -73,64 +75,64 @@ for nCase,Case in enumerate(RunList):
 	watt_profile = np.array([avedict['w'][ni,i] for ni, i in enumerate(tmax_idx)])
 	t_at_wmax = np.array([avedict['temp'][ni,i] for ni, i in enumerate(wmax_idx)])
 
-
-	# #calculate temeperature excess(option1)
-	# excessT = t_at_wmax-avedict['temp'][:len(wmax_idx),0]
-	# exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
-
-
-	# calculate temeprature excess (option 2)
-	excessT = tmax_profile[:len(wmax_idx)]-avedict['temp'][:len(wmax_idx),0]
-	exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
-
-
-
-	# #regF values
-	# 0.1 = poly1d([1.27427632e+02, 3.30092886e+05])
-	#0.01 = 124.4 x + 3.774e+05
-	#0.2 = 130.8 x + 3.051e+05
-
 	#get plume tilt through linear regression of max concentration values
 	tilt = np.poly1d(np.polyfit(qmax_idx,plume.lvl[np.isfinite(qmax_profile)],1))
 
-	#get fireline intensity and wind
+	#create a vertical slize based at a single downwind location of maximum plume rise
+	qslicewtop = avedict['qvapor'][:,wmax_idx[-1]] #This should be the proper definition
+	Qprofiles[nCase,:] = qslicewtop
+
+	#look at what happens with temperature structure----------------------
+	#load initial temperature profileT
+	if preIgnT:
+		profpath = plume.wrfdir + 'interp/profT0' + Case + '.npy'
+		T0 = np.load(profpath)
+	else:
+		T0 = avedict['temp'][:,0]
+
+	# #calculate temeperature excess(option1)
+	# excessT = t_at_wmax-T0[:len(wmax_idx)]
+	# exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
+
+	# calculate temeprature excess (option 2)
+	excessT = tmax_profile[:len(wmax_idx)]-T0[:len(wmax_idx)]
+	exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
+
+	#fire behavior ------------------------------------------------------
+
+	#get fireline intensity and characteristic wind
 	# U = np.nanmean(avedict['u'][3:,0]) 	#exclude bottom three layers due to friction  #based on mean wind
 	U = avedict['u'][2,0] 					#based on near surface wind
 	#store data
 	charU[nCase] = U
 	print('Wind speed near ground: %s ' %U)
 
-	ignited = np.array([i for i in avedict['ghfx'] if i > 2])
 	# #calculate total flux from ground and fire
+	ignited = np.array([i for i in avedict['ghfx'] if i > 2])
+
+	#(option 1): just the fire (converted to kinematic)
+	totI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
+
+	#(option 2): fire and ground heat flux combined
 	# fireI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 )
 	# grndI = plume.read_tag('S',[Case])[0]* plume.dx * len(ignited)/(1.2 * 1005)
 	# totI = fireI + grndI
-	totI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
-	# totI = sum(ignited) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
 
-
+	#store data
 	plumeTilt[nCase] = tilt.c[0]
 	fireLine[nCase,:] = totI,len(ignited)
 	plume_tops[nCase] = plume.lvl[len(wmax_idx)-1]
 	print('plume top: %s' %plume.lvl[len(wmax_idx)-1])
 
 
-	#create a vertical slize based at a single downwind location of maximum plume rise
-	qslicewtop = avedict['qvapor'][:,wmax_idx[-1]] #This should be the proper definition
-	#
+
+	#estimate atmospheric heating and "cumT --------------------------------"
 	# #get "cumulutive" temperature for the profile
-	# cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0]*plume.dz)
+	# cumT[nCase] = np.sum(T0[:len(wmax_idx)]*plume.dz)
 
 	#get cumulative T based on  delT
-	delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
+	delT = T0[1:len(wmax_idx)]-T0[0:len(wmax_idx)-1]
 	cumT[nCase] = np.sum(delT *	 plume.dz)
-
-	# #get cumulative T based on  delT
-	# delT = avedict['temp'][1:len(wmax_idx),0]-avedict['temp'][0:len(wmax_idx)-1,0]
-	# cumT[nCase] = np.sum(delT) + avedict['temp'][0,5]
-
-	# #get "cumulutive" temperature for the profile assuming uniform grid (in both dx and dz)
-	# cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0])
 
 	print('Excess temp area along wmax: %d.02; NormI: %d.02' %(exT[nCase],fireLine[nCase,0]/(charU[nCase])))
 
@@ -183,11 +185,6 @@ for nCase,Case in enumerate(RunList):
 	# plt.show()
 	plt.savefig(plume.figdir + 'profiles_%s.pdf' %Case)
 	plt.close()
-
-	Qprofiles[nCase,:] = qslicewtop
-	# plt.plot(avedict['temp'][0:len(wmax_idx),0],plume.lvl[:len(wmax_idx)])
-	# plt.ylim([0,2500])
-# plt.show()
 
 #---------------------calculations over all plumes--------------
 normI = fireLine[:,0]/(charU) #normalized fire intensity
@@ -247,7 +244,6 @@ plt.show()
 plt.close()
 
 
-
 #get linear regression for the normalized fireLine
 regR0 = np.poly1d(np.polyfit(normI[Rtag==0],cumT[Rtag==0],1))
 regR1 = np.poly1d(np.polyfit(normI[Rtag==1],cumT[Rtag==1],1))
@@ -272,14 +268,6 @@ plt.tight_layout()
 plt.savefig(plume.figdir + 'normI_cumT.pdf')
 plt.show()
 plt.close()
-
-
-
-
-
-
-
-
 
 
 plt.figure(figsize=(12,6))
