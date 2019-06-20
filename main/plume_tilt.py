@@ -71,18 +71,17 @@ for nCase,Case in enumerate(RunList):
 	tmax_profile[np.isnan(qmax_profile)] = np.nan
 	tmax_idx = np.nanargmax(avedict['temp'][np.isfinite(tmax_profile)],1)
 	watt_profile = np.array([avedict['w'][ni,i] for ni, i in enumerate(tmax_idx)])
-
-	#calculate temeperature excess(option1)
 	t_at_wmax = np.array([avedict['temp'][ni,i] for ni, i in enumerate(wmax_idx)])
-	# #check if max temp location near ground is same as max velocity - it's not most of the time!!!! but this desn't mean we should use it
-	# surfaceT_idx = np.nanargmax(avedict['temp'][0,:])
-	# if surfaceT_idx != wmax_idx[0]:
-	# 	t_at_wmax[0] = avedict['temp'][0,surfaceT_idx]
-	exT[nCase] = np.sum(t_at_wmax-avedict['temp'][:len(wmax_idx),0])
-	# #calculate temeprature excess (option 2)
-	# t_at_wmax = np.array([avedict['temp'][ni,i] for ni, i in enumerate(wmax_idx)])
-	# tmax_profile = np.nanmax(avedict['temp'],1)
-	# exT[nCase] = np.sum(tmax_profile[:len(wmax_idx)]-avedict['temp'][:len(wmax_idx),0])
+
+
+	# #calculate temeperature excess(option1)
+	# excessT = t_at_wmax-avedict['temp'][:len(wmax_idx),0]
+	# exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
+
+
+	# calculate temeprature excess (option 2)
+	excessT = tmax_profile[:len(wmax_idx)]-avedict['temp'][:len(wmax_idx),0]
+	exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
 
 
 
@@ -133,7 +132,7 @@ for nCase,Case in enumerate(RunList):
 	# #get "cumulutive" temperature for the profile assuming uniform grid (in both dx and dz)
 	# cumT[nCase] = np.sum(avedict['temp'][:len(wmax_idx),0])
 
-	print('Excess temp along wmax: %d.02; NormI/dx: %d.02' %(exT[nCase],fireLine[nCase,0]/(charU[nCase]*plume.dx)))
+	print('Excess temp area along wmax: %d.02; NormI: %d.02' %(exT[nCase],fireLine[nCase,0]/(charU[nCase])))
 
 
 	#===========================plotting===========================
@@ -194,8 +193,12 @@ for nCase,Case in enumerate(RunList):
 normI = fireLine[:,0]/(charU) #normalized fire intensity
 Rtag = np.array([i for i in plume.read_tag('R',RunList)])  #list of initialization rounds (different soundings)
 
-print('Variability of normalized intensity:')
-print(np.std(normI))
+print('Variability of normalized intensity for given U level:')
+print('%d.2' %np.std(normI))
+
+print('Variability of temperature excess:')
+varExcess = np.mean(exT-normI)
+print('%d.2 deg' %varExcess)
 
 #-------------subplots of tilt predictors-----------
 #create scatter plots of tilts vs other variables
