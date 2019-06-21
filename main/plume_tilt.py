@@ -142,11 +142,15 @@ for nCase,Case in enumerate(RunList):
 	skipSurf = 5 			#how many layers to skip from the botton to make sure we are out of surface layer !!HARDCODED!!!
 	g = 9.81
 	Ti = T0[skipSurf]
-	maxGradT = np.argmax(delT[(skipSurf+1):] - delT[skipSurf:-1])
+	gradDelT = delT[(skipSurf+1):] - delT[skipSurf:-1]
+	maxGradT = np.argmax(gradDelT)
 	zi = plume.dz * (skipSurf + maxGradT)
 	Fflux = np.mean(ignited) * 1000 / ( 1.2 * 1005)
 
 	Wf = (g*zi*Fflux/Ti)**(1./3)
+
+	# gammaFree = np.mean(gradDelT[maxGradT:])
+	# print(gammaFree * plume.dz)
 	#===========================plotting===========================
 	#vertical concentration slice at donwind locations of wmax and qmax
 	plt.figure(figsize=(12,12))
