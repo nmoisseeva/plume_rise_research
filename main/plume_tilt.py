@@ -38,7 +38,8 @@ plume_tops = np.empty(runCnt) * np.nan
 cumT = np.empty(runCnt)* np.nan
 charU = np.empty(runCnt) * np.nan		#characteristic wind speed (could be mean BL or near surface)
 plumeTilt = np.empty(runCnt)* np.nan
-fireLine = np.empty((runCnt,2))* np.nan #intensity, width
+fireWidth = np.empty((runCnt))* np.nan
+fireHeat = np.empty(runCnt)* np.nan
 Qprofiles = np.empty((runCnt,len(plume.lvl)))* np.nan
 exT = np.empty(runCnt)* np.nan
 
@@ -102,28 +103,29 @@ for nCase,Case in enumerate(RunList):
 
 	#get fireline intensity and characteristic wind
 	# U = np.nanmean(avedict['u'][3:,0]) 	#exclude bottom three layers due to friction  #based on mean wind
-	U = avedict['u'][2,0] 					#based on near surface wind
-	#store data
-	charU[nCase] = U
-	print('Wind speed near ground: %s ' %U)
+	charU[nCase] = avedict['u'][2,0]
+	print('Wind speed near ground: %s ' %charU[nCase])
 
 	# #calculate total flux from ground and fire
 	ignited = np.array([i for i in avedict['ghfx'] if i > 2])
 
-	#(option 1): just the fire (converted to kinematic)
-	totI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
-
+	# #(option 1): just the fire (converted to kinematic)
+	# totI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 ) #convert to kinematic heat flux (and remove -kilo)
 	#(option 2): fire and ground heat flux combined
 	# fireI = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005 )
 	# grndI = plume.read_tag('S',[Case])[0]* plume.dx * len(ignited)/(1.2 * 1005)
 	# totI = fireI + grndI
 
+	#convert to kinematic heat flux (from kW/m2)
+	kinI = ignited * 1000/(1.2 * 1005)
+	fireHeat[nCase] = sum(kinI * plume.dx) / charU[nCase]
+
 	#store data
 	plumeTilt[nCase] = tilt.c[0]
-	fireLine[nCase,:] = totI,len(ignited)
+	# fireLine[nCase,:] = totI,len(ignited)
+	fireWidth[nCase] = len(ignited)
 	plume_tops[nCase] = plume.lvl[len(wmax_idx)-1]
 	print('plume top: %s' %plume.lvl[len(wmax_idx)-1])
-
 
 
 	#estimate atmospheric heating and "cumT --------------------------------"
@@ -134,17 +136,27 @@ for nCase,Case in enumerate(RunList):
 	delT = T0[1:len(wmax_idx)]-T0[0:len(wmax_idx)-1]
 	cumT[nCase] = np.sum(delT *	 plume.dz)
 
-	print('Excess temp area along wmax: %d.02; NormI: %d.02' %(exT[nCase],fireLine[nCase,0]/(charU[nCase])))
+	print('Excess temp area along wmax: %d.02; fireHeat: %d.02' %(exT[nCase],fireHeat[nCase]))
 
+	#charageteristic velocity--------------------------------------------
+	skipSurf = 5 			#how many layers to skip from the botton to make sure we are out of surface layer !!HARDCODED!!!
+	g = 9.81
+	Ti = T0[skipSurf]
+	maxGradT = np.argmax(delT[(skipSurf+1):] - delT[skipSurf:-1])
+	zi = plume.dz * (skipSurf + maxGradT)
+	Fflux = np.mean(ignited) * 1000 / ( 1.2 * 1005)
 
+	Wf = (g*zi*Fflux/Ti)**(1./3)
 	#===========================plotting===========================
 	#vertical concentration slice at donwind locations of wmax and qmax
 	plt.figure(figsize=(12,12))
 	plt.suptitle('%s' %Case)
 	plt.subplot(2,2,1)
-	plt.title('VALUE ALONG MAX PROFILE OF W, MAX AND MIN U')
+	plt.title('PROFILES OF VERTICAL VELOCITY ALONG W and Q MAXIMA')
 	plt.plot(wmax_profile,plume.lvl,'.-',label='$w_{max}$')
 	plt.plot(watq_profile,plume.lvl[np.isfinite(qmax_profile)],'k.-',label='$w_{qmax}$')
+	plt.axvline(x = Wf, ls='-.', c ='red', label='Wf (fire characteristic velocity)')
+	plt.axhline(y = zi, ls='--', c='black', label='BL height at ignition')
 	# plt.plot(watt_profile,plume.lvl[np.isfinite(tmax_profile)],'r.-',label='$w_{tmax}$')
 	plt.xlabel('velocity [m/s]')
 	plt.ylabel('height [m]')
@@ -187,14 +199,13 @@ for nCase,Case in enumerate(RunList):
 	plt.close()
 
 #---------------------calculations over all plumes--------------
-normI = fireLine[:,0]/(charU) #normalized fire intensity
 Rtag = np.array([i for i in plume.read_tag('R',RunList)])  #list of initialization rounds (different soundings)
 
 print('Variability of normalized intensity for given U level:')
-print('%d.2' %np.std(normI))
+print('%d.2' %np.std(fireHeat))
 
 print('Variability of temperature excess:')
-varExcess = np.mean(exT-normI)
+varExcess = np.mean(exT-fireHeat)
 print('%d.2 deg' %varExcess)
 
 #-------------subplots of tilt predictors-----------
@@ -202,21 +213,21 @@ print('%d.2 deg' %varExcess)
 plt.figure(figsize=(18,6))
 plt.subplot(1,3,1)
 plt.title('FIRELINE INTENSITY vs TILT')
-ax1 = plt.scatter(fireLine[:,0],plumeTilt,c=charU,cmap=plt.cm.viridis)
+ax1 = plt.scatter(fireHeat,plumeTilt,c=charU,cmap=plt.cm.viridis)
 plt.xlabel('fireline intensity [kW/m]')
 plt.ylabel('plume tilt')
 plt.colorbar(ax1,label='windspeed [m/s]')
 
 plt.subplot(1,3,2)
 plt.title('WIND vs TILT')
-ax2 = plt.scatter(charU,plumeTilt,c=fireLine[:,0],cmap=plt.cm.plasma)
+ax2 = plt.scatter(charU,plumeTilt,c=fireHeat,cmap=plt.cm.plasma)
 plt.xlabel('mean wind (m/s)')
 plt.ylabel('plume tilt')
 plt.colorbar(ax2, label='fireline intensity [kW/m]')
 
 plt.subplot(1,3,3)
 plt.title('WIDTH vs TILT')
-ax3 = plt.scatter(fireLine[:,1],plumeTilt,c=charU,cmap=plt.cm.viridis)
+ax3 = plt.scatter(fireWidth,plumeTilt,c=charU,cmap=plt.cm.viridis)
 plt.xlabel('fireline width [#grids]')
 plt.ylabel('plume tilt')
 plt.colorbar(ax3,label='windspeed [m/s]')
@@ -228,39 +239,23 @@ plt.close()
 
 
 
-plt.title('FIRELINE INTENSITY vs CumT')
-ax1 = plt.scatter(fireLine[:,0],cumT, c=charU)
-# ax = plt.gca()
-# ax.scatter(fireLine[:,0],cumT, c=charU)
-# ax.scatter(fireLine[-3:,0],cumT[-3:], c=np.array([0,700,-400]), cmap=plt.cm.PiYG)
-# for i, txt in enumerate(plume.read_tag('F',plume.tag)):
-#     ax.annotate(txt, (fireLine[i,0]+100,cumT[i]+100), fontsize=9)
-plt.xlabel('fireline intensity [kW/m]')
-plt.ylabel('cumulative temperature [K m]')
-plt.colorbar(ax1,label='wind speed [m/s]')
-plt.tight_layout()
-plt.savefig(plume.figdir + 'I_cumT.pdf')
-plt.show()
-plt.close()
-
-
 #get linear regression for the normalized fireLine
-regR0 = np.poly1d(np.polyfit(normI[Rtag==0],cumT[Rtag==0],1))
-regR1 = np.poly1d(np.polyfit(normI[Rtag==1],cumT[Rtag==1],1))
+regR0 = np.poly1d(np.polyfit(fireHeat[Rtag==0],cumT[Rtag==0],1))
+regR1 = np.poly1d(np.polyfit(fireHeat[Rtag==1],cumT[Rtag==1],1))
 # mrkr = ['s' if i==1 else 'o' for i in plume.read_tag('R',RunList)]
 print(regR0)
 print(regR1)
 
 plt.title('NORMALIZED FIRELINE INTENSITY vs CumT')
 ax = plt.gca()
-sc0 = ax.scatter(normI[Rtag==0],cumT[Rtag==0],marker='o', c=plume.read_tag('S',RunList)[Rtag==0], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
-sc1 = ax.scatter(normI[Rtag==1],cumT[Rtag==1],marker='s', c=plume.read_tag('S',RunList)[Rtag==1], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
+sc0 = ax.scatter(fireHeat[Rtag==0],cumT[Rtag==0],marker='o', c=plume.read_tag('S',RunList)[Rtag==0], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
+sc1 = ax.scatter(fireHeat[Rtag==1],cumT[Rtag==1],marker='s', c=plume.read_tag('S',RunList)[Rtag==1], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
 
-plt.plot(normI[Rtag==0], regR0(normI[Rtag==0]))
-plt.plot(normI[Rtag==1], regR1(normI[Rtag==1]))
+plt.plot(fireHeat[Rtag==0], regR0(fireHeat[Rtag==0]))
+plt.plot(fireHeat[Rtag==1], regR1(fireHeat[Rtag==1]))
 
 for i, txt in enumerate(plume.read_tag('F',RunList)):
-    ax.annotate(txt, (normI[i]+100,cumT[i]+100), fontsize=9)
+    ax.annotate(txt, (fireHeat[i]+100,cumT[i]+100), fontsize=9)
 plt.colorbar(sc0, label='surface heat flux [$W/m^{2}$]')
 plt.xlabel('normalized fireline intensity [$K m$]')
 plt.ylabel('cumulative temperature [K m]')
@@ -271,7 +266,7 @@ plt.close()
 
 
 plt.figure(figsize=(12,6))
-clr = plt.cm.plasma(plt.Normalize()(fireLine[:,0]))
+clr = plt.cm.plasma(plt.Normalize()(fireHeat))
 # clr[..., -1] = plt.Normalize()(fireLine[:,0])
 for nCase,Case in enumerate(RunList):
 	plt.subplot(1,2,2)
@@ -296,7 +291,7 @@ plt.figure(figsize=(12,6))
 # clr = plt.cm.PiYG_r(plt.Normalize(-200,200)(plume.read_tag('S',RunList))) 	#color by surface flux
 clr = plt.cm.viridis(plt.Normalize(2,12)(charU)) 								#color by windspeed
 
-clr[..., -1] = plt.Normalize()(fireLine[:,0]) 									#add opacity based on fire intensity
+clr[..., -1] = plt.Normalize()(fireHeat) 									#add opacity based on fire intensity
 for nCase,Case in enumerate(RunList):
 	plt.subplot(1,2,2)
 	plt.title('NORMALIZED VERTICAL Q/Qmax PROFILES')
