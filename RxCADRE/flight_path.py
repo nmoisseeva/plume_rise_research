@@ -43,8 +43,8 @@ sfc_hgt = 62 							#surface height MSL (m)
 # runstart = '12:27:00' 				#start time (if restart run time of inital simulation)
 runstart = '10:00:00' 					#start time (if restart run time of inital simulation)
 runend = '13:15:00'
-corskcrew_ssm= [47183,47521]			#start and end of corskcrew maneuver in ssm
-bg_cork_ssm = [43975,44371] 			#start and end time of pre-burn corkscrew for background
+rskcrew_ssm= [47183,47521]			#start and end of rskcrew maneuver in ssm
+bg_rk_ssm = [43975,44371] 			#start and end time of pre-burn corkscrew for background
 garage_ssm = [45000,47200] 				#start and end time of garage profile
 
 animations = 0
@@ -63,14 +63,14 @@ nT,nZ,nY,nX = np.shape(z)
 
 #open/generate basemap
 if os.path.isfile(basemap_path):
-	bm = pickle.load(open(basemap_path,'rb'))   # load here the above pickle
-	print('Domain basemap found at: %s' %basemap_path)
+    bm = pickle.load(open(basemap_path,'rb'))   # load here the above pickle
+    print('Domain basemap found at: %s' %basemap_path)
 else:
-	print('WARNING: no existing basemaps found: configuring a new basemap')
-	bm = basemap.Basemap(llcrnrlon=WLONG[0,0], llcrnrlat=WLAT[0,0],\
-					 urcrnrlon=WLONG[-1,-1], urcrnrlat=WLAT[-1,-1], resolution='f', epsg=4326)
-	pickle.dump(bm,open(basemap_path,'wb'),-1)  	# pickle the new map for later
-	print('.....New basemap instance saved as: %s' %basemap_path)
+    print('WARNING: no existing basemaps found: configuring a new basemap')
+    bm = basemap.Basemap(llcrnrlon=WLONG[0,0], llcrnrlat=WLAT[0,0],\
+                            urcrnrlon=WLONG[-1,-1], urcrnrlat=WLAT[-1,-1], resolution='f', epsg=4326)
+    pickle.dump(bm,open(basemap_path,'wb'),-1)  	# pickle the new map for later
+    print('.....New basemap instance saved as: %s' %basemap_path)
 
 # Sanity check: import shape file
 # polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
@@ -87,24 +87,24 @@ numLvl = len(lvl)
 
 #open/generate vertically interpolated data
 if os.path.isfile(interp_path):
-	qinterp = np.load(interp_path)   # load here the above pickle
-	print('Interpolated data found at: %s' %interp_path)
+    qinterp = np.load(interp_path)   # load here the above pickle
+    print('Interpolated data found at: %s' %interp_path)
 else:
-	print('WARNING: no interpolated vapour data found - generating: SLOW ROUTINE!')
-	qvcopy = np.copy(nc_data.variables['QVAPOR'][:,:,:,:])
-	qinterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
-	for t in range(nT):
-		print('.... tsetp = %s/%s' %(t,nT))
-		for y in range(nY):
-			for x in range(nX):
-				tempz = z[t,:,y,x]
-				interpz = (tempz[:-1]+tempz[1:])/2.
-				f = interpolate.interp1d(interpz,qvcopy[t,:,y,x],fill_value="extrapolate")
-				qinterp[t,:,y,x] = f(lvl)
-	print('.... masking cells with vals < 1e-30')
-	qinterp[qinterp<1e-30] = np.nan
-	np.save(interp_path, qinterp)
-	print('Interpolated data saved as: %s' %interp_path)
+    print('WARNING: no interpolated vapour data found - generating: SLOW ROUTINE!')
+    qvcopy = np.copy(nc_data.variables['QVAPOR'][:,:,:,:])
+    qinterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
+    for t in range(nT):
+        print('.... tsetp = %s/%s' %(t,nT))
+        for y in range(nY):
+            for x in range(nX):
+                tempz = z[t,:,y,x]
+                interpz = (tempz[:-1]+tempz[1:])/2.
+                f = interpolate.interp1d(interpz,qvcopy[t,:,y,x],fill_value="extrapolate")
+                qinterp[t,:,y,x] = f(lvl)
+                print('.... masking cells with vals < 1e-30')
+                qinterp[qinterp<1e-30] = np.nan
+                np.save(interp_path, qinterp)
+                print('Interpolated data saved as: %s' %interp_path)
 
 #================================DISPERSION==================================
 #extract and format dispersion data
@@ -121,11 +121,11 @@ disp_dict['CH4'] = disp_array[start_idx:,3]
 disp_dict['H2O'] = disp_array[start_idx:,4]
 disp_dict['lcn'] = np.array(zip(disp_array[start_idx:,5],disp_array[start_idx:,6],disp_array[start_idx:,7]-sfc_hgt))
 disp_dict['meta']= 'time: seconds since restart run | \
-					CO: Mixing ratio of carbon monoxide in units of parts per million by volume (ppmv) in dry air. | \
-					CO2: Mixing ratio of carbon dioxide in units of ppmv in dry air. | \
-					CH4: Mixing ratio of methane in units of ppmv in dry air. | \
-					H2O: Mixing ratio of water vapor in percent by volume. | \
-					lcn: (lat, lon, elevation) - coords in WGS84, elevation AGL'
+    CO: Mixing ratio of carbon monoxide in units of parts per million by volume (ppmv) in dry air. | \
+    CO2: Mixing ratio of carbon dioxide in units of ppmv in dry air. | \
+    CH4: Mixing ratio of methane in units of ppmv in dry air. | \
+    H2O: Mixing ratio of water vapor in percent by volume. | \
+    lcn: (lat, lon, elevation) - coords in WGS84, elevation AGL'
 
 
 #load pre-burn moisture profile
@@ -157,14 +157,14 @@ obs_h = []
 obs_lon, obs_lat = [],[]
 print('Finding nearest points....')
 for nt in range(len(tsec)):
-	print('...tstep: %s') %nt
-	idxy,idxx = np.unravel_index(grid_id[nt],np.shape(lat))
-	idxz = np.argmin(abs(lvl-disp_dict['lcn'][tidx][nt][2]))
-	mod_val[nt] = qinterp[nt,idxz,idxy,idxx]
-	obs_val[nt] = disp_dict['CO2'][tidx[nt]]		#in percent by volume
-	obs_h.append(disp_dict['lcn'][tidx][nt][2])
-	obs_lon.append(disp_dict['lcn'][tidx][nt][1])
-	obs_lat.append(disp_dict['lcn'][tidx][nt][0])
+    print('...tstep: %s') %nt
+    idxy,idxx = np.unravel_index(grid_id[nt],np.shape(lat))
+    idxz = np.argmin(abs(lvl-disp_dict['lcn'][tidx][nt][2]))
+    mod_val[nt] = qinterp[nt,idxz,idxy,idxx]
+    obs_val[nt] = disp_dict['CO2'][tidx[nt]]		#in percent by volume
+    obs_h.append(disp_dict['lcn'][tidx][nt][2])
+    obs_lon.append(disp_dict['lcn'][tidx][nt][1])
+    obs_lat.append(disp_dict['lcn'][tidx][nt][0])
 #================================EMISSIONS==================================
 print('Importing emissions data from %s' %emis_data)
 #extract and format emissions data
@@ -174,8 +174,8 @@ emis_array = np.genfromtxt(emis_data, skip_header=1, usecols = [5,6,13,14], deli
 emis_dict['bkgd']= zip(emis_array[:,0] - model_ssm +1, emis_array[:,1] - model_ssm +1)
 emis_dict['smoke'] = zip((emis_array[:,2] - model_ssm +1).astype(int), (emis_array[:,3] - model_ssm +1).astype(int))
 emis_dict['meta']= 'bkgd: background slice start and end in sec from simulation start | \
-					smoke: plume start and end in sec from simulation start | \
-					lcn: (lat, lon, elevation) - coords in WGS84, elevation MSL'
+    smoke: plume start and end in sec from simulation start | \
+    lcn: (lat, lon, elevation) - coords in WGS84, elevation MSL'
 
 #================================PLOTTING==================================
 
@@ -186,13 +186,12 @@ plt.plot(np.array(timestamp)[tidx], mod_val*1000000,'b--')
 ax = plt.gca()
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 for nSlice in range(len(emis_dict['smoke'])):
-	smoke_start = basetime + dt.timedelta(hours = 10, seconds = emis_dict['smoke'][nSlice][0])
-	smoke_end =  basetime + dt.timedelta(hours = 10, seconds = emis_dict['smoke'][nSlice][1])
-	ax.fill_between(pd.date_range(smoke_start,smoke_end,freq='S'),0,20,facecolor='gray', alpha=0.3)
+    smoke_start = basetime + dt.timedelta(hours = 10, seconds = emis_dict['smoke'][nSlice][0])
+    smoke_end =  basetime + dt.timedelta(hours = 10, seconds = emis_dict['smoke'][nSlice][1])
+    ax.fill_between(pd.date_range(smoke_start,smoke_end,freq='S'),0,20,facecolor='gray', alpha=0.3)
 plt.ylim([0,15])
 plt.gcf().autofmt_xdate()
-plt.xlim([dt.datetime(year=2012,month=11,day=10,hour=12,minute=27),dt.datetime(year=2012,month=11,day=10,hour=13,minute=04)])	#hardcoded
-
+plt.xlim([dt.datetime(year=2012,month=11,day=10,hour=12,minute=27),dt.datetime(year=2012,month=11,day=10,hour=13,minute=4)])   #hardcoded
 plt.xlabel('time (CST)')
 plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
@@ -236,44 +235,42 @@ plt.show()
 # plt.close()
 
 if animations:
-	print('Animating top view of flight....')
-	fig = plt.figure()
+    print('Animating top view of flight....')
+    fig = plt.figure()
 
-	#
-	# create initial frame
-	smokeim = np.nansum(qinterp[0,:,:,:],0) * 1000
-	im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
-	scat = bm.scatter(disp_dict['lcn'][0,1],disp_dict['lcn'][0,0],40,marker='o')
+    # create initial frame
+    smokeim = np.nansum(qinterp[0,:,:,:],0) * 1000
+    im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
+    scat = bm.scatter(disp_dict['lcn'][0,1],disp_dict['lcn'][0,0],40,marker='o')
 
-	#make a list of all times within plume from emissions
-	smoky = []
-	for item in emis_dict['smoke']:
-	    smoky.extend(np.arange(item[0],item[1]))
+    #make a list of all times within plume from emissions
+    smoky = []
+    for item in emis_dict['smoke']:
+        smoky.extend(np.arange(item[0],item[1]))
 
-	# move the point position at every frame
-	def update_point(n, disp_dict,smoky,scat,im):
-	    print n
-	    m = tidx[n]
-	    # i = int(np.floor(n/5.))
-	    del im
-	    smokeim = np.nansum(qinterp[n,:,:,:],0) * 1000
-	    im = bm.imshow(smokeim, cmap = plt.cm.bone_r)
-	    # im.set_data(smokeim)
-	    scat.set_offsets(np.c_[disp_dict['lcn'][m,1],disp_dict['lcn'][m,0]])
-	    # plt.gca().set_title('')
+    # move the point position at every frame
+    def update_point(n, disp_dict,smoky,scat,im):
+        m = tidx[n]
+        # i = int(np.floor(n/5.))
+        del im
+        smokeim = np.nansum(qinterp[n,:,:,:],0) * 1000
+        im = bm.imshow(smokeim, cmap = plt.cm.bone_r)
+        # im.set_data(smokeim)
+        scat.set_offsets(np.c_[disp_dict['lcn'][m,1],disp_dict['lcn'][m,0]])
+        # plt.gca().set_title('')
 
-	    if disp_dict['time'][m] in smoky:
-	    	scat.set_color('r')
-	    else:
-	    	scat.set_color('k')
+        if disp_dict['time'][m] in smoky:
+            scat.set_color('r')
+        else:
+            scat.set_color('k')
 
-	#plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-	# ani=animation.FuncAnimation(fig, update_point, 1349, fargs=(disp_dict,smoky,scat,im), interval=10)
-	ani=animation.FuncAnimation(fig, update_point, 269, fargs=(disp_dict,smoky,scat,im),interval = 100, repeat=0)
+    #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+    # ani=animation.FuncAnimation(fig, update_point, 1349, fargs=(disp_dict,smoky,scat,im), interval=10)
+    ani=animation.FuncAnimation(fig, update_point, 269, fargs=(disp_dict,smoky,scat,im),interval = 100, repeat=0)
 
-	ani.save(fig_dir + 'FlightTopView.gif', writer='imagemagick',fps=120)
-	# plt.show()
-	plt.close()
+    ani.save(fig_dir + 'FlightTopView.gif', writer='imagemagick',fps=120)
+    # plt.show()
+    plt.close()
 
 
 #================================VIRTICAL PROFILE==================================
@@ -399,39 +396,39 @@ plt.show()
 
 #=============================ANIMATION OF CW ave plume==================================
 if animations:
-	print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
-	qzero = qinterp*1000
-	qzero[np.isnan(qzero)] = 0
+    print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
+    qzero = qinterp*1000
+    qzero[np.isnan(qzero)] = 0
 
-	cw_sum = []
-	for nTime in range(nT):
-		print(nTime)
-		qrot = rotate(qzero[nTime,:,:,:], 39, axes=(1, 2), reshape=True, mode='constant', cval=np.nan)
-		totq = np.nansum(qrot,2)
-		cw_sum.append(totq)
+    cw_sum = []
+    for nTime in range(nT):
+        print(nTime)
+        qrot = rotate(qzero[nTime,:,:,:], 39, axes=(1, 2), reshape=True, mode='constant', cval=np.nan)
+        totq = np.nansum(qrot,2)
+        cw_sum.append(totq)
 
-	cw_sum = np.array(cw_sum)
-	fig = plt.figure()
-	ax = plt.gca()
-	# create initial frame
-	cntr = plt.contourf(cw_sum[0,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
-	cbar = plt.colorbar()
-	cbar.set_label('total $H_{2}O$ mixing ratio anomaly [mg/kg]')
-	plt.xlabel('distance [km]')
-	plt.ylabel('height [m]')
-	ax.set_yticks(np.arange(0,numLvl,5))
-	ax.set_yticklabels(lvl[::5])
-	ax.set_xticks(np.arange(0,450,50))
-	ax.set_xticklabels((np.arange(0,450,50)*0.040).astype(int))
-	plt.title('EVOLUTION OF TOTAL CROSS-WIND $Q_v$ ANOMALY')
+    cw_sum = np.array(cw_sum)
+    fig = plt.figure()
+    ax = plt.gca()
+    # create initial frame
+    cntr = plt.contourf(cw_sum[0,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
+    cbar = plt.colorbar()
+    cbar.set_label('total $H_{2}O$ mixing ratio anomaly [mg/kg]')
+    plt.xlabel('distance [km]')
+    plt.ylabel('height [m]')
+    ax.set_yticks(np.arange(0,numLvl,5))
+    ax.set_yticklabels(lvl[::5])
+    ax.set_xticks(np.arange(0,450,50))
+    ax.set_xticklabels((np.arange(0,450,50)*0.040).astype(int))
+    plt.title('EVOLUTION OF TOTAL CROSS-WIND $Q_v$ ANOMALY')
 
-	# update the frame
-	def update_plot(n,cw_sum,cntr):
-	    del cntr
-	    cntr = plt.contourf(cw_sum[n,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
-	    return cntr,
+    # update the frame
+    def update_plot(n,cw_sum,cntr):
+        del cntr
+        cntr = plt.contourf(cw_sum[n,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
+        return cntr,
 
-	#plot all frames
-	ani=animation.FuncAnimation(fig, update_plot, 270, fargs=(cw_sum,cntr), interval=1)
-	ani.save(fig_dir + 'Plume_CS_animation.gif', writer='imagemagick',fps=120)
-	# plt.show()
+    #plot all frames
+    ani=animation.FuncAnimation(fig, update_plot, 270, fargs=(cw_sum,cntr), interval=1)
+    ani.save(fig_dir + 'Plume_CS_animation.gif', writer='imagemagick',fps=120)
+    # plt.show()

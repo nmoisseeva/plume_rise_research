@@ -36,12 +36,14 @@ runCnt = len(RunList)
 
 plume_tops = np.empty(runCnt) * np.nan
 cumT = np.empty(runCnt)* np.nan
+inv_cumT = np.empty(runCnt) * np.nan
 charU = np.empty(runCnt) * np.nan		#characteristic wind speed (could be mean BL or near surface)
 plumeTilt = np.empty(runCnt)* np.nan
 fireWidth = np.empty((runCnt))* np.nan
 fireHeat = np.empty(runCnt)* np.nan
 Qprofiles = np.empty((runCnt,len(plume.lvl)))* np.nan
 exT = np.empty(runCnt)* np.nan
+T0 = np.empty(((runCnt,len(plume.lvl))) * np.nan
 
 for nCase,Case in enumerate(RunList):
 	if Case in plume.exclude_runs:
@@ -87,16 +89,16 @@ for nCase,Case in enumerate(RunList):
 	#load initial temperature profileT
 	if preIgnT:
 		profpath = plume.wrfdir + 'interp/profT0' + Case + '.npy'
-		T0 = np.load(profpath)
+		T0[nCase] = np.load(profpath)
 	else:
-		T0 = avedict['temp'][:,0]
+		T0[nCase] = avedict['temp'][:,0]
 
 	# #calculate temeperature excess(option1)
 	# excessT = t_at_wmax-T0[:len(wmax_idx)]
 	# exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
 
 	# calculate temeprature excess (option 2)
-	excessT = tmax_profile[:len(wmax_idx)]-T0[:len(wmax_idx)]
+	excessT = tmax_profile[:len(wmax_idx)]-T0[nCase][:len(wmax_idx)]
 	exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
 
 	#fire behavior ------------------------------------------------------
@@ -133,15 +135,20 @@ for nCase,Case in enumerate(RunList):
 	# cumT[nCase] = np.sum(T0[:len(wmax_idx)]*plume.dz)
 
 	#get cumulative T based on  delT
-	delT = T0[1:len(wmax_idx)]-T0[0:len(wmax_idx)-1]
+	delT = T0[nCase][1:len(wmax_idx)]-T0[nCase][0:len(wmax_idx)-1]
 	cumT[nCase] = np.sum(delT *	 plume.dz)
+
+	#get invCumT
+	inv_delT = T0[nCase][5:len(wmax_idx)]-T0[nCase][4:len(wmax_idx)-1]
+	inv_cumT[nCase] = np.sum(inv_delT * plume.dz)
+	inv_delT
 
 	print('Excess temp area along wmax: %d.02; fireHeat: %d.02' %(exT[nCase],fireHeat[nCase]))
 
 	#charageteristic velocity--------------------------------------------
 	skipSurf = 5 			#how many layers to skip from the botton to make sure we are out of surface layer !!HARDCODED!!!
 	g = 9.81
-	Ti = T0[skipSurf]
+	Ti = T0[nCase][skipSurf]
 	gradDelT = delT[(skipSurf+1):] - delT[skipSurf:-1]
 	maxGradT = np.argmax(gradDelT)
 	zi = plume.dz * (skipSurf + maxGradT)
@@ -243,6 +250,7 @@ plt.close()
 
 
 
+
 #get linear regression for the normalized fireLine
 regR0 = np.poly1d(np.polyfit(fireHeat[Rtag==0],cumT[Rtag==0],1))
 regR1 = np.poly1d(np.polyfit(fireHeat[Rtag==1],cumT[Rtag==1],1))
@@ -250,23 +258,26 @@ regR1 = np.poly1d(np.polyfit(fireHeat[Rtag==1],cumT[Rtag==1],1))
 print(regR0)
 print(regR1)
 
-plt.title('NORMALIZED FIRELINE INTENSITY vs CumT')
+plt.title('NORMALIZED FIRELINE INTENSITY vs Inversion_CumT')
 ax = plt.gca()
-sc0 = ax.scatter(fireHeat[Rtag==0],cumT[Rtag==0],marker='o', c=plume.read_tag('S',RunList)[Rtag==0], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
-sc1 = ax.scatter(fireHeat[Rtag==1],cumT[Rtag==1],marker='s', c=plume.read_tag('S',RunList)[Rtag==1], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
-
-plt.plot(fireHeat[Rtag==0], regR0(fireHeat[Rtag==0]))
-plt.plot(fireHeat[Rtag==1], regR1(fireHeat[Rtag==1]))
+sc0 = ax.scatter(fireHeat[Rtag==0],inv_cumT[Rtag==0],marker='o', c=plume.read_tag('S',RunList)[Rtag==0], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
+sc1 = ax.scatter(fireHeat[Rtag==1],inv_cumT[Rtag==1],marker='s', c=plume.read_tag('S',RunList)[Rtag==1], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
+#
+# plt.plot(fireHeat[Rtag==0], regR0(fireHeat[Rtag==0]))
+# plt.plot(fireHeat[Rtag==1], regR1(fireHeat[Rtag==1]))
 
 for i, txt in enumerate(plume.read_tag('F',RunList)):
-    ax.annotate(txt, (fireHeat[i]+100,cumT[i]+100), fontsize=9)
+    ax.annotate(txt, (fireHeat[i]+20,inv_cumT[i]+20), fontsize=9)
 plt.colorbar(sc0, label='surface heat flux [$W/m^{2}$]')
 plt.xlabel('normalized fireline intensity [$K m$]')
-plt.ylabel('cumulative temperature [K m]')
+plt.ylabel('Inversion cumulative temperature [K m]')
 plt.tight_layout()
-plt.savefig(plume.figdir + 'normI_cumT.pdf')
+plt.savefig(plume.figdir + 'inv_normI_cumT.pdf')
 plt.show()
 plt.close()
+
+
+
 
 
 plt.figure(figsize=(12,6))
@@ -313,3 +324,14 @@ for nCase,Case in enumerate(RunList):
 plt.savefig(plume.figdir + 'normProfsHFX.pdf')
 # plt.show()
 plt.close()
+
+plt.title('INITAL ATMOSPHERIC PROFILES (R0 and R1)')
+for Case in T0[Rtag==0]:
+	lR0 = plt.plot(Case, plume.lvl, color='red', label='R0')
+for Case in T0[Rtag==1]:
+	lR1 = plt.plot(Case, plume.lvl, color ='blue', label='R1')
+plt.xlabel('potential temperature [K]')
+plt.ylabel('height [m]')
+plt.legend(handles=[lR0[-1],lR1[-1]])
+plt.savefig(plume.figdir + 'T0profiles.pdf')
+plt.show()
