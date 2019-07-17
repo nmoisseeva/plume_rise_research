@@ -9,24 +9,16 @@ import pyproj as pyproj
 import warnings
 import os
 warnings.filterwarnings("ignore")
+import imp
 
-wrfinput='/Users/nmoisseeva/data/plume/RxCADRE/sfire/wrfinput_d01_Feb2019'
-input_fc = '/Users/nmoisseeva/code/plume/RxCADRE/sfire/input_fc_cat3'
+#====================INPUT===================
 
-#lower left corner
-# ll_utm = np.array([518300,3377000]) #THIS IS THE PROPER ONE
-# ll_utm = np.array([523500,3377000])
-ll_utm = np.array([517000,3377000]) #Feb 2018
+#all common variables are stored separately
+import rxcadreMOIST as rx
+imp.reload(rx) 	            #force load each time
 
-
-bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
-
-#four lines (strip headfire method) walking ignition
-fire_dict_utm = {'fireline1':{'start':np.array([525828,3379011]), 'end':np.array([524551,3378179])},\
-				'fireline2':{'start':np.array([525729,3379075]), 'end':np.array([524487,3378275])},\
-				'fireline3':{'start':np.array([525612,3379181]), 'end':np.array([524409,3378388])},\
-				'fireline4':{'start':np.array([525549,3379284]), 'end':np.array([524331,3378480])} }
-fuel_cat = 3
+wrfinput='/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/wrfinput_d01'
+input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/input_fc'
 
 #======================end of input=======================
 print('Extracting NetCDF data from %s ' %wrfinput)
@@ -34,10 +26,10 @@ print('Extracting NetCDF data from %s ' %wrfinput)
 nc_data = netcdf.netcdf_file(wrfinput, mode ='a')
 
 #create a UTM grid
-UTMx = nc_data.variables['XLONG'][0,:,:] + ll_utm[0]
-UTMy = nc_data.variables['XLAT'][0,:,:] + ll_utm[1]
-UTMfx = nc_data.variables['FXLONG'][0,:,:] + ll_utm[0]
-UTMfy = nc_data.variables['FXLAT'][0,:,:] + ll_utm[1]
+UTMx = nc_data.variables['XLONG'][0,:,:] + rx.ll_utm[0]
+UTMy = nc_data.variables['XLAT'][0,:,:] + rx.ll_utm[1]
+UTMfx = nc_data.variables['FXLONG'][0,:,:] + rx.ll_utm[0]
+UTMfy = nc_data.variables['FXLAT'][0,:,:] + rx.ll_utm[1]
 
 #convert coordinate systems to something basemaps can read
 print('..... transforming coordinates to WSG projection')
@@ -60,7 +52,7 @@ landsat_pull_cmnd = "bash getWMSImage.sh -o ./npy/landsat_%s_%s_%s_%s.tiff -m la
 os.system(landsat_pull_cmnd)
 
 #add plot shapefile
-polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
+polygons = bm.readshapefile(rx.bounds_shape,name='fire_bounds',drawbounds=True)
 
 print('..... replacing fuel data')
 l2g = path.Path(bm.fire_bounds[5])
@@ -70,7 +62,7 @@ l2g_mask = np.reshape(l2g_mask, np.shape(UTMfx))
 
 print('.......-copying fuel data')
 fuel = nc_data.variables['NFUEL_CAT'][0,:,:]
-fuel[l2g_mask] = fuel_cat
+fuel[l2g_mask] = rx.fuel_cat
 fuel[~l2g_mask] = 14
 
 # frac = nc_data.variables['FUEL_FRAC'][0,:,:]
@@ -98,7 +90,7 @@ nc_data.close()
 
 #convert fireline cooredinate to WRF input
 print('..... converting fireline cooredinates to WRF input')
-for key in fire_dict_utm:
-	fstart = fire_dict_utm[key]['start'][:] - ll_utm[:]
-	fend = fire_dict_utm[key]['end'][:] - ll_utm[:]
-	print'     ..... %s: start (%sm, %sm) - end (%sm, %sm)' %(key, fstart[0],fstart[1],fend[0],fend[1])
+for key in rx.fire_dict_utm:
+	fstart = rx.fire_dict_utm[key]['start'][:] - rx.ll_utm[:]
+	fend = rx.fire_dict_utm[key]['end'][:] - rx.ll_utm[:]
+	print('..... %s: start (%sm, %sm) - end (%sm, %sm)' %(key, fstart[0],fstart[1],fend[0],fend[1]))
