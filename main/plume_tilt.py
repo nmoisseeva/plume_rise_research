@@ -44,6 +44,8 @@ fireHeat = np.empty(runCnt)* np.nan
 Qprofiles = np.empty((runCnt,len(plume.lvl)))* np.nan
 exT = np.empty(runCnt)* np.nan
 T0 = np.empty((runCnt,len(plume.lvl))) * np.nan
+A = np.empty(runCnt)* np.nan
+Ti = np.empty(runCnt)* np.nan
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -148,14 +150,15 @@ for nCase,Case in enumerate(RunList):
     #charageteristic velocity--------------------------------------------
     skipSurf = 5 			#how many layers to skip from the botton to make sure we are out of surface layer !!HARDCODED!!!
     g = 9.81
-    Ti = T0[nCase][skipSurf]
+    Ti[nCase] = T0[nCase][skipSurf]
     gradDelT = delT[(skipSurf+1):] - delT[skipSurf:-1]
     maxGradT = np.argmax(gradDelT)
     zi = plume.dz * (skipSurf + maxGradT)
     Fflux = np.mean(ignited) * 1000 / ( 1.2 * 1005)
 
-    Wf = (g*zi*Fflux/Ti)**(1./3)
+    Wf = (g*zi*Fflux/Ti[nCase])**(1./3)
 
+    A[nCase] = g* fireHeat[nCase]/ (zi*Ti[nCase])
     # gammaFree = np.mean(gradDelT[maxGradT:])
     # print(gammaFree * plume.dz)
     #===========================plotting===========================
@@ -256,15 +259,15 @@ regR0 = np.poly1d(np.polyfit(fireHeat[Rtag==0],cumT[Rtag==0],1))
 regR1 = np.poly1d(np.polyfit(fireHeat[Rtag==1],cumT[Rtag==1],1))
 regR2 = np.poly1d(np.polyfit(fireHeat[Rtag==2],cumT[Rtag==2],1))
 # mrkr = ['s' if i==1 else 'o' for i in plume.read_tag('R',RunList)]
-print(regR0)
-print(regR1)
-print(regR2)
+print('R0 profiles: regression fit equation: %s ' %regR0)
+print('R1 profiles: regression fit equation: %s ' %regR1)
+print('R2 profiles: regression fit equation: %s ' %regR2)
 
 plt.title('NORMALIZED FIRELINE INTENSITY vs Inversion_CumT')
 ax = plt.gca()
 sc0 = ax.scatter(fireHeat[Rtag==0],inv_cumT[Rtag==0],marker='o', c=plume.read_tag('S',RunList)[Rtag==0], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
 sc1 = ax.scatter(fireHeat[Rtag==1],inv_cumT[Rtag==1],marker='s', c=plume.read_tag('S',RunList)[Rtag==1], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
-sc2 = ax.scatter(fireHeat[Rtag==2],inv_cumT[Rtag==2],marker='t', c=plume.read_tag('S',RunList)[Rtag==2], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
+sc2 = ax.scatter(fireHeat[Rtag==2],inv_cumT[Rtag==2],marker='^', c=plume.read_tag('S',RunList)[Rtag==2], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
 
 #
 # plt.plot(fireHeat[Rtag==0], regR0(fireHeat[Rtag==0]))
@@ -340,4 +343,7 @@ plt.xlabel('potential temperature [K]')
 plt.ylabel('height [m]')
 plt.legend(handles=[lR0[-1],lR1[-1],lR2[-1]])
 plt.savefig(plume.figdir + 'T0profiles.pdf')
+plt.show()
+
+plt.scatter(Ti,A)
 plt.show()

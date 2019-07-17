@@ -56,8 +56,8 @@ for nCase,Case in enumerate(plume.tag):
     ax.set_title('HORIZONTAL VELOCITY CONVERGENCE: %s' %Case)
     maxU = int(np.max(csdict['u']))
     maxQ = int(np.max(csdict['qvapor']))
-    uLevels = np.arange(-maxU,maxU+.1,maxU/20)
-    qLevels = np.arange(maxQ*0.05,maxQ,maxQ/40)
+    uLevels = np.arange(-maxU,maxU+.1,maxU/20.)
+    qLevels = np.arange(maxQ*0.05,maxQ,maxQ/40.)
     # create initial frame
     # ---u contours and colorbar
     cntrf = ax.contourf(csdict['u'][0,:,:], cmap=plt.cm.Spectral_r,levels=uLevels,extend='both')
