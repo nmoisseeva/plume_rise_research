@@ -22,7 +22,6 @@ input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/in
 
 #======================end of input=======================
 print('Extracting NetCDF data from %s ' %wrfinput)
-# nc_data = NetCDF.NetCDFFile(wrfinput, 'a')
 nc_data = netcdf.netcdf_file(wrfinput, mode ='a')
 
 #create a UTM grid
@@ -65,26 +64,12 @@ fuel = nc_data.variables['NFUEL_CAT'][0,:,:]
 fuel[l2g_mask] = rx.fuel_cat
 fuel[~l2g_mask] = 14
 
-# frac = nc_data.variables['FUEL_FRAC'][0,:,:]
-# frac[l2g_mask] = 1
-# frac[~l2g_mask] = 0
-
-# moist = nc_data.variables['FMC_G'][0,:,:]
-# moist[~l2g_mask] = 1
-
-# nc_data.variables['NFUEL_CAT'][0,:,:] = fuel
-# nc_data.variables['FUEL_FRAC'][0,:,:] = frac
-# nc_data.variables['FMC_G'][0,:,:] = moist
-
-
 np.savetxt(input_fc, fuel.T,delimiter=' ',fmt='%d', header = '%s,%s' %(nc_data.dimensions['west_east_subgrid'],nc_data.dimensions['south_north_subgrid']))
 
-
+#sanity-check plot
 bm.contourf(WLONGf, WLATf,fuel)
 plt.colorbar()
 plt.show()
-
-
 
 nc_data.close()
 
