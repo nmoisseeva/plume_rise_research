@@ -1,9 +1,16 @@
 #script to convert micromet data to sensible heat flux and look at whats happenning
 #nmoisseeva@eoas.ubc.ca
 #Jan 2019
-
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.io import netcdf
+from scipy.spatial import KDTree
+from scipy import stats
+import wrf
+import imp
+from datetime import datetime, timezone, timedelta
+import matplotlib.dates as mdates
+import pytz
 
 datapath = './H.csv'
 data = np.genfromtxt(datapath,usecols=(1,2,3,4),skip_header=4,delimiter=',',dtype=float)
