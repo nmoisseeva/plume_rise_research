@@ -2,11 +2,9 @@
 import numpy as np
 
 #paths
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/Feb2019/wrfout_L2G_cat1obs'
+wrfdata = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_L2G_cat1_obs'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
-disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_cat1obs_interp.npy'
-pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 
 #time setup of the domain
@@ -21,6 +19,10 @@ ll_utm = np.array([517000,3377000])     #lower left corner of domain
 
 #observational data
 bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
+disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
+pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
+
+
 
 #ignition setup
 fire_dict_utm = {'fireline1':{'start':np.array([525828,3379011]), 'end':np.array([524551,3378179])},\
@@ -31,4 +33,5 @@ fuel_cat = 1
 
 
 #instrument locations
-csu_lcn = [525803.12, 3378544.15] #[30.539,86.731]
+csu_lcn = [525803.12, 3378544.15]
+met_lcn = [525128.85, 3378208.91]

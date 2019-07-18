@@ -76,7 +76,8 @@ CSUidx = np.unravel_index(CSUgrid_id,np.shape(UTMx))
 wrf_U = np.sqrt(u[:,:,CSUidx[0],CSUidx[1]]**2 +v[:,:,CSUidx[0],CSUidx[1]]**2)
 z = np.mean(z[:,:,CSUidx[0],CSUidx[1]],0)
 
-#create timeseries of WRF wind averaged to the same interval (assumes 45min run and 10s history interval)
+#------------WHY IS 1MIN HARDCODED????-----------------
+#create timeseries of WRF wind averaged to the same interval (assumes 45min run and 10s history interval) -
 uWRF = []
 for nSample in range(rx.run_min):
 	set_len = int(60/rx.hist_int)
