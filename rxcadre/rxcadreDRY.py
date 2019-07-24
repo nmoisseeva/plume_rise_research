@@ -5,7 +5,9 @@ import numpy as np
 wrfdata = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_L2G_cat1_obs'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_cat1obs_interp.npy'
-spinup_path = '/Users/nmoisseeva/data/plume/RxCADRE/Feb2019/wrfout_L2G_cat1obs_spinup'
+spinup_path = '/Users/nmoisseeva/data/plume/RxCADRE/wrfout_L2G_cat1obs_spinup'
+wrfinput = '/Users/nmoisseeva/data/plume/rxcadre/wrfinput_d01'
+input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/input_fc'
 
 
 #time setup of the domain
@@ -20,10 +22,9 @@ ll_utm = np.array([517000,3377000])     #lower left corner of domain
 
 
 #observational data
-bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
+bounds_shape = '/Users/nmoisseeva/data/rxcadre/qgis/BurnPerimeterWGS'
 disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv'            #pre-burn moisture profile
-radiometer_data = '/Users/nmoisseeva/code/plume/rxcadre/csv/RadiometerTemperatureCSU-MAPS.csv'          #microwave profiler at CSU-MAPS
 
 
 

@@ -1,7 +1,6 @@
 from scipy.io import netcdf
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.io import netcdf
 import matplotlib as mpl
 from matplotlib import path
 from mpl_toolkits import basemap
@@ -17,12 +16,9 @@ import imp
 import rxcadreMOIST as rx
 imp.reload(rx) 	            #force load each time
 
-wrfinput='/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/wrfinput_d01'
-input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/input_fc'
-
 #======================end of input=======================
-print('Extracting NetCDF data from %s ' %wrfinput)
-nc_data = netcdf.netcdf_file(wrfinput, mode ='a')
+print('Extracting NetCDF data from %s ' %rx.wrfinput)
+nc_data = netcdf.netcdf_file(rx.wrfinput, mode ='a')
 
 #create a UTM grid
 UTMx = nc_data.variables['XLONG'][0,:,:] + rx.ll_utm[0]
@@ -54,17 +50,14 @@ os.system(landsat_pull_cmnd)
 polygons = bm.readshapefile(rx.bounds_shape,name='fire_bounds',drawbounds=True)
 
 print('..... replacing fuel data')
-l2g = path.Path(bm.fire_bounds[5])
-print('.......-select points')
-l2g_mask = l2g.contains_points(zip(WGSfx,WGSfy))
+l2g = path.Path(bm.fire_bounds[0])
+l2g_mask = l2g.contains_points(np.array(list(zip(WGSfx,WGSfy))))
 l2g_mask = np.reshape(l2g_mask, np.shape(UTMfx))
-
-print('.......-copying fuel data')
 fuel = nc_data.variables['NFUEL_CAT'][0,:,:]
 fuel[l2g_mask] = rx.fuel_cat
 fuel[~l2g_mask] = 14
 
-np.savetxt(input_fc, fuel.T,delimiter=' ',fmt='%d', header = '%s,%s' %(nc_data.dimensions['west_east_subgrid'],nc_data.dimensions['south_north_subgrid']))
+np.savetxt(rx.input_fc, fuel.T,delimiter=' ',fmt='%d', header = '%s,%s' %(nc_data.dimensions['west_east_subgrid'],nc_data.dimensions['south_north_subgrid']))
 
 #sanity-check plot
 bm.contourf(WLONGf, WLATf,fuel)
