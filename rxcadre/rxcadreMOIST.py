@@ -14,6 +14,7 @@ input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/in
 runstart = '10:00:00' 					#start time (if restart run time of inital simulation)
 run_min = 45 							#run length in minutes
 hist_int = 10 							#history interval in seconds
+moist_run = 1 							#moisture included (new simulations)
 
 
 #spatial setup of the domain

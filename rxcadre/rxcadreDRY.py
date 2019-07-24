@@ -1,11 +1,11 @@
 #inpue module for the original dry run for RxCADRE (initial submission to Atmosphere July 2019)
 import numpy as np
-
 #paths
 wrfdata = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_L2G_cat1_obs'
 fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
 interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_cat1obs_interp.npy'
-spinup_path = '/Users/nmoisseeva/data/plume/RxCADRE/wrfout_L2G_cat1obs_spinup'
+spinup_path = '/Users/nmoisseeva/data/plume/RxCADRE/Feb2019/wrfout_L2G_cat1obs_spinup'
+# spinup_path = '/Users/nmoisseeva/data/plume/RxCADRE/wrfout_L2G_cat1obs_spinup'
 wrfinput = '/Users/nmoisseeva/data/plume/rxcadre/wrfinput_d01'
 input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/input_fc'
 
@@ -14,7 +14,7 @@ input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/in
 runstart = '10:00:00' 					#start time (if restart run time of inital simulation)
 run_min = 45 							#run length in minutes
 hist_int = 10 							#history interval in seconds
-
+moist_run = 0 							#no moisture included (old simulations)
 
 #spatial setup of the domain
 sfc_hgt = 62 							#surface height MSL (m)
