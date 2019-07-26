@@ -3,9 +3,9 @@ import numpy as np
 
 #paths
 wrfdata = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_L2G_cat1obs'
-fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
+fig_dir = '/Users/nmoisseeva/code/plume/rxcadre/figs/'
 interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_cat1obs_interp.npy'
-spinup_path = '/Users/nmoisseeva/data/plume/RxCADRE/wrfout_L2G_cat1obs_spinup'
+spinup_path = '/Users/nmoisseeva/data/plume/RxCADRE/wrfout_L2G_moist_spinup'
 wrfinput = '/Users/nmoisseeva/data/plume/rxcadre/wrfinput_d01'
 input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/input_fc'
 
@@ -13,7 +13,8 @@ input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/in
 #time setup of the domain
 runstart = '10:00:00' 					#start time (if restart run time of inital simulation)
 run_min = 45 							#run length in minutes
-hist_int = 10 							#history interval in seconds
+hist_int = 10 							#history interval in seconds (main run)
+spinup_hist_int = 60                   #spinup history interval (seconds)
 moist_run = 1 							#moisture included (new simulations)
 
 
@@ -24,7 +25,7 @@ ll_utm = np.array([517000,3377000])     #lower left corner of domain
 
 #observational data
 bounds_shape = '/Users/nmoisseeva/data/rxcadre/qgis/BurnPerimeterWGS'
-disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
+disp_data = '/Users/nmoisseeva/data/rxcadre/dispersion/RDS-2014-0015/Data/SmokeDispersion_L2G_20121110.csv'
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 

@@ -10,20 +10,22 @@ import matplotlib.dates as mdates
 import pandas as pd
 from matplotlib.ticker import MaxNLocator
 import imp
+import sys
+from scipy.spatial import KDTree
 
 
 #====================INPUT===================
 #all common variables are stored separately
-import rxcadreDRY as rx
+import rxcadreMOIST as rx
 imp.reload(rx)		        #force load each time
 
 #-----------------edited from within steps below------
 
 basetime = dt.datetime(year=2012,month=11,day=10)
 
-#load model data
-qinterp = np.load(rx.interp_path)   # load here the above pickle
-print('Interpolated data found at: %s' %rx.interp_path)
+# #load model data
+# qinterp = np.load(rx.interp_path)   # load here the above pickle
+# print('Interpolated data found at: %s' %rx.interp_path)
 
 #extract and format dispersion data
 print('Importing dispersion data from %s' %rx.disp_data)
@@ -47,18 +49,43 @@ prof_dt_end = [dt.datetime.combine(basetime,dt.datetime.strptime(i, '%H:%M:%S').
 cs_start, cs_end = dt.datetime.combine(basetime,dt.datetime.strptime(rx.corkscrew[0], '%H:%M:%S').time()),dt.datetime.combine(basetime,dt.datetime.strptime(rx.corkscrew[1], '%H:%M:%S').time())
 gg_start, gg_end = dt.datetime.combine(basetime,dt.datetime.strptime(rx.garage[0], '%H:%M:%S').time()),dt.datetime.combine(basetime,dt.datetime.strptime(rx.garage[1], '%H:%M:%S').time())
 
-#load pre-burn moisture profile
-pre_burn_qv = np.genfromtxt(rx.pre_moisture, skip_header=1, delimiter=',')
-
 #import wrf data
 print('Extracting NetCDF data from %s ' %rx.spinup_path)
 wrfdata = netcdf.netcdf_file(rx.spinup_path, mode ='r')
-ncdict = wrf.extract_vars(wrfdata, None, ('T','PHB','PH'))
+ncdict = wrf.extract_vars(wrfdata, None, ('T','PHB','PH','QVAPOR','XTIME'))
 
 #get geopotential array and convert to height
 zstag = (ncdict['PHB'] + ncdict['PH'])/ 9.81
 z = wrf.destagger(zstag,1)
 z_ave = np.mean(z, (0,2,3))
+# # START AT PATH EXTRACTION (FOR HIGH FREQUENCY DATA)
+#
+# model_datetime = [basetime + dt.timedelta(hours=int(rx.runstart[:2]),minutes=t) for t in ncdict['XTIME']]
+# #get indecies of samples corresponding to model output times
+# tidx = [np.argmin(abs(disp_dict['time'] - t)) for t in model_datetime] #times since start
+#
+# #construct KDtree from idealized grid
+# lat = wrfdata.variables['XLAT'][0,:,:]
+# lon = wrfdata.variables['XLONG'][0,:,:]
+# grid_coord = list(zip(lat.ravel(),lon.ravel()))
+# gridTree = KDTree(grid_coord)
+# dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx][:,0:2])
+#
+#
+# # mod_val, obs_val = np.empty((len(tidx))) * np.nan, np.empty((len(tidx))) * np.nan
+# # obs_h = []
+# # obs_lon, obs_lat = [],[]
+# # print('Finding nearest points....')
+# # for nt in range(len(tsec)):
+# #     print('...tstep: %s') %nt
+# #     idxy,idxx = np.unravel_index(grid_id[nt],np.shape(lat))
+# #     idxz = np.argmin(abs(lvl-disp_dict['lcn'][tidx][nt][2]))
+# #     mod_val[nt] = qinterp[nt,idxz,idxy,idxx]
+# #     obs_val[nt] = disp_dict['CO2'][tidx[nt]]		#in percent by volume
+# #     obs_h.append(disp_dict['lcn'][tidx][nt][2])
+# #     obs_lon.append(disp_dict['lcn'][tidx][nt][1])
+# #     obs_lat.append(disp_dict['lcn'][tidx][nt][0])
+
 
 #===============================PLOTTING===========================
 #plot plame height vs time
@@ -78,36 +105,58 @@ plt.ylim([0,2000])
 plt.savefig(rx.fig_dir + 'PlaneHeightProfiles.pdf')
 plt.show()
 
-fig = plt.figure(figsize=(16,5))
-lbl = ['(a)','(b)','(c)']
-for nProfile in range(3):
-    model_min = (prof_dt_start[nProfile].hour - int(rx.runstart[:2]))*60 + prof_dt_start[nProfile].minute
-    i = np.argmin(abs(disp_dict['time'] - prof_dt_start[nProfile]))
-    f = np.argmin(abs(disp_dict['time'] - prof_dt_end[nProfile]))
-    ax = plt.subplot(1,3,nProfile+1)
-    plt.ylabel('hight AGL [m]')
-    ax1 = plt.gca()
-    color = 'tab:red'
-    ax1.set_xlabel('height [m]')
-    ax1.set_xlabel('potential temperature [K]', color=color)
-    if rx.moist_run:
-        profile_var = 'QVAPOR'
-    else:
-        profile_var = 'T'
-    l1 = ax1.plot(ncdict[profile_var][model_min,:,0,0]+300,z_ave,color=color,label='model %s' %profile_var )
-    ax1.set_xlim([290,310])
-    ax1.tick_params(axis='x', labelcolor=color)
-    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.legend()
-    ax2 = ax1.twiny()
-    color = 'tab:blue'
-    ax2.set_xlabel('$H_2O$ mixing ratio [%]', color=color)
-    l2 = ax2.plot(disp_dict['H2O'][i:f],disp_dict['lcn'][i:f,2],color=color,label='$H_20$ profile from flight')
-    ax2.set_xlim([1.2,0.2])
-    ax2.tick_params(axis='x', labelcolor=color)
-    lns = l1 + l2
-    labs = [l.get_label() for l in lns]
-    ax.legend(lns, labs, loc=2,title='%s %s CST' %(lbl[nProfile],rx.profiles_start[nProfile]))
-plt.tight_layout()
-plt.savefig(rx.fig_dir + 'BLGrowthEvaluation.pdf')
-plt.show()
+
+#CONSIDER EXtRACTING AVERAGE LOCATION OF AIRPLAIN PROFILE AND GETTING THE DATA FROM THERE
+if rx.moist_run:
+    fig = plt.figure(figsize=(16,5))
+    lbl = ['(a)','(b)','(c)']
+    for nProfile in range(2):
+        model_min = (prof_dt_end[nProfile].hour - int(rx.runstart[:2]))*60 + prof_dt_end[nProfile].minute
+        model_time_idx = np.argmin(abs(ncdict['XTIME'] - model_min))
+        print("Model timing off from observation by: %s minutes" %min(abs(ncdict['XTIME'] - model_min)))
+        i = np.argmin(abs(disp_dict['time'] - prof_dt_start[nProfile]))
+        f = np.argmin(abs(disp_dict['time'] - prof_dt_end[nProfile]))
+        ax = plt.subplot(1,3,nProfile+1)
+        plt.ylabel('hight AGL [m]')
+        ax = plt.gca()
+        model_mean = np.mean(ncdict['QVAPOR'][model_time_idx,:,:,:],(1,2))
+        print(model_mean)
+        model_vmr =  (28.9644 / 18.01528) * model_mean           #convert to percent by volume molar mass(dry air/h20)
+        plt.plot(model_vmr*100,z_ave,color='tab:red',label='model water vapour'  )
+        plt.plot(disp_dict['H2O'][i:f],disp_dict['lcn'][i:f,2],color='tab:blue',label='$H_20$ profile from flight')
+        plt.legend()
+        # ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.set_xlabel('$H_2O$ mixing ratio [%]')
+    plt.tight_layout()
+    plt.savefig(rx.fig_dir + 'BLGrowthEvaluation.pdf')
+    plt.show()
+else:
+    fig = plt.figure(figsize=(16,5))
+    lbl = ['(a)','(b)','(c)']
+    for nProfile in range(3):
+        model_min = (prof_dt_end[nProfile].hour - int(rx.runstart[:2]))*60 + prof_dt_end[nProfile].minute
+        i = np.argmin(abs(disp_dict['time'] - prof_dt_start[nProfile]))
+        f = np.argmin(abs(disp_dict['time'] - prof_dt_end[nProfile]))
+        ax = plt.subplot(1,3,nProfile+1)
+        plt.ylabel('hight AGL [m]')
+        ax1 = plt.gca()
+        color = 'tab:red'
+        ax1.set_xlabel('height [m]')
+        ax1.set_xlabel('potential temperature [K]', color=color)
+        l1 = ax1.plot(ncdict['T'][model_min,:,0,0]+300,z_ave,color=color,label='model potential temperature' )
+        ax1.set_xlim([290,310])
+        ax1.tick_params(axis='x', labelcolor=color)
+        ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.legend()
+        ax2 = ax1.twiny()
+        color = 'tab:blue'
+        ax2.set_xlabel('$H_2O$ mixing ratio [%]', color=color)
+        l2 = ax2.plot(disp_dict['H2O'][i:f],disp_dict['lcn'][i:f,2],color=color,label='$H_20$ profile from flight')
+        ax2.set_xlim([1.2,0.2])
+        ax2.tick_params(axis='x', labelcolor=color)
+        lns = l1 + l2
+        labs = [l.get_label() for l in lns]
+        ax.legend(lns, labs, loc=2,title='%s %s CST' %(lbl[nProfile],rx.profiles_start[nProfile]))
+    plt.tight_layout()
+    plt.savefig(rx.fig_dir + 'BLGrowthEvaluation.pdf')
+    plt.show()
