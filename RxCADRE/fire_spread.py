@@ -17,20 +17,14 @@ import pickle
 import mpl_toolkits.mplot3d.axes3d as p3
 import mpl_toolkits.mplot3d as a3
 from matplotlib import animation
+import imp
 
 #====================INPUT===================
-# wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/regrid/wrfout_L2G_nospinup_regrid'
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/Feb2019/regrid/wrfout_L2G_cat1obs_regrid'
+#all common variables are stored separately
+import rxcadreMOIST as rx
+imp.reload(rx)		        #force load each time
 
-bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
-instruments_shape = '/Users/nmoisseeva/data/RxCADRE/instruments/HIP1'
-fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
-
-# ll_utm = np.array([519500,3377000])		#lower left corner of the domain in utm
-ll_utm = np.array([517000,3377000]) #Feb 2018
-
-basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
-#=================calculated of input===============
+#==============calculated input===============
 #
 nsamples = 20
 #ignition start samples above 2nd and 3rd lines
@@ -52,72 +46,70 @@ wrf_lines_y_start = [2011,2075,2181,2284] + ll_utm[1]
 wrf_lines_y_end = [1179,1275,1388,1480] + ll_utm[1]
 
 #=================end of input===============
+print('FIRE BEHAVIOR ANALYSIS')
 
-print('Extracting NetCDF data from %s ' %wrfdata)
-nc_data = netcdf.netcdf_file(wrfdata, mode ='r')
+print('.....extracting NetCDF data from %s ' %rx.wrfdata)
+ncdata = netcdf.netcdf_file(rx.wrfdata, mode ='r')
 
-tstep = round((nc_data.variables['XTIME'][1]- nc_data.variables['XTIME'][0]) * 60.)  #timestep in sec
-WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
+#load georeferencing data for the same run
+print('.....importing wrf coordinates from  %s ' %rx.geo_path)
+wrfgeo = np.load(rx.geo_path, allow_pickle=True).item()
 
-#convert coordinate systems to something basemaps can read
-wgs84=pyproj.Proj("+init=EPSG:4326")
-epsg26916=pyproj.Proj("+init=EPSG:26916")
-
-FWGSx, FWGSy = zoom(WLONG,10),zoom(WLAT,10)
-FUTMx, FUTMy = pyproj.transform(wgs84,epsg26916,FWGSx.ravel(),FWGSy.ravel())
-UTMx, UTMy = pyproj.transform(wgs84,epsg26916,WLONG.ravel(),WLAT.ravel())
+tstep = round((ncdata.variables['XTIME'][1]- ncdata.variables['XTIME'][0]) * 60.)  #timestep in sec
+# WLONG, WLAT = ncdata.variables['XLONG'][0,:,:], ncdata.variables['XLAT'][0,:,:]
+# #
+# #convert coordinate systems to something basemaps can read
+# wgs84=pyproj.Proj("+init=EPSG:4326")
+# epsg26916=pyproj.Proj("+init=EPSG:26916")
+#
+# FWGSx, FWGSy = zoom(WLONG,10),zoom(WLAT,10)
+# FUTMx, FUTMy = pyproj.transform(wgs84,epsg26916,FWGSx.ravel(),FWGSy.ravel())
+# UTMx, UTMy = pyproj.transform(wgs84,epsg26916,WLONG.ravel(),WLAT.ravel())
 
 #open/generate basemap
-if os.path.isfile(basemap_path):
-	bm = pickle.load(open(basemap_path,'rb'))   # load here the above pickle
-	print('Domain basemap found at: %s' %basemap_path)
+if os.path.isfile(rx.basemap_path):
+	bm = pickle.load(open(rx.basemap_path,'rb'))   # load here the above pickle
+	print('Domain basemap found at: %s' %rx.basemap_path)
 else:
 	print('WARNING: no existing basemaps found: configuring a new basemap')
 	bm = basemap.Basemap(llcrnrlon=WLONG[0,0], llcrnrlat=WLAT[0,0],\
 					 urcrnrlon=WLONG[-1,-1], urcrnrlat=WLAT[-1,-1], resolution='f', epsg=4326)
-	pickle.dump(bm,open(basemap_path,'wb'),-1)  	# pickle the new map for later
-	print('.....New basemap instance saved as: %s' %basemap_path)
+	pickle.dump(bm,open(rx.basemap_path,'wb'),-1)  	# pickle the new map for later
+	print('.....New basemap instance saved as: %s' %rx.basemap_path)
 
 #read shapefiles
-polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
-instruments = bm.readshapefile(instruments_shape, name='hip1')
-hip1_lcn, hip1_tag = [], []
+polygons = bm.readshapefile(rx.bounds_shape,name='fire_bounds',drawbounds=True)
+instruments = bm.readshapefile(rx.hip1_shape, 'hip1')
+hip1_tag, hip1UTMx, hip1UTMy = [], [], []
 for nPt,item in enumerate(bm.hip1_info):
-	if item['Instrument'] == 'FireBehaviorPackage':
-		hip1_lcn.append(bm.hip1[nPt])
-		hip1_tag.append(item['Sensor_ID'])
-
-hip1_lcn, hip1_tag = np.array(hip1_lcn), np.array(hip1_tag)
-# bm.contourf(FWGSx,FWGSy,fhfx[100,:,:])
-# plt.show()
-
-#convert hip1 locations to UTM
-hipUTMx, hipUTMy = pyproj.transform(wgs84,epsg26916, hip1_lcn[:,0],hip1_lcn[:,1])
+    if item['Instrument'] == 'FireBehaviorPackage':
+        hip1_tag.append(item['Sensor_ID'])
+        hip1UTMy.append(item['Northing_Y'])
+        hip1UTMx.append(item['Easting_X'])
 
 print('..... creating a KDtree of fire mesh')
-grid_coord_fire = zip(FUTMy,FUTMx)
+grid_coord_fire = list(zip(wrfgeo['FXLAT'].ravel(),wrfgeo['FXLONG'].ravel()))
 FgridTree = KDTree(grid_coord_fire)
-Fdist, Fgrid_id = FgridTree.query(zip(hipUTMy, hipUTMx))
-Idist, Igrid_id = FgridTree.query(zip(ign_lcn_hip_y,ign_lcn_hip_x)) 	#location of ignition line normal
-TESTdist, TESTgrid_id = FgridTree.query(zip(test_lcn_l2g_y,test_lcn_l2g_x))
-NORMdist, NORMgrid_id = FgridTree.query(zip(ign_lcn_l2g_y,ign_lcn_l2g_x))
+Fdist, Fgrid_id = FgridTree.query(list(zip(hip1UTMy, hip1UTMx)))
+Idist, Igrid_id = FgridTree.query(list(zip(ign_lcn_hip_y,ign_lcn_hip_x))) 	#location of ignition line normal
+TESTdist, TESTgrid_id = FgridTree.query(list(zip(test_lcn_l2g_y,test_lcn_l2g_x)))
+NORMdist, NORMgrid_id = FgridTree.query(list(zip(ign_lcn_l2g_y,ign_lcn_l2g_x)))
 
 print('..... creating a KDtree of atm mesh')
-grid_coord_atm = zip(UTMy.ravel(),UTMx.ravel())
+grid_coord_atm = list(zip(wrfgeo['XLAT'].ravel(),wrfgeo['XLONG'].ravel()))
 gridTree = KDTree(grid_coord_atm)
-Adist, Agrid_id = gridTree.query(zip(hipUTMy, hipUTMx))
+Adist, Agrid_id = gridTree.query(list(zip(hip1UTMy, hip1UTMx)))
 
 #get necessary variables
-ghfx = np.copy(nc_data.variables['GRNHFX'][:,:,:]) 	#extract fire heat flux
-fhfx = np.copy(nc_data.variables['FGRNHFX'][:,:-10,:-10]) 	#extract fire heat flux
-fuelfrac = np.copy(nc_data.variables['AVG_FUEL_FRAC'][:,:,:])
-xtime = nc_data.variables['XTIME'][:] * 60 			#get time in seconds (since noon)
+ghfx = ncdata.variables['GRNHFX'][:,:,:] 	          #extract fire heat flux
+fhfx = ncdata.variables['FGRNHFX'][:,:-10,:-10] 	#extract fire heat flux
+xtime = ncdata.variables['XTIME'][:] * 60 			#get time in seconds
 
 #create ignition mask (fire mesh)
 print('..... creating an igntion mask (may take several minutes)')
 ign_mask = np.empty_like(fhfx) * np.nan
 for nt in range(len(xtime)):
-	print nt
+	print(nt)
 	current_ign = fhfx[nt,:,:]
 	temp_mask = np.empty_like(current_ign) * np.nan
 	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
@@ -126,15 +118,13 @@ for nt in range(len(xtime)):
 print('..... creating an igntion mask on atm grid (may take several minutes)')
 ign_mask_atm = np.empty_like(ghfx) * np.nan
 for nt in range(len(xtime)):
-	print nt
-	# frac = fuelfrac[nt,:,:]
+	print(nt)
 	current_ign = ghfx[nt,:,:]
 	temp_mask = np.empty_like(current_ign) * np.nan
 	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
-	# temp_mask[(frac<1) & (frac>0)] = 1
 	ign_mask_atm[nt,:,:] = temp_mask
 
-print("Calculating peak and averages heat fux values for all ignited cells:")
+print("Calculating peak and averages heat flux values for all ignited cells:")
 #calculate average peak heat flux on fire grid
 ignFHFX = np.copy(fhfx) 			#convert to kW/m2
 ignFHFX[np.isnan(ign_mask)] = np.nan 	#get ignited cells only
@@ -163,7 +153,7 @@ for nPt, pt in enumerate(Fgrid_id):
 	hip1_max.append(pt_hfxmax)
 
 	#get average values for sensors
-	pt_idx = np.unravel_index(pt,np.shape(FWGSx))
+	pt_idx = np.unravel_index(pt,np.shape(wrfgeo['FXLONG']))
 	hip1_hfx[nPt,:] = ignFHFX[:,pt_idx[0],pt_idx[1]]/1000.
 	pt_ave = np.nanmean(hip1_hfx[nPt,:])
 	hip1_ave.append(pt_ave)
@@ -183,7 +173,7 @@ for nPt, pt in enumerate(Agrid_id):
 	hip1_max_atm.append(pt_hfxmax)
 
 	#get average values for sensors
-	pt_idx = np.unravel_index(pt,np.shape(WLAT))
+	pt_idx = np.unravel_index(pt,np.shape(wrfgeo['WLAT']))
 	hip1_hfx[nPt,:] = ignGHFX[:,pt_idx[0],pt_idx[1]]/1000.
 	pt_ave = np.nanmean(hip1_hfx[nPt,:])
 	hip1_ave_atm.append(pt_ave)
