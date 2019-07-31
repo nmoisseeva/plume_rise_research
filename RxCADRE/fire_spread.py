@@ -40,10 +40,10 @@ ign_lcn_hip_x = [524604,524621,524607,524606,524604,524594,524577]
 ign_lcn_hip_y = [3378359,3378377,3378366,3378365,3378360,3378352,3378339]
 
 #original ignition line locations (from namelist.input)
-wrf_lines_x_start = [8828,8729,8612,8549] + ll_utm[0]
-wrf_lines_x_end = [7551,7487,7409,7331] + ll_utm[0]
-wrf_lines_y_start = [2011,2075,2181,2284] + ll_utm[1]
-wrf_lines_y_end = [1179,1275,1388,1480] + ll_utm[1]
+wrf_lines_x_start = [8507.,8630.,8732.,8820.] + rx.ll_utm[0]
+wrf_lines_x_end = [7305.,7384.,7462.,7548.] + rx.ll_utm[0]
+wrf_lines_y_start = [2248.,2179.,2077.,2004.] + rx.ll_utm[1]
+wrf_lines_y_end = [1463.,1366.,1248.,1172.] + rx.ll_utm[1]
 
 #=================end of input===============
 print('FIRE BEHAVIOR ANALYSIS')
@@ -186,10 +186,10 @@ print("Calculating ROS for HIP1:")
 # #calculate ROS for hip1
 dt_hip = []
 for nPt, pt in enumerate(Igrid_id):
-	ign_idx = np.unravel_index(pt,np.shape(FWGSx)) 		#get index of normal location
+	ign_idx = np.unravel_index(pt,np.shape(wrfgeo['FXLONG'])) 		#get index of normal location
 	t0 = np.argmax(np.isfinite(ignFHFX[:,ign_idx[0],ign_idx[1]]))	#get time of igntion of normal
 	dt_hip.append((t_ign_hip1[nPt]-t0) * tstep)
-dist_hip = np.sqrt((ign_lcn_hip_x - hipUTMx)**2 + (ign_lcn_hip_y - hipUTMy)**2)
+dist_hip = np.sqrt((ign_lcn_hip_x - np.array(hip1UTMx))**2 + (ign_lcn_hip_y - np.array(hip1UTMy))**2)
 ros_hip = dist_hip/dt_hip
 aveROS_hip = np.mean(ros_hip)
 print('.....Avarage rate of spread based on HIP1: %s' %aveROS_hip)
@@ -200,7 +200,7 @@ print("Calculating ROS based on cross sections:")
 test_lcn_hfx = np.empty((len(ign_lcn_l2g_y),len(xtime))) * np.nan
 t_ign_l2g = [] 				#time of sample ignition storage
 for nPt, pt in enumerate(TESTgrid_id):
-	pt_idx = np.unravel_index(pt,np.shape(FWGSx)) 				#get index of sample location
+	pt_idx = np.unravel_index(pt,np.shape(wrfgeo['FXLONG'])) 				#get index of sample location
 	test_lcn_hfx[nPt,:] = ignFHFX[:,pt_idx[0],pt_idx[1]]/1000	#get heat flux at sample
 	if any(np.isfinite(test_lcn_hfx[nPt,:])):
 		pt_ign = np.where(np.isfinite(test_lcn_hfx[nPt,:]))[0][0]  	#get index of first non-nan
@@ -212,7 +212,7 @@ for nPt, pt in enumerate(TESTgrid_id):
 dt_l2g = []
 dist_l2g = np.sqrt((ign_lcn_l2g_x - test_lcn_l2g_x)**2 + (ign_lcn_l2g_y - test_lcn_l2g_y)**2)
 for nPt, pt in enumerate(NORMgrid_id):
-	norm_idx = np.unravel_index(pt,np.shape(FWGSx))
+	norm_idx = np.unravel_index(pt,np.shape(wrfgeo['FXLONG']))
 	t0 = np.argmax(np.isfinite(ignFHFX[:,norm_idx[0],norm_idx[1]])) #get time of igntion of normal
 	dt_pt = (t_ign_l2g[nPt] - t0) * tstep
 	dt_l2g.append(dt_pt)
@@ -254,7 +254,7 @@ for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
-plt.savefig(fig_dir + 'AveHx.pdf')
+plt.savefig(rx.fig_dir + 'AveHx.pdf')
 plt.show()
 plt.close()
 
@@ -269,7 +269,7 @@ for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
-plt.savefig(fig_dir + 'MaxHx.pdf')
+plt.savefig(rx.fig_dir + 'MaxHx.pdf')
 plt.show()
 plt.close()
 
@@ -286,14 +286,14 @@ for patch, color in zip(box['boxes'], colors):
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('ROS $[m s^{-1}]$')
 plt.ylim([0,0.5])
-plt.savefig(fig_dir + 'ROS.pdf')
+plt.savefig(rx.fig_dir + 'ROS.pdf')
 plt.show()
 plt.close()
 
 plt.figure()
-x = np.reshape(FUTMx, np.shape(FWGSx))
-y = np.reshape(FUTMy, np.shape(FWGSy))
-plt.contourf(x[250:600,-900:-300],y[250:600,-900:-300],fhfx[60,250:600,-900:-300],cmap=plt.cm.gist_heat_r)
+# x = np.reshape(FUTMx, np.shape(FWGSx))
+# y = np.reshape(FUTMy, np.shape(FWGSy))
+plt.contourf(wrfgeo['FXLONG'][250:600,-900:-300],wrfgeo['FXLAT'][250:600,-900:-300],fhfx[100,250:600,-900:-300],cmap=plt.cm.gist_heat_r)
 plt.scatter(ign_lcn_l2g_x,ign_lcn_l2g_y, s=2, label='initial sample')
 plt.scatter(test_lcn_l2g_x,test_lcn_l2g_y,s=2, label='final sample')
 for nLine in range(4):
