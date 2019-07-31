@@ -102,7 +102,7 @@ Adist, Agrid_id = gridTree.query(list(zip(hip1UTMy, hip1UTMx)))
 
 #get necessary variables
 ghfx = ncdata.variables['GRNHFX'][:,:,:] 	          #extract fire heat flux
-fhfx = ncdata.variables['FGRNHFX'][:,:-10,:-10] 	#extract fire heat flux
+fhfx = ncdata.variables['FGRNHFX'][:,:,:] 	#extract fire heat flux
 xtime = ncdata.variables['XTIME'][:] * 60 			#get time in seconds
 
 #create ignition mask (fire mesh)
