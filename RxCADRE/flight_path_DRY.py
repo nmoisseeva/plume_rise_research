@@ -19,80 +19,73 @@ from matplotlib import animation
 import pandas as pd
 import matplotlib.dates as mdates
 import datetime as dt
-
-
-
-
+import imp
+import wrf
 
 #====================INPUT===================
-wrfdata = '/Users/nmoisseeva/data/plume/RxCADRE/Feb2019/regrid/wrfout_L2G_cat1obs_regrid'
-fig_dir = '/Users/nmoisseeva/code/plume/figs/RxCADRE/'
-bounds_shape = '/Users/nmoisseeva/data/qgis/LG2012_WGS'
-disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
-emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
-interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_cat1obs_interp.npy'
-pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
+#all common variables are stored separately
+import rxcadreDRY as rx
+imp.reload(rx)		        #force load each time
 
-
-ll_utm = np.array([517000,3377000]) #Feb 2018
-basemap_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
-
-lvl = np.arange(0,1700,20) 				#
-emis_excl = 0 							#number of samples to excluded (from the END!)
-sfc_hgt = 62 							#surface height MSL (m)
-# runstart = '12:27:00' 				#start time (if restart run time of inital simulation)
-runstart = '10:00:00' 					#start time (if restart run time of inital simulation)
-runend = '13:15:00'
+# emis_excl = 0 							#number of samples to excluded (from the END!)
 rskcrew_ssm= [47183,47521]			#start and end of rskcrew maneuver in ssm
 bg_rk_ssm = [43975,44371] 			#start and end time of pre-burn corkscrew for background
 garage_ssm = [45000,47200] 				#start and end time of garage profile
 
 animations = 0
 #=================end of input===============
+print('ANALYSIS OF VERTICAL PLUME RISE AND DIPSERSION')
 
+print('.....extracting NetCDF data from %s ' %rx.wrfdata)
+ncdata = netcdf.netcdf_file(rx.wrfdata, mode ='r')
 
-print('Extracting NetCDF data from %s ' %wrfdata)
-nc_data = netcdf.netcdf_file(wrfdata, mode ='r')
+#load georeferencing data for the same run
+print('.....importing wrf coordinates from  %s ' %rx.geo_path)
+wrfgeo = np.load(rx.geo_path, allow_pickle=True).item()
 
-#get geopotential array and convrt to height
-z = (nc_data.variables['PHB'][:,:,:,:] + nc_data.variables['PH'][:,:,:,:]) / 9.81
+#get variables
+ncdict = wrf.extract_vars(ncdata, None, ('PHB','PH','XTIME','tr17_1','tr17_2'))
+
+#get height and destagger vars
+print('.....destaggering height data')
+zstag = (ncdict['PHB'] + ncdict['PH'])/ 9.81
+z = wrf.destagger(zstag,1)
 
 #get domain dimensions
-WLONG, WLAT = nc_data.variables['XLONG'][0,:,:], nc_data.variables['XLAT'][0,:,:]
 nT,nZ,nY,nX = np.shape(z)
 
 #open/generate basemap
-if os.path.isfile(basemap_path):
-    bm = pickle.load(open(basemap_path,'rb'))   # load here the above pickle
-    print('Domain basemap found at: %s' %basemap_path)
+if os.path.isfile(rx.basemap_path):
+    bm = pickle.load(open(rx.basemap_path,'rb'))   # load here the above pickle
+    print('Domain basemap found at: %s' %rx.basemap_path)
 else:
     print('WARNING: no existing basemaps found: configuring a new basemap')
-    bm = basemap.Basemap(llcrnrlon=WLONG[0,0], llcrnrlat=WLAT[0,0],\
-                            urcrnrlon=WLONG[-1,-1], urcrnrlat=WLAT[-1,-1], resolution='f', epsg=4326)
-    pickle.dump(bm,open(basemap_path,'wb'),-1)  	# pickle the new map for later
-    print('.....New basemap instance saved as: %s' %basemap_path)
+    bm = basemap.Basemap(llcrnrlon=wrfgeo['WLONG'][0,0], llcrnrlat=wrfgeo['WLAT'][0,0],\
+                            urcrnrlon=wrfgeo['WLONG'][-1,-1], urcrnrlat=wrfgeo['WLAT'][-1,-1], resolution='f', epsg=4326)
+    pickle.dump(bm,open(rx.basemap_path,'wb'),-1)  	# pickle the new map for later
+    print('.....New basemap instance saved as: %s' %rx.basemap_path)
 
-# Sanity check: import shape file
-# polygons = bm.readshapefile(bounds_shape,name='fire_bounds',drawbounds=True)
-# fireim = nc_data.variables['GRNHFX'][25,:,:]
-# bm.imshow(fireim)
+# # Sanity check: import shape file
+# polygons = bm.readshapefile(rx.bounds_shape,name='fire_bounds',drawbounds=True)
+# fireim = ncdata.variables['GRNHFX'][200,:,:]
+# bm.contourf(wrfgeo['WLONG'],wrfgeo['WLAT'],fireim)
 # plt.show()
 
 #extract model time info
-tsec = nc_data.variables['XTIME'][:] * 60. 		#get time in seconds since spinup start
-model_ssm = int(runstart[0:2])*3600 + int(runstart[3:5])*60
+tsec = ncdict['XTIME'][:] * 60. 		#get time in seconds since spinup start
+model_ssm = int(rx.runstart[0:2])*3600 + int(rx.runstart[3:5])*60
 
 #==========================VERTICAL INTERPOLATION============================
-numLvl = len(lvl)
+numLvl = len(rx.lvl)
 
 #open/generate vertically interpolated data
-if os.path.isfile(interp_path):
-    qinterp = np.load(interp_path)   # load here the above pickle
-    print('Interpolated data found at: %s' %interp_path)
+if os.path.isfile(rx.interp_path):
+    qinterp = np.load(rx.interp_path)   # load here the above pickle
+    print('Interpolated data found at: %s' %rx.interp_path)
 else:
     print('WARNING: no interpolated vapour data found - generating: SLOW ROUTINE!')
-    qvcopy = np.copy(nc_data.variables['QVAPOR'][:,:,:,:])
-    qinterp = np.empty((nT,len(lvl),nY,nX)) * np.nan
+    qvcopy = np.copy(ncdata.variables['QVAPOR'][:,:,:,:])
+    qinterp = np.empty((nT,numLvl,nY,nX)) * np.nan
     for t in range(nT):
         print('.... tsetp = %s/%s' %(t,nT))
         for y in range(nY):
@@ -100,17 +93,17 @@ else:
                 tempz = z[t,:,y,x]
                 interpz = (tempz[:-1]+tempz[1:])/2.
                 f = interpolate.interp1d(interpz,qvcopy[t,:,y,x],fill_value="extrapolate")
-                qinterp[t,:,y,x] = f(lvl)
+                qinterp[t,:,y,x] = f(rx.lvl)
                 print('.... masking cells with vals < 1e-30')
                 qinterp[qinterp<1e-30] = np.nan
-                np.save(interp_path, qinterp)
-                print('Interpolated data saved as: %s' %interp_path)
+                np.save(rx.interp_path, qinterp)
+                print('Interpolated data saved as: %s' %rx.interp_path)
 
 #================================DISPERSION==================================
 #extract and format dispersion data
-print('Importing dispersion data from %s' %disp_data)
+print('Importing dispersion data from %s' %rx.disp_data)
 disp_dict = {}
-disp_array = np.genfromtxt(disp_data, skip_header=1, usecols = [1,2,3,4,5,7,8,9], delimiter=',')
+disp_array = np.genfromtxt(rx.disp_data, skip_header=1, usecols = [1,2,3,4,5,7,8,9], delimiter=',')
 
 start_idx = np.argmin(abs(disp_array[:,0] - model_ssm))  #find simulation start time index
 disp_dict['time']= disp_array[start_idx:,0] - model_ssm + 1
@@ -119,7 +112,7 @@ disp_dict['CO'] = disp_array[start_idx:,1]
 disp_dict['CO2'] = disp_array[start_idx:,2]
 disp_dict['CH4'] = disp_array[start_idx:,3]
 disp_dict['H2O'] = disp_array[start_idx:,4]
-disp_dict['lcn'] = np.array(zip(disp_array[start_idx:,5],disp_array[start_idx:,6],disp_array[start_idx:,7]-sfc_hgt))
+disp_dict['lcn'] = np.array(zip(disp_array[start_idx:,5],disp_array[start_idx:,6],disp_array[start_idx:,7]-rx.sfc_hgt))
 disp_dict['meta']= 'time: seconds since restart run | \
     CO: Mixing ratio of carbon monoxide in units of parts per million by volume (ppmv) in dry air. | \
     CO2: Mixing ratio of carbon dioxide in units of ppmv in dry air. | \
@@ -129,7 +122,7 @@ disp_dict['meta']= 'time: seconds since restart run | \
 
 
 #load pre-burn moisture profile
-pre_burn_qv = np.genfromtxt(pre_moisture, skip_header=1, delimiter=',')
+pre_burn_qv = np.genfromtxt(rx.pre_moisture, skip_header=1, delimiter=',')
 
 #get indecies of samples corresponding to model output times
 tidx = [np.argmin(abs(disp_dict['time']-t)) for t in tsec] #times since start
@@ -142,8 +135,8 @@ timestamp = [basetime + dt.timedelta(hours = 10, seconds = i) for i in disp_dict
 
 
 #construct KDtree from idealized grid
-lat = nc_data.variables['XLAT'][0,:,:]
-lon = nc_data.variables['XLONG'][0,:,:]
+lat = ncdata.variables['XLAT'][0,:,:]
+lon = ncdata.variables['XLONG'][0,:,:]
 grid_coord = zip(lat.ravel(),lon.ravel())
 gridTree = KDTree(grid_coord)
 dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx][:,0:2])
@@ -159,17 +152,17 @@ print('Finding nearest points....')
 for nt in range(len(tsec)):
     print('...tstep: %s') %nt
     idxy,idxx = np.unravel_index(grid_id[nt],np.shape(lat))
-    idxz = np.argmin(abs(lvl-disp_dict['lcn'][tidx][nt][2]))
+    idxz = np.argmin(abs(rx.lvl-disp_dict['lcn'][tidx][nt][2]))
     mod_val[nt] = qinterp[nt,idxz,idxy,idxx]
     obs_val[nt] = disp_dict['CO2'][tidx[nt]]		#in percent by volume
     obs_h.append(disp_dict['lcn'][tidx][nt][2])
     obs_lon.append(disp_dict['lcn'][tidx][nt][1])
     obs_lat.append(disp_dict['lcn'][tidx][nt][0])
 #================================EMISSIONS==================================
-print('Importing emissions data from %s' %emis_data)
+print('Importing emissions data from %s' %rx.emis_data)
 #extract and format emissions data
 emis_dict = {}
-emis_array = np.genfromtxt(emis_data, skip_header=1, usecols = [5,6,13,14], delimiter=',',skip_footer=emis_excl)
+emis_array = np.genfromtxt(rx.emis_data, skip_header=1, usecols = [5,6,13,14], delimiter=',',skip_footer=emis_excl)
 
 emis_dict['bkgd']= zip(emis_array[:,0] - model_ssm +1, emis_array[:,1] - model_ssm +1)
 emis_dict['smoke'] = zip((emis_array[:,2] - model_ssm +1).astype(int), (emis_array[:,3] - model_ssm +1).astype(int))
@@ -195,7 +188,7 @@ plt.xlim([dt.datetime(year=2012,month=11,day=10,hour=12,minute=27),dt.datetime(y
 plt.xlabel('time (CST)')
 plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'LES_Qv_flight_path.pdf')
+plt.savefig(rx.fig_dir + 'LES_Qv_flight_path.pdf')
 plt.show()
 #
 #================================FLIGHT ANIMATION==================================
@@ -268,7 +261,7 @@ if animations:
     # ani=animation.FuncAnimation(fig, update_point, 1349, fargs=(disp_dict,smoky,scat,im), interval=10)
     ani=animation.FuncAnimation(fig, update_point, 269, fargs=(disp_dict,smoky,scat,im),interval = 100, repeat=0)
 
-    ani.save(fig_dir + 'FlightTopView.gif', writer='imagemagick',fps=120)
+    ani.save(rx.fig_dir + 'FlightTopView.gif', writer='imagemagick',fps=120)
     # plt.show()
     plt.close()
 
@@ -288,7 +281,7 @@ dict_bg_f = np.argmin(abs(disp_dict['time'] + model_ssm - bg_cork_ssm[1]))
 # dict_bg_s = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[0]))
 # dict_bg_f = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[1]))
 
-# T0 = nc_data.variables['T'][0,:,:,:]
+# T0 = ncdata.variables['T'][0,:,:,:]
 # Tprofile = T0[:,0,0]
 # plt.plot(Tprofile, z[0,:-1,0,0])
 # plt.show()
@@ -304,7 +297,7 @@ im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
 bm.scatter(cs_lon,cs_lat,40,marker='*',color='r')
 plt.colorbar(im, label='total column $H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'CSLocation.pdf')
+plt.savefig(rx.fig_dir + 'CSLocation.pdf')
 plt.show()
 
 
@@ -325,7 +318,7 @@ plt.ylim([0,1700])
 plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
 plt.ylabel('height [m]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'ProfilesCorkscrew.pdf')
+plt.savefig(rx.fig_dir + 'ProfilesCorkscrew.pdf')
 plt.show()
 
 #H2O and CO2 profiles from garage flights
@@ -345,7 +338,7 @@ plt.ylim([0,1700])
 plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
 plt.ylabel('height [m]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'ProfilesGarage.pdf')
+plt.savefig(rx.fig_dir + 'ProfilesGarage.pdf')
 plt.show()
 #
 # #H2O profiles from corkscrew and earlier
@@ -358,7 +351,7 @@ plt.show()
 # plt.ylabel('height [m]')
 # plt.tight_layout()
 # plt.legend(loc='lower left')
-# plt.savefig(fig_dir + 'H2OProfiles.pdf')
+# plt.savefig(rx.fig_dir + 'H2OProfiles.pdf')
 # plt.show()
 
 
@@ -370,7 +363,7 @@ cbar = plt.colorbar()
 cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
 ax = plt.gca()
 ax.set_yticks(np.arange(0,numLvl,10))
-ax.set_yticklabels(lvl[::10])
+ax.set_yticklabels(rx.lvl[::10])
 # ax.xaxis_date()
 ax.set_xticks(np.arange(0,len(tsec),50))
 ax.set_xticklabels([np.array(timestamp)[tidx][i].strftime('%H:%M') for i in np.arange(0,len(tsec),50)])
@@ -378,7 +371,7 @@ plt.xlabel('time [CST]')
 plt.ylabel('height [m]')
 plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
 plt.tight_layout()
-plt.savefig(fig_dir + 'SmokeColumn.pdf')
+plt.savefig(rx.fig_dir + 'SmokeColumn.pdf')
 plt.show()
 
 #top view of smoke for corkscrew with average obs location
@@ -390,7 +383,7 @@ im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
 bm.scatter(cs_lon,cs_lat,40,marker='*',color='r')
 plt.colorbar(im, label='total column $H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
-plt.savefig(fig_dir + 'CSLocation.pdf')
+plt.savefig(rx.fig_dir + 'CSLocation.pdf')
 plt.show()
 
 
@@ -417,7 +410,7 @@ if animations:
     plt.xlabel('distance [km]')
     plt.ylabel('height [m]')
     ax.set_yticks(np.arange(0,numLvl,5))
-    ax.set_yticklabels(lvl[::5])
+    ax.set_yticklabels(rx.lvl[::5])
     ax.set_xticks(np.arange(0,450,50))
     ax.set_xticklabels((np.arange(0,450,50)*0.040).astype(int))
     plt.title('EVOLUTION OF TOTAL CROSS-WIND $Q_v$ ANOMALY')
@@ -430,5 +423,5 @@ if animations:
 
     #plot all frames
     ani=animation.FuncAnimation(fig, update_plot, 270, fargs=(cw_sum,cntr), interval=1)
-    ani.save(fig_dir + 'Plume_CS_animation.gif', writer='imagemagick',fps=120)
+    ani.save(rx.fig_dir + 'Plume_CS_animation.gif', writer='imagemagick',fps=120)
     # plt.show()

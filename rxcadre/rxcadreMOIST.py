@@ -4,12 +4,14 @@ import numpy as np
 #paths
 wrfdata = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_test_main'
 fig_dir = '/Users/nmoisseeva/code/plume/rxcadre/figs/'
-interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/qv_L2G_cat1obs_interp.npy'
-geo_path = '/Users/nmoisseeva/code/plume/rxcadre/npy/wrfout_geo.npy'
-spinup_path = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_sfmo50_spinup'
+spinup_path = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_sfmo70_spinup'
 wrfinput = '/Users/nmoisseeva/data/plume/rxcadre/wrfinput_d01'
 input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/input_fc'
 
+#saved numpy files
+interp_path = '/Users/nmoisseeva/code/plume/RxCADRE/npy/interp_'
+geo_path = '/Users/nmoisseeva/code/plume/rxcadre/npy/wrfout_geo.npy'
+z_path = '/Users/nmoisseeva/code/plume/rxcadre/npy/destag_z.npy'
 
 #time setup of the domain
 runstart = '10:00:00' 					#start time (if restart run time of inital simulation)
@@ -23,12 +25,14 @@ moist_run = 1 							#moisture included (new simulations)
 sfc_hgt = 62 							#surface height MSL (m)
 ll_utm = np.array([517000,3377000])     #lower left corner of domain
 basemap_path = '/Users/nmoisseeva/code/plume/rxcadre/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
+lvl = np.arange(0,1700,20)
 
 #observational data
 bounds_shape = '/Users/nmoisseeva/code/plume/rxcadre/gis/BurnPerimeterWGS'
 hip1_shape = '/Users/nmoisseeva/code/plume/rxcadre/gis/HIP1SensorLocationsWGS'
 # hip1_shape = '/Users/nmoisseeva/data/rxcadre/instruments/RDS-2016-0014/Data/SurveyPointInformation'
 disp_data = '/Users/nmoisseeva/data/rxcadre/dispersion/RDS-2014-0015/Data/SmokeDispersion_L2G_20121110.csv'
+emis_data = '/Users/nmoisseeva/code/plume/rxcadre/csv/Emissions_L2G_20121110.csv'
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv' #pre-burn moisture profile
 
 

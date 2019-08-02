@@ -20,11 +20,13 @@ moist_run = 0 							#no moisture included (old simulations)
 #spatial setup of the domain
 sfc_hgt = 62 							#surface height MSL (m)
 ll_utm = np.array([517000,3377000])     #lower left corner of domain
-
+basemap_path = '/Users/nmoisseeva/code/plume/rxcadre/npy/%s_%s_bm_fire.npy' %(ll_utm[0],ll_utm[1])
+lvl = np.arange(0,1700,20)
 
 #observational data
 bounds_shape = '/Users/nmoisseeva/data/rxcadre/qgis/BurnPerimeterWGS'
 disp_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/SmokeDispersion_L2G_20121110.csv'
+emis_data = '/Users/nmoisseeva/data/RxCADRE/dispersion/Data/Emissions_L2G_20121110.csv'
 pre_moisture = '/Users/nmoisseeva/data/RxCADRE/meteorology/soundings/MoistureProfile_NM.csv'            #pre-burn moisture profile
 
 

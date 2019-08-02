@@ -37,7 +37,7 @@ disp_dict['CO2'] = disp_array[:,2]
 disp_dict['CH4'] = disp_array[:,3]
 disp_dict['H2O'] = disp_array[:,4]
 disp_dict['lcn'] = np.array(list(zip(disp_array[:,5],disp_array[:,6],disp_array[:,7]-rx.sfc_hgt)))
-disp_dict['meta']= 'time: min since restart run | \
+disp_dict['meta']= 'time: timestamp| \
 					CO: Mixing ratio of carbon monoxide in units of parts per million by volume (ppmv) in dry air. | \
 					CO2: Mixing ratio of carbon dioxide in units of ppmv in dry air. | \
 					CH4: Mixing ratio of methane in units of ppmv in dry air. | \
