@@ -142,35 +142,26 @@ gg_start, gg_end = dt.datetime.combine(basetime,dt.datetime.strptime(rx.garage[0
 tidx = [np.argmin(abs(disp_dict['time'] - t)) for t in model_datetime] #times since start
 
 #construct KDtree from model grid
-grid_coord = list(zip(wrfgeo['XLAT'].ravel(),wrfgeo['XLONG'].ravel()))
+grid_coord = list(zip(wrfgeo['WLAT'].ravel(),wrfgeo['WLONG'].ravel()))
 gridTree = KDTree(grid_coord)
 dist, grid_id = gridTree.query(np.array(disp_dict['lcn'])[tidx][:,0:2])
-#
-# #extract model values for CO2 along flight path and save with corresponding observed samples
-# mod_val, obs_val = np.empty((nT)) * np.nan, np.empty((nT)) * np.nan
-# obs_lon, obs_lat, obs_h = [],[],[]
-# print('.....extracting data along flight path')
-# for nt in range(nT):
-#     # print('...tstep: %s') %nt
-#     idxy,idxx = np.unravel_index(grid_id[nt],np.shape(lat))
-#     idxz = np.argmin(abs(rx.lvl-disp_dict['lcn'][tidx][nt][2]))
-#     mod_val[nt] = qinterp[nt,idxz,idxy,idxx]
-#     obs_val[nt] = disp_dict['CO2'][tidx[nt]]		#in percent by volume
-#     obs_h.append(disp_dict['lcn'][tidx][nt][2])
-#     obs_lon.append(disp_dict['lcn'][tidx][nt][1])
-#     obs_lat.append(disp_dict['lcn'][tidx][nt][0])
 
 #extract model values for CO2 and CO along flight path and save with corresponding observed samples
 model_dict ={'CO': np.empty((nT)), 'CO2': np.empty((nT)), 'Z':np.empty((nT))}
 obs_dict = {'CO': np.empty((nT)), 'CO2': np.empty((nT)), 'Z':np.empty((nT))}
+molar_mass = {'CO': 28.0101, 'CO2': 44.0095, 'air': 28.9644}
 for tracer in tracers:
-    print('.....extracting data along flight path for %s' %tracer)
+    tracer_path = '%s%s.npy' %(rx.interp_path, tracer)
+    print('.....extracting data along flight path from %s' %tracer_path)
     tracerinterp = np.load(tracer_path)
     for nt in range(nT):
         idxy,idxx = np.unravel_index(grid_id[nt],np.shape(wrfgeo['XLONG']))
         idxz = np.argmin(abs(rx.lvl - disp_dict['lcn'][tidx][nt][2]))
-        model_dict[tracer][nt] = tracerinterp[nt,idxz,idxy,idxx]
+        tracer_val_mukg = tracerinterp[nt,idxz,idxy,idxx]
+        model_dict[tracer][nt] = 1e-3 * tracer_val_mukg * molar_mass['air'] / molar_mass[tracer]    #convert to ppmv, assuming model is in mug/kg
         obs_dict[tracer][nt] = disp_dict[tracer][tidx[nt]]
+        obs_dict['Z'][nt] = disp_dict['lcn'][tidx][nt][2]
+        model_dict['Z'][nt] = rx.lvl[idxz]
 
 #================================EMISSIONS==================================
 print('.....importing emissions data from %s' %rx.emis_data)
@@ -183,184 +174,103 @@ emis_dict['meta']= 'smoke start/end: plume entry and exit points'
 #================================PLOTTING==================================
 
 #plot of model tracers overlayed with real emissions
-plt.title('SIMULATED $Q_v$ ANOMALY ALONG FLIGHT PATH')
-plt.plot(disp_dict['time'][tidx], obs_dict['CO2'], 'ro')
-plt.plot(disp_dict['time'][tidx], obs_dict['CO2'], 'b--')
+plt.title('CO ALONG FLIGHT PATH')
+# plt.plot(disp_dict['time'][tidx], model_dict['CO'], 'r')
+plt.plot(disp_dict['time'][tidx], model_dict['CO'], 'r--', label='WRF-SFIRE CO concentrations')
+plt.plot(disp_dict['time'][tidx], obs_dict['CO'], 'k', label='observed CO concentrations')
 ax = plt.gca()
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 for nSlice in range(len(emis_dict['smoke_start'])):
-    ax.fill_between(pd.date_range(emis_dict['smoke_start'][nSlice],emis_dict['smoke_end'][nSlice],freq='S'),0,2,facecolor='gray', alpha=0.3)
+    ax.fill_between(pd.date_range(emis_dict['smoke_start'][nSlice],emis_dict['smoke_end'][nSlice],freq='S'),0,1.6,facecolor='gray', alpha=0.3)
 # plt.ylim([0,15])
 plt.gcf().autofmt_xdate()
-plt.xlim([model_datetime[0],model_datetime[-1]])
+plt.xlim([model_datetime[36],model_datetime[-42]])
 plt.xlabel('time (CST)')
-# plt.ylabel('$H_{2}O$ mixing ratio anomaly [mg/kg]')
+plt.ylabel('CO concentration [ppmv]')
 plt.tight_layout()
-plt.savefig(rx.fig_dir + 'LES_tracer_flight_path.pdf')
+plt.savefig(rx.fig_dir + 'LES_CO_flight_path.pdf')
 plt.show()
 #
 #================================FLIGHT ANIMATION==================================
-# fig = plt.figure()
-# ax = p3.Axes3D(fig)
-# ax = plt.gca()
-# # create initial frame
-# point, = ax.plot([disp_dict['lcn'][0,0]],[disp_dict['lcn'][0,1]],[disp_dict['lcn'][0,2]], 'o')
-# ax.contourf(WLAT, WLONG, np.zeros(np.shape(WLAT)), alpha=0.3)
-# line, = ax.plot(disp_dict['lcn'][:,0], disp_dict['lcn'][:,1], disp_dict['lcn'][:,2], label='flight path', color='gray', alpha=0.3)
-# ax.legend()
-# ax.set_xlim([min(disp_dict['lcn'][:,0]), max(disp_dict['lcn'][:,0])])
-# ax.set_ylim([min(disp_dict['lcn'][:,1]), max(disp_dict['lcn'][:,1])])
-# ax.set_zlim([min(disp_dict['lcn'][:,2]), max(disp_dict['lcn'][:,2])])
-# time_text = ax.text(0.05,0.05,0.95,'',horizontalalignment='left',verticalalignment='top', transform=ax.transAxes)
+# if animations:
+#     print('Animating top view of flight....')
+#     fig = plt.figure()
 #
-# #make a list of all times within plume from emissions
-# smoky = []
-# for item in emis_dict['smoke']:
-# 	smoky.extend(np.arange(item[0],item[1]))
+#     # create initial frame
+#     smokeim = np.nansum(qinterp[0,:,:,:],0) * 1000
+#     im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
+#     scat = bm.scatter(disp_dict['lcn'][0,1],disp_dict['lcn'][0,0],40,marker='o')
 #
-# # move the point position at every frame
-# def update_point(n, disp_dict,smoky,point):
-#     point.set_data(np.array([disp_dict['lcn'][n,0],disp_dict['lcn'][n,1]]))
-#     point.set_3d_properties(disp_dict['lcn'][n,2], 'z')
-#     time_text.set_text('Time (sec) = %s' %(n*delt))
-#     if disp_dict['time'][n] in smoky:
-#     	point.set_color('r')
-#     else:
-#     	point.set_color('k')
-#     return point, time_text,
+#     #make a list of all times within plume from emissions
+#     smoky = []
+#     for item in emis_dict['smoke']:
+#         smoky.extend(np.arange(item[0],item[1]))
 #
-# #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-# ani=animation.FuncAnimation(fig, update_point, 1500, fargs=(disp_dict,smoky,point), interval=15)
-# # ani.save('./test_ani.gif', writer='imagemagick',fps=120)
-# plt.show()
-# plt.close()
-
-if animations:
-    print('Animating top view of flight....')
-    fig = plt.figure()
-
-    # create initial frame
-    smokeim = np.nansum(qinterp[0,:,:,:],0) * 1000
-    im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
-    scat = bm.scatter(disp_dict['lcn'][0,1],disp_dict['lcn'][0,0],40,marker='o')
-
-    #make a list of all times within plume from emissions
-    smoky = []
-    for item in emis_dict['smoke']:
-        smoky.extend(np.arange(item[0],item[1]))
-
-    # move the point position at every frame
-    def update_point(n, disp_dict,smoky,scat,im):
-        m = tidx[n]
-        # i = int(np.floor(n/5.))
-        del im
-        smokeim = np.nansum(qinterp[n,:,:,:],0) * 1000
-        im = bm.imshow(smokeim, cmap = plt.cm.bone_r)
-        # im.set_data(smokeim)
-        scat.set_offsets(np.c_[disp_dict['lcn'][m,1],disp_dict['lcn'][m,0]])
-        # plt.gca().set_title('')
-
-        if disp_dict['time'][m] in smoky:
-            scat.set_color('r')
-        else:
-            scat.set_color('k')
-
-    #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
-    # ani=animation.FuncAnimation(fig, update_point, 1349, fargs=(disp_dict,smoky,scat,im), interval=10)
-    ani=animation.FuncAnimation(fig, update_point, 269, fargs=(disp_dict,smoky,scat,im),interval = 100, repeat=0)
-
-    ani.save(rx.fig_dir + 'FlightTopView.gif', writer='imagemagick',fps=120)
-    # plt.show()
-    plt.close()
-
+#     # move the point position at every frame
+#     def update_point(n, disp_dict,smoky,scat,im):
+#         m = tidx[n]
+#         # i = int(np.floor(n/5.))
+#         del im
+#         smokeim = np.nansum(qinterp[n,:,:,:],0) * 1000
+#         im = bm.imshow(smokeim, cmap = plt.cm.bone_r)
+#         # im.set_data(smokeim)
+#         scat.set_offsets(np.c_[disp_dict['lcn'][m,1],disp_dict['lcn'][m,0]])
+#         # plt.gca().set_title('')
+#
+#         if disp_dict['time'][m] in smoky:
+#             scat.set_color('r')
+#         else:
+#             scat.set_color('k')
+#
+#     #plot the first 1500 frames (3000sec) - roughtly the length of the simulation
+#     # ani=animation.FuncAnimation(fig, update_point, 1349, fargs=(disp_dict,smoky,scat,im), interval=10)
+#     ani=animation.FuncAnimation(fig, update_point, 269, fargs=(disp_dict,smoky,scat,im),interval = 100, repeat=0)
+#
+#     ani.save(rx.fig_dir + 'FlightTopView.gif', writer='imagemagick',fps=120)
+#     # plt.show()
+#     plt.close()
 
 #================================VIRTICAL PROFILE==================================
+#get indecies of maneuver times
+ics = np.argmin(abs(disp_dict['time'][tidx] - cs_start))
+fcs = np.argmin(abs(disp_dict['time'][tidx] - cs_end))
+igg = np.argmin(abs(disp_dict['time'][tidx] - gg_start))
+fgg = np.argmin(abs(disp_dict['time'][tidx] - gg_end))
 
 
-g_s = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - garage_ssm[0])) 	#get index in dispersion dict
-g_f = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - garage_ssm[1]))
+#CO2 profiles from garage flights
+plt.figure(figsize=(9,5))
+plt.subplot(1,2,1)
+plt.title('(a) $CO_2$ PROFILE FROM GARAGE PROFILE')
+plt.plot(obs_dict['CO2'][igg:fgg],obs_dict['Z'][igg:fgg],'k' )
+plt.plot(model_dict['CO2'][igg:fgg],model_dict['Z'][igg:fgg],'r--')
+plt.ylabel('height [m]')
+plt.xlabel('$CO_2$ mixing ratio [ppmv]')
+plt.ylim([0,1700])
 
-c_s = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - corskcrew_ssm[0]))
-c_f = np.argmin(abs(disp_dict['time'][tidx] + model_ssm - corskcrew_ssm[1]))
-dict_c_s = np.argmin(abs(disp_dict['time'] + model_ssm - corskcrew_ssm[0]))
-dict_c_f = np.argmin(abs(disp_dict['time'] + model_ssm - corskcrew_ssm[1]))
-dict_bg_s = np.argmin(abs(disp_dict['time'] + model_ssm - bg_cork_ssm[0]))
-dict_bg_f = np.argmin(abs(disp_dict['time'] + model_ssm - bg_cork_ssm[1]))
-# dict_bg_s = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[0]))
-# dict_bg_f = np.argmin(abs(disp_dict['time'] + model_ssm - garage_ssm[1]))
+plt.subplot(1,2,2)
+plt.title('(b) $CO_2$ PROFILE FROM CORKSCREW PROFILE')
+plt.plot(obs_dict['CO2'][ics:fcs],obs_dict['Z'][ics:fcs],'k' )
+plt.plot(model_dict['CO2'][ics:fcs],model_dict['Z'][ics:fcs],'r--')
+plt.ylabel('height [m]')
+plt.xlabel('$CO_2$ mixing ratio [ppmv]')
+plt.ylim([0,1700])
 
-# T0 = ncdata.variables['T'][0,:,:,:]
-# Tprofile = T0[:,0,0]
-# plt.plot(Tprofile, z[0,:-1,0,0])
-# plt.show()
-
-
+plt.tight_layout()
+plt.savefig(rx.fig_dir + 'CO2Profiles.pdf')
+plt.show()
 
 
 #top view of smoke for corkscrew with average obs location
-cs_lon =  np.mean(disp_dict['lcn'][dict_c_s:dict_c_f,1])
-cs_lat = np.mean(disp_dict['lcn'][dict_c_s:dict_c_f,0])
-smokeim = np.nansum(qinterp[258,:,:,:],0) * 1000
+cs_lon =  np.mean(disp_dict['lcn'][tidx][ics:fcs,1])
+cs_lat = np.mean(disp_dict['lcn'][tidx][ics:fcs,0])             #####STOPPED EDITING HERE
+smokeim = np.nansum(qinterp[258,:,:,:],0)
 im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
 bm.scatter(cs_lon,cs_lat,40,marker='*',color='r')
 plt.colorbar(im, label='total column $H_{2}O$ mixing ratio anomaly [mg/kg]')
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'CSLocation.pdf')
 plt.show()
-
-
-#H2O and CO2 profiles from garage flights
-plt.figure(figsize=(9,5))
-plt.subplot(1,2,1)
-plt.title('(a) $CO_2$ PROFILE FROM CORKSCREW')
-plt.scatter(obs_val[c_s:c_f],obs_h[c_s:c_f],color='black')
-plt.plot(obs_val[c_s:c_f],obs_h[c_s:c_f],'k--' )
-plt.ylabel('height [m]')
-plt.ylim([0,1700])
-plt.xlabel('$CO_2$ mixing ratio [ppmv]')
-plt.subplot(1,2,2)
-plt.title('(b) $H_2O$ PROFILE FROM LES CORKSCREW')
-plt.scatter(mod_val[c_s:c_f]*1000000,obs_h[c_s:c_f],color='blue')
-plt.plot(mod_val[c_s:c_f]*1000000,obs_h[c_s:c_f],'b--' )
-plt.ylim([0,1700])
-plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
-plt.ylabel('height [m]')
-plt.tight_layout()
-plt.savefig(rx.fig_dir + 'ProfilesCorkscrew.pdf')
-plt.show()
-
-#H2O and CO2 profiles from garage flights
-plt.figure(figsize=(9,5))
-plt.subplot(1,2,1)
-plt.title('(a) $CO_2$ PROFILE FROM OBS GARAGE')
-plt.scatter(obs_val[g_s:g_f],obs_h[g_s:g_f],color='black')
-plt.plot(obs_val[g_s:g_f],obs_h[g_s:g_f],'k--' )
-plt.ylabel('height [m]')
-plt.ylim([0,1700])
-plt.xlabel('$CO_2$ mixing ratio [ppmv]')
-plt.subplot(1,2,2)
-plt.title('(b) $H_2O$ PROFILE FROM LES GARAGE')
-plt.scatter(mod_val[g_s:g_f]*1000000,obs_h[g_s:g_f],color='blue')
-plt.plot(mod_val[g_s:g_f]*1000000,obs_h[g_s:g_f],'b--' )
-plt.ylim([0,1700])
-plt.xlabel('$H_2O$ mixing ratio [mg/kg]')
-plt.ylabel('height [m]')
-plt.tight_layout()
-plt.savefig(rx.fig_dir + 'ProfilesGarage.pdf')
-plt.show()
-#
-# #H2O profiles from corkscrew and earlier
-# plt.title('$H_2O$ PROFILES')
-# plt.plot(pre_burn_qv[:,1],pre_burn_qv[:,0],':', label='pre-burn $H_2O$ profile from sounding')
-# plt.plot(disp_dict['H2O'][dict_bg_s:dict_bg_f],disp_dict['lcn'][dict_bg_s:dict_bg_f,2],'g--',label='pre-burn $H_2O$ profile from flight ')
-# plt.plot(disp_dict['H2O'][dict_c_s:dict_c_f],disp_dict['lcn'][dict_c_s:dict_c_f,2],'r-.',label='in-plume $H_2O$ profile from flight' )
-# plt.ylim([0,1700])
-# plt.xlabel('$H_2O$ mixing ratio [%]')
-# plt.ylabel('height [m]')
-# plt.tight_layout()
-# plt.legend(loc='lower left')
-# plt.savefig(rx.fig_dir + 'H2OProfiles.pdf')
-# plt.show()
 
 
 #vertical column evoluation
@@ -380,18 +290,6 @@ plt.ylabel('height [m]')
 plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'SmokeColumn.pdf')
-plt.show()
-
-#top view of smoke for corkscrew with average obs location
-cs_lon =  np.mean(disp_dict['lcn'][dict_c_s:dict_c_f,1])
-cs_lat = np.mean(disp_dict['lcn'][dict_c_s:dict_c_f,0])
-plt.title('TOP VIEW CORKSCREW')
-smokeim = np.nansum(qinterp[258,:,:,:],0) * 1000
-im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
-bm.scatter(cs_lon,cs_lat,40,marker='*',color='r')
-plt.colorbar(im, label='total column $H_{2}O$ mixing ratio anomaly [mg/kg]')
-plt.tight_layout()
-plt.savefig(rx.fig_dir + 'CSLocation.pdf')
 plt.show()
 
 
