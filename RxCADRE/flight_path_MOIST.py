@@ -167,16 +167,22 @@ for tracer in tracers:
 print('.....importing emissions data from %s' %rx.emis_data)
 #extract and format emissions data
 emis_dict = {}
-emis_array = np.genfromtxt(rx.emis_data, skip_header=1, usecols = [13,14], delimiter=',')
-emis_dict['smoke_start'] = np.array([basetime + dt.timedelta(seconds = int(i)) for i in emis_array[:,0]])
-emis_dict['smoke_end'] = np.array([basetime + dt.timedelta(seconds = int(i)) for i in emis_array[:,1]])
-emis_dict['meta']= 'smoke start/end: plume entry and exit points'
+emis_array = np.genfromtxt(rx.emis_data, skip_header=1, usecols = [7,8,13,14], delimiter=',')
+emis_dict['smoke_start'] = np.array([basetime + dt.timedelta(seconds = int(i)) for i in emis_array[:,2]])
+emis_dict['smoke_end'] = np.array([basetime + dt.timedelta(seconds = int(i)) for i in emis_array[:,3]])
+emis_dict['bkgdCO2'] = emis_array[:,0]
+emis_dict['bkgdCO'] = emis_array[:,1]
+emis_dict['meta']= 'smoke start/end: plume entry and exit points; background concentrations'
+
+#calculate mean background for the BL
+bkgdCO = np.mean(emis_dict['bkgdCO'])
+bkgdCO2 = np.mean(emis_dict['bkgdCO2'])
 #================================PLOTTING==================================
 
 #plot of model tracers overlayed with real emissions
 plt.title('CO ALONG FLIGHT PATH')
 # plt.plot(disp_dict['time'][tidx], model_dict['CO'], 'r')
-plt.plot(disp_dict['time'][tidx], model_dict['CO'], 'r--', label='WRF-SFIRE CO concentrations')
+plt.plot(disp_dict['time'][tidx], model_dict['CO']+bkgdCO, 'r--', label='WRF-SFIRE CO concentrations')
 plt.plot(disp_dict['time'][tidx], obs_dict['CO'], 'k', label='observed CO concentrations')
 ax = plt.gca()
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
@@ -185,6 +191,7 @@ for nSlice in range(len(emis_dict['smoke_start'])):
 # plt.ylim([0,15])
 plt.gcf().autofmt_xdate()
 plt.xlim([model_datetime[36],model_datetime[-42]])
+plt.ylim([0,1.6])
 plt.xlabel('time (CST)')
 plt.ylabel('CO concentration [ppmv]')
 plt.tight_layout()
@@ -239,22 +246,23 @@ fgg = np.argmin(abs(disp_dict['time'][tidx] - gg_end))
 
 
 #CO2 profiles from garage flights
-plt.figure(figsize=(9,5))
+plt.figure(figsize=(11,7))
 plt.subplot(1,2,1)
 plt.title('(a) $CO_2$ PROFILE FROM GARAGE PROFILE')
-plt.plot(obs_dict['CO2'][igg:fgg],obs_dict['Z'][igg:fgg],'k' )
-plt.plot(model_dict['CO2'][igg:fgg],model_dict['Z'][igg:fgg],'r--')
+plt.plot(obs_dict['CO2'][igg:fgg],obs_dict['Z'][igg:fgg],'k', label='observed CO$_2$ concentrations' )
+plt.plot(model_dict['CO2'][igg:fgg] + bkgdCO2 ,model_dict['Z'][igg:fgg],'r--', label='WRF-SFIRE CO$_2$ concentrations + background')
 plt.ylabel('height [m]')
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylim([0,1700])
 
 plt.subplot(1,2,2)
 plt.title('(b) $CO_2$ PROFILE FROM CORKSCREW PROFILE')
-plt.plot(obs_dict['CO2'][ics:fcs],obs_dict['Z'][ics:fcs],'k' )
-plt.plot(model_dict['CO2'][ics:fcs],model_dict['Z'][ics:fcs],'r--')
+plt.plot(obs_dict['CO2'][ics:fcs],obs_dict['Z'][ics:fcs],'k',label='observed CO$_2$ concentrations' )
+plt.plot(model_dict['CO2'][ics:fcs] + bkgdCO2,model_dict['Z'][ics:fcs],'r--',label='WRF-SFIRE CO$_2$ concentrations + background')
 plt.ylabel('height [m]')
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylim([0,1700])
+plt.legend(loc='lower right')
 
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'CO2Profiles.pdf')
@@ -263,34 +271,35 @@ plt.show()
 
 #top view of smoke for corkscrew with average obs location
 cs_lon =  np.mean(disp_dict['lcn'][tidx][ics:fcs,1])
-cs_lat = np.mean(disp_dict['lcn'][tidx][ics:fcs,0])             #####STOPPED EDITING HERE
-smokeim = np.nansum(qinterp[258,:,:,:],0)
-im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower')
+cs_lat = np.mean(disp_dict['lcn'][tidx][ics:fcs,0])
+tot_column_mukg = np.nansum(ncdict['CO'][258,:,:,:],0)
+smokeim = 1e-3 * tot_column_mukg * molar_mass['air']/molar_mass['CO']   #convert to ppmv
+im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower',vmin=0,vmax=50)
 bm.scatter(cs_lon,cs_lat,40,marker='*',color='r')
-plt.colorbar(im, label='total column $H_{2}O$ mixing ratio anomaly [mg/kg]')
+plt.colorbar(im, label='total column CO concentration [ppmv]')
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'CSLocation.pdf')
 plt.show()
 
 
 #vertical column evoluation
-column_evol = np.nansum(np.nansum(qinterp,2),2)
-column_evol[column_evol<0] = np.nan 			#mask negataives
-plt.pcolor(column_evol.T*1000,cmap=plt.cm.cubehelix_r)
-cbar = plt.colorbar()
-cbar.set_label('$H_{2}O$ mixing ratio anomaly [g/kg]')
+column_mukg = np.sum(np.sum(tracerinterp,2),2)
+column_ppmv = 1e-3 * column_mukg * molar_mass['air']/molar_mass['CO2']
+plt.pcolor(column_ppmv.T,cmap=plt.cm.cubehelix_r)
+plt.colorbar(label='total domain CO$_2$ anomaly [ppmv]')
 ax = plt.gca()
+plt.ylabel('height [m]')
 ax.set_yticks(np.arange(0,numLvl,10))
 ax.set_yticklabels(rx.lvl[::10])
-# ax.xaxis_date()
-ax.set_xticks(np.arange(0,nT,50))
-ax.set_xticklabels([np.array(timestamp)[tidx][i].strftime('%H:%M') for i in np.arange(0,nT,50)])
 plt.xlabel('time [CST]')
-plt.ylabel('height [m]')
+ax.set_xticks(np.arange(0,nT,40))
+ax.set_xticklabels([np.array(model_datetime)[i].strftime('%H:%M') for i in np.arange(0,nT,40)])
 plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'SmokeColumn.pdf')
 plt.show()
+
+
 
 
 #=============================ANIMATION OF CW ave plume==================================
