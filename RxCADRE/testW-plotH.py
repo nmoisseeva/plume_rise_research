@@ -100,7 +100,7 @@ for nSample in range(rx.run_min):
 
 
 #=======================PLOTTING=======================
-plt.title('IN-SITU vs WRFSFIRE W')
+plt.title('IN-SITU vs WRF-SFIRE W')
 plt.plot(subset_time[-rx.run_min:],np.array(wWRF)[:,0], label='WRF-SFIRE (8 m)')
 plt.plot(subset_time[-rx.run_min:],np.array(wMET)[-rx.run_min:], label='In-situ tower (5.8 m)')
 ax = plt.gca()
@@ -109,6 +109,7 @@ plt.gcf().autofmt_xdate()
 plt.xlabel('time (CST)')
 plt.ylabel('vertical wind speed [m/s]')
 plt.legend()
+plt.savefig(rx.fig_dir + 'VerticalWind.pdf')
 plt.show()
 plt.close()
 
@@ -120,6 +121,5 @@ plt.gcf().autofmt_xdate()
 plt.xlabel('time (CST)')
 plt.ylabel('heat flux (W/m2)')
 plt.legend()
-plt.savefig(rx.fig_dir + 'VerticalWind.pdf')
 plt.show()
 plt.close()
