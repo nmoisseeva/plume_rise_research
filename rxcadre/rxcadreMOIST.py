@@ -45,7 +45,7 @@ fuel_cat = 1
 
 
 #instrument locations (UTM)
-# csu_lcn = [525803.12, 3378544.15]         #don't think data is from here, but from the met tower
+csu_lcn = [525803.12, 3378544.15]         #don't think data is from here, but from the met tower
 met_lcn = [525128.85, 3378208.91]           #20-ft micromet tower ID7001, FLag 1502 (within lot)
 # rad_lcn = [526090,3378766]              #MUST DOUBLE-CHECK CONVERSION TO UTM
 
