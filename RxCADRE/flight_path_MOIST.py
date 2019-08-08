@@ -187,11 +187,11 @@ plt.plot(disp_dict['time'][tidx], obs_dict['CO'], 'k', label='observed CO concen
 ax = plt.gca()
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 for nSlice in range(len(emis_dict['smoke_start'])):
-    ax.fill_between(pd.date_range(emis_dict['smoke_start'][nSlice],emis_dict['smoke_end'][nSlice],freq='S'),0,1.6,facecolor='gray', alpha=0.3)
+    ax.fill_between(pd.date_range(emis_dict['smoke_start'][nSlice],emis_dict['smoke_end'][nSlice],freq='S'),0,1.7,facecolor='gray', alpha=0.3)
 # plt.ylim([0,15])
 plt.gcf().autofmt_xdate()
 plt.xlim([model_datetime[36],model_datetime[-42]])
-plt.ylim([0,1.6])
+plt.ylim([0,1.7])
 plt.xlabel('time (CST)')
 plt.ylabel('CO concentration [ppmv]')
 plt.tight_layout()
@@ -244,21 +244,45 @@ fcs = np.argmin(abs(disp_dict['time'][tidx] - cs_end))
 igg = np.argmin(abs(disp_dict['time'][tidx] - gg_start))
 fgg = np.argmin(abs(disp_dict['time'][tidx] - gg_end))
 
+#top view of smoke for corkscrew with average obs location
+
+#HARDCODED:
+rotCS_lcn = [30.56683,-86.75389]    #calculated by rotating 30
+ROT_cs_dist, ROT_cs_grid_id = gridTree.query(np.array(rotCS_lcn))
+ROTidxy,ROTidxx = np.unravel_index(ROT_cs_grid_id,np.shape(wrfgeo['XLONG']))
+ROT_profile_mukg = tracerinterp[258,:,ROTidxy,ROTidxx]
+ROT_profile = 1e-3 * ROT_profile_mukg * molar_mass['air'] / molar_mass['CO2']    #convert to ppmv, assuming model is in mug/kg
+#------end hardcoding
+
+cs_lon =  np.mean(disp_dict['lcn'][tidx][ics:fcs,1])
+cs_lat = np.mean(disp_dict['lcn'][tidx][ics:fcs,0])
+tot_column_mukg = np.nansum(ncdict['CO'][258,:,:,:],0)
+smokeim = 1e-3 * tot_column_mukg * molar_mass['air']/molar_mass['CO']   #convert to ppmv
+im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower',vmin=0,vmax=50)
+bm.scatter(cs_lon,cs_lat,40,marker='*',color='r')
+bm.scatter(rotCS_lcn[1],rotCS_lcn[0],20,marker='o',color='k')
+plt.colorbar(im, label='total column CO [ppmv]')
+plt.tight_layout()
+plt.savefig(rx.fig_dir + 'CSLocation.pdf')
+plt.show()
+plt.close()
+
 
 #CO2 profiles from garage flights
 plt.figure(figsize=(11,7))
 plt.subplot(1,2,1)
 plt.title('(a) $CO_2$ PROFILE FROM GARAGE PROFILE')
-plt.plot(obs_dict['CO2'][igg:fgg],obs_dict['Z'][igg:fgg],'k', label='observed CO$_2$ concentrations' )
-plt.plot(model_dict['CO2'][igg:fgg] + bkgdCO2 ,model_dict['Z'][igg:fgg],'r--', label='WRF-SFIRE CO$_2$ concentrations + background')
+plt.plot(obs_dict['CO2'][igg:fgg],obs_dict['Z'][igg:fgg],'k', label='observed CO$_2$ ' )
+plt.plot(model_dict['CO2'][igg:fgg] + bkgdCO2 ,model_dict['Z'][igg:fgg],'r--', label='WRF-SFIRE CO$_2$ + background')
 plt.ylabel('height [m]')
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylim([0,1700])
 
 plt.subplot(1,2,2)
 plt.title('(b) $CO_2$ PROFILE FROM CORKSCREW PROFILE')
-plt.plot(obs_dict['CO2'][ics:fcs],obs_dict['Z'][ics:fcs],'k',label='observed CO$_2$ concentrations' )
-plt.plot(model_dict['CO2'][ics:fcs] + bkgdCO2,model_dict['Z'][ics:fcs],'r--',label='WRF-SFIRE CO$_2$ concentrations + background')
+plt.plot(obs_dict['CO2'][ics:fcs],obs_dict['Z'][ics:fcs],'k',label='observed CO$_2$ ' )
+plt.plot(model_dict['CO2'][ics:fcs] + bkgdCO2,model_dict['Z'][ics:fcs],'r--',label='WRF-SFIRE CO$_2$ + background')
+plt.plot(ROT_profile+ bkgdCO2,rx.lvl,'r:', label='rotated WRF-SFIRE CO$_2$ + background')
 plt.ylabel('height [m]')
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylim([0,1700])
@@ -267,19 +291,7 @@ plt.legend(loc='lower right')
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'CO2Profiles.pdf')
 plt.show()
-
-
-#top view of smoke for corkscrew with average obs location
-cs_lon =  np.mean(disp_dict['lcn'][tidx][ics:fcs,1])
-cs_lat = np.mean(disp_dict['lcn'][tidx][ics:fcs,0])
-tot_column_mukg = np.nansum(ncdict['CO'][258,:,:,:],0)
-smokeim = 1e-3 * tot_column_mukg * molar_mass['air']/molar_mass['CO']   #convert to ppmv
-im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower',vmin=0,vmax=50)
-bm.scatter(cs_lon,cs_lat,40,marker='*',color='r')
-plt.colorbar(im, label='total column CO concentration [ppmv]')
-plt.tight_layout()
-plt.savefig(rx.fig_dir + 'CSLocation.pdf')
-plt.show()
+plt.close()
 
 
 #vertical column evoluation
@@ -298,45 +310,43 @@ plt.title('EVOLUTION OF SMOKE CONCENTRATION COLUMN')
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'SmokeColumn.pdf')
 plt.show()
-
-
-
-
-#=============================ANIMATION OF CW ave plume==================================
-if animations:
-    print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
-    qzero = qinterp*1000
-    qzero[np.isnan(qzero)] = 0
-
-    cw_sum = []
-    for nTime in range(nT):
-        print(nTime)
-        qrot = rotate(qzero[nTime,:,:,:], 39, axes=(1, 2), reshape=True, mode='constant', cval=np.nan)
-        totq = np.nansum(qrot,2)
-        cw_sum.append(totq)
-
-    cw_sum = np.array(cw_sum)
-    fig = plt.figure()
-    ax = plt.gca()
-    # create initial frame
-    cntr = plt.contourf(cw_sum[0,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
-    cbar = plt.colorbar()
-    cbar.set_label('total $H_{2}O$ mixing ratio anomaly [mg/kg]')
-    plt.xlabel('distance [km]')
-    plt.ylabel('height [m]')
-    ax.set_yticks(np.arange(0,numLvl,5))
-    ax.set_yticklabels(rx.lvl[::5])
-    ax.set_xticks(np.arange(0,450,50))
-    ax.set_xticklabels((np.arange(0,450,50)*0.040).astype(int))
-    plt.title('EVOLUTION OF TOTAL CROSS-WIND $Q_v$ ANOMALY')
-
-    # update the frame
-    def update_plot(n,cw_sum,cntr):
-        del cntr
-        cntr = plt.contourf(cw_sum[n,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
-        return cntr,
-
-    #plot all frames
-    ani=animation.FuncAnimation(fig, update_plot, 270, fargs=(cw_sum,cntr), interval=1)
-    ani.save(rx.fig_dir + 'Plume_CS_animation.gif', writer='imagemagick',fps=120)
-    # plt.show()
+plt.close()
+#
+# #=============================ANIMATION OF CW ave plume==================================
+# if animations:
+#     print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
+#     qzero = qinterp*1000
+#     qzero[np.isnan(qzero)] = 0
+#
+#     cw_sum = []
+#     for nTime in range(nT):
+#         print(nTime)
+#         qrot = rotate(qzero[nTime,:,:,:], 39, axes=(1, 2), reshape=True, mode='constant', cval=np.nan)
+#         totq = np.nansum(qrot,2)
+#         cw_sum.append(totq)
+#
+#     cw_sum = np.array(cw_sum)
+#     fig = plt.figure()
+#     ax = plt.gca()
+#     # create initial frame
+#     cntr = plt.contourf(cw_sum[0,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
+#     cbar = plt.colorbar()
+#     cbar.set_label('total $H_{2}O$ mixing ratio anomaly [mg/kg]')
+#     plt.xlabel('distance [km]')
+#     plt.ylabel('height [m]')
+#     ax.set_yticks(np.arange(0,numLvl,5))
+#     ax.set_yticklabels(rx.lvl[::5])
+#     ax.set_xticks(np.arange(0,450,50))
+#     ax.set_xticklabels((np.arange(0,450,50)*0.040).astype(int))
+#     plt.title('EVOLUTION OF TOTAL CROSS-WIND $Q_v$ ANOMALY')
+#
+#     # update the frame
+#     def update_plot(n,cw_sum,cntr):
+#         del cntr
+#         cntr = plt.contourf(cw_sum[n,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
+#         return cntr,
+#
+#     #plot all frames
+#     ani=animation.FuncAnimation(fig, update_plot, 270, fargs=(cw_sum,cntr), interval=1)
+#     ani.save(rx.fig_dir + 'Plume_CS_animation.gif', writer='imagemagick',fps=120)
+#     # plt.show()
