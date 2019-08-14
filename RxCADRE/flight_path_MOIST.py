@@ -167,23 +167,25 @@ for tracer in tracers:
 print('.....importing emissions data from %s' %rx.emis_data)
 #extract and format emissions data
 emis_dict = {}
-emis_array = np.genfromtxt(rx.emis_data, skip_header=1, usecols = [7,8,13,14], delimiter=',')
-emis_dict['smoke_start'] = np.array([basetime + dt.timedelta(seconds = int(i)) for i in emis_array[:,2]])
-emis_dict['smoke_end'] = np.array([basetime + dt.timedelta(seconds = int(i)) for i in emis_array[:,3]])
-emis_dict['bkgdCO2'] = emis_array[:,0]
-emis_dict['bkgdCO'] = emis_array[:,1]
+emis_array = np.genfromtxt(rx.emis_data, skip_header=1, usecols = [4, 7,8,13,14], delimiter=',')
+emis_dict['smoke_start'] = np.array([basetime + dt.timedelta(seconds = int(i)) for i in emis_array[:,3]])
+emis_dict['smoke_end'] = np.array([basetime + dt.timedelta(seconds = int(i)) for i in emis_array[:,4]])
+emis_dict['bkgdCO2'] = emis_array[:,1]
+emis_dict['bkgdCO'] = emis_array[:,2]
+emis_dict['elevation'] = emis_array[:,0]
 emis_dict['meta']= 'smoke start/end: plume entry and exit points; background concentrations'
 
-#calculate mean background for the BL
-bkgdCO = np.mean(emis_dict['bkgdCO'])
-bkgdCO2 = np.mean(emis_dict['bkgdCO2'])
+#interpolated background values for all levels
+bginterpCO = interpolate.interp1d(emis_dict['elevation'],emis_dict['bkgdCO'],fill_value="extrapolate")
+bginterpCO2 = interpolate.interp1d(emis_dict['elevation'],emis_dict['bkgdCO2'],fill_value="extrapolate")
+
 #================================PLOTTING==================================
 
 #plot of model tracers overlayed with real emissions
 plt.title('CO ALONG FLIGHT PATH')
 # plt.plot(disp_dict['time'][tidx], model_dict['CO'], 'r')
-plt.plot(disp_dict['time'][tidx], model_dict['CO']+bkgdCO, 'r--', label='WRF-SFIRE CO concentrations')
-plt.plot(disp_dict['time'][tidx], obs_dict['CO'], 'k', label='observed CO concentrations')
+plt.plot(disp_dict['time'][tidx], model_dict['CO'], 'r--', label='WRF-SFIRE CO concentrations')
+plt.plot(disp_dict['time'][tidx], obs_dict['CO'] - bginterpCO(obs_dict['Z']), 'k', label='observed CO concentrations - background')
 ax = plt.gca()
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 for nSlice in range(len(emis_dict['smoke_start'])):
@@ -194,6 +196,7 @@ plt.xlim([model_datetime[36],model_datetime[-42]])
 plt.ylim([0,1.7])
 plt.xlabel('time (CST)')
 plt.ylabel('CO concentration [ppmv]')
+plt.legend()
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'LES_CO_flight_path.pdf')
 plt.show()
@@ -270,20 +273,20 @@ plt.close()
 
 
 #CO2 profiles from garage flights
-plt.figure(figsize=(11,7))
+plt.figure(figsize=(10,6))
 plt.subplot(1,2,1)
 plt.title('(a) $CO_2$ PROFILE FROM GARAGE PROFILE')
-plt.plot(obs_dict['CO2'][igg:fgg],obs_dict['Z'][igg:fgg],'k', label='observed CO$_2$ ' )
-plt.plot(model_dict['CO2'][igg:fgg] + bkgdCO2 ,model_dict['Z'][igg:fgg],'r--', label='WRF-SFIRE CO$_2$ + background')
+plt.plot(obs_dict['CO2'][igg:fgg]- bginterpCO2(obs_dict['Z'][igg:fgg]),obs_dict['Z'][igg:fgg],'k', label='observed CO$_2$ - background' )
+plt.plot(model_dict['CO2'][igg:fgg] ,model_dict['Z'][igg:fgg],'r--', label='WRF-SFIRE CO$_2$')
 plt.ylabel('height [m]')
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylim([0,1700])
 
 plt.subplot(1,2,2)
 plt.title('(b) $CO_2$ PROFILE FROM CORKSCREW PROFILE')
-plt.plot(obs_dict['CO2'][ics:fcs],obs_dict['Z'][ics:fcs],'k',label='observed CO$_2$ ' )
-plt.plot(model_dict['CO2'][ics:fcs] + bkgdCO2,model_dict['Z'][ics:fcs],'r--',label='WRF-SFIRE CO$_2$ + background')
-plt.plot(ROT_profile+ bkgdCO2,rx.lvl,'r:', label='rotated WRF-SFIRE CO$_2$ + background')
+plt.plot(obs_dict['CO2'][ics:fcs] - bginterpCO2(obs_dict['Z'][ics:fcs]),obs_dict['Z'][ics:fcs],'k',label='observed CO$_2$ - background' )
+plt.plot(model_dict['CO2'][ics:fcs], model_dict['Z'][ics:fcs],'r--',label='WRF-SFIRE CO$_2$')
+plt.plot(ROT_profile,rx.lvl,'r:', label='rotated WRF-SFIRE CO$_2$')
 plt.ylabel('height [m]')
 plt.xlabel('$CO_2$ mixing ratio [ppmv]')
 plt.ylim([0,1700])
@@ -312,42 +315,40 @@ plt.tight_layout()
 plt.savefig(rx.fig_dir + 'SmokeColumn.pdf')
 plt.show()
 plt.close()
-#
-# #=============================ANIMATION OF CW ave plume==================================
-# if animations:
-#     print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
-#     qzero = qinterp*1000
-#     qzero[np.isnan(qzero)] = 0
-#
-#     cw_sum = []
-#     for nTime in range(nT):
-#         print(nTime)
-#         qrot = rotate(qzero[nTime,:,:,:], 39, axes=(1, 2), reshape=True, mode='constant', cval=np.nan)
-#         totq = np.nansum(qrot,2)
-#         cw_sum.append(totq)
-#
-#     cw_sum = np.array(cw_sum)
-#     fig = plt.figure()
-#     ax = plt.gca()
-#     # create initial frame
-#     cntr = plt.contourf(cw_sum[0,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
-#     cbar = plt.colorbar()
-#     cbar.set_label('total $H_{2}O$ mixing ratio anomaly [mg/kg]')
-#     plt.xlabel('distance [km]')
-#     plt.ylabel('height [m]')
-#     ax.set_yticks(np.arange(0,numLvl,5))
-#     ax.set_yticklabels(rx.lvl[::5])
-#     ax.set_xticks(np.arange(0,450,50))
-#     ax.set_xticklabels((np.arange(0,450,50)*0.040).astype(int))
-#     plt.title('EVOLUTION OF TOTAL CROSS-WIND $Q_v$ ANOMALY')
-#
-#     # update the frame
-#     def update_plot(n,cw_sum,cntr):
-#         del cntr
-#         cntr = plt.contourf(cw_sum[n,:,:],cmap=plt.cm.PuBu,levels=np.arange(0,0.9,0.1))
-#         return cntr,
-#
-#     #plot all frames
-#     ani=animation.FuncAnimation(fig, update_plot, 270, fargs=(cw_sum,cntr), interval=1)
-#     ani.save(rx.fig_dir + 'Plume_CS_animation.gif', writer='imagemagick',fps=120)
-#     # plt.show()
+
+#=============================ANIMATION OF CW ave plume==================================
+if animations:
+    print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
+
+    cw_sum = []
+    for nTime in range(nT):
+        print(nTime)
+        CO2rot = rotate(tracerinterp[nTime,:,:,:], 39, axes=(1, 2), reshape=True, mode='constant')
+        CO2tot = np.sum(CO2rot,2)
+        cw_sum.append(CO2tot)
+
+    cw_sum = np.array(cw_sum)
+    fig = plt.figure()
+    ax = plt.gca()
+    # create initial frame
+    cntr = plt.contourf(cw_sum[0,:,:],cmap=plt.cm.PuBu,levels=np.arange(100000,2050000,50000))
+    cbar = plt.colorbar()
+    cbar.set_label('total CO$_{2}O$ mixing ratio [ppmv]')
+    plt.xlabel('distance [km]')
+    plt.ylabel('height [m]')
+    ax.set_yticks(np.arange(0,numLvl,5))
+    ax.set_yticklabels(rx.lvl[::5])
+    ax.set_xticks(np.arange(0,450,50))
+    ax.set_xticklabels((np.arange(0,450,50)*0.040).astype(int))
+    plt.title('EVOLUTION OF TOTAL CROSS-WIND CO$_2$')
+
+    # update the frame
+    def update_plot(n,cw_sum,cntr):
+        del cntr
+        cntr = plt.contourf(cw_sum[n,:,:],cmap=plt.cm.PuBu,levels=np.arange(100000,2050000,50000))
+        return cntr,
+
+    #plot all frames
+    ani=animation.FuncAnimation(fig, update_plot, 300, fargs=(cw_sum,cntr), interval=1)
+    ani.save(rx.fig_dir + 'Plume_CS_animation.mp4', writer='ffmpeg',fps=10)
+    # plt.show()

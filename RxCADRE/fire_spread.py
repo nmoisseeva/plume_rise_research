@@ -27,17 +27,17 @@ imp.reload(rx)		        #force load each time
 #==============calculated input===============
 #
 nsamples = 20
-#ignition start samples above 2nd and 3rd lines
-ign_lcn_l2g_x = np.append(np.linspace(525527.,524584.,nsamples),np.linspace(525432.,524517.,nsamples))
-ign_lcn_l2g_y = np.append(np.linspace(3378993.,3378385.,nsamples),np.linspace(3379091.,3378503.,nsamples))
-#end samples above 2nd and 3rd lines
-test_lcn_l2g_x = np.append(np.linspace(525474.,524540.,nsamples),np.linspace(525390.,524475.,nsamples))
-test_lcn_l2g_y = np.append(np.linspace(3379050.,3378430.,nsamples),np.linspace(3379135.,3378547.,nsamples))
+#ignition start samples
+ign_lcn_l2g_x = np.append(np.linspace(525702.,524612.,nsamples),np.linspace(525458.,524490.,nsamples))
+ign_lcn_l2g_y = np.append(np.linspace(3378960.,3378247.,nsamples),np.linspace(3379102.,3378465.,nsamples))
+#end samples
+test_lcn_l2g_x = np.append(np.linspace(525666.,524575.,nsamples),np.linspace(525408.,524444.,nsamples))
+test_lcn_l2g_y = np.append(np.linspace(3379008.,3378300.,nsamples),np.linspace(3379163.,3378531.,nsamples))
 
 
 #define normals to fire spread for HIP1 - in order ['FB19', 'FB2', 'FB3', 'FB14', 'FB17', 'FB20', 'FB22']
-ign_lcn_hip_x = [524604,524621,524607,524606,524604,524594,524577]
-ign_lcn_hip_y = [3378359,3378377,3378366,3378365,3378360,3378352,3378339]
+ign_lcn_hip_x = [524604,524630,524617,524617,524614,524600,524582]
+ign_lcn_hip_y = [3378353,3378371,3378361,3378353,3378353,3378348,3378335]
 
 #original ignition line locations (from namelist.input)
 wrf_lines_x_start = [8507.,8630.,8732.,8820.] + rx.ll_utm[0]
@@ -243,8 +243,10 @@ plt.ylabel('heat flux $[kW m^{-2}]$')
 plt.legend()
 plt.show()
 
-plt.figure()
-plt.title('AVERAGE HEAT FLUX')
+
+plt.figure(figsize=(12,4))
+plt.subplot(1,3,1)
+plt.title('(a) AVERAGE HEAT FLUX')
 box = plt.boxplot([butler_data['aveHFX']['L2G'],\
 					butler_data['aveHFX']['HIP1'],\
 					aveGHFX[np.isfinite(aveGHFX)],\
@@ -254,12 +256,12 @@ for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
-plt.savefig(rx.fig_dir + 'AveHx.pdf')
-plt.show()
-plt.close()
-
-plt.figure()
-plt.title('PEAK HEAT FLUX')
+plt.ylim([0,25])
+# plt.savefig(rx.fig_dir + 'AveHx.pdf')
+# plt.show()
+# plt.close()
+plt.subplot(1,3,2)
+plt.title('(b) PEAK HEAT FLUX')
 box = plt.boxplot([butler_data['maxHFX']['L2G'],\
 					butler_data['maxHFX']['HIP1'],\
 					maxGHFX[np.isfinite(maxGHFX)],\
@@ -269,13 +271,11 @@ for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('heat flux $[kW m^{-2}]$')
-plt.savefig(rx.fig_dir + 'MaxHx.pdf')
-plt.show()
-plt.close()
-
-
-plt.figure()
-plt.title('ROS')
+# plt.savefig(rx.fig_dir + 'MaxHx.pdf')
+# plt.show()
+# plt.close()
+plt.subplot(1,3,3)
+plt.title('(c) ROS')
 box = plt.boxplot([butler_data['ROS']['L2G'],\
 					butler_data['ROS']['HIP1'],\
 					ros_l2g,\
@@ -286,13 +286,12 @@ for patch, color in zip(box['boxes'], colors):
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
 plt.ylabel('ROS $[m s^{-1}]$')
 plt.ylim([0,0.5])
-plt.savefig(rx.fig_dir + 'ROS.pdf')
+plt.tight_layout()
+plt.savefig(rx.fig_dir + 'FireBehavior.pdf')
 plt.show()
-plt.close()
+# plt.close()
 
 plt.figure()
-# x = np.reshape(FUTMx, np.shape(FWGSx))
-# y = np.reshape(FUTMy, np.shape(FWGSy))
 plt.contourf(wrfgeo['FXLONG'][250:600,-900:-300],wrfgeo['FXLAT'][250:600,-900:-300],fhfx[100,250:600,-900:-300],cmap=plt.cm.gist_heat_r)
 plt.scatter(ign_lcn_l2g_x,ign_lcn_l2g_y, s=2, label='initial sample')
 plt.scatter(test_lcn_l2g_x,test_lcn_l2g_y,s=2, label='final sample')

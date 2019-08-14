@@ -8,6 +8,6 @@
 /sensitivity/
 /comps/
 *wrfout*
-.main/figs/*
+main/figs/*
 */main/figs
-*.mp4
+
