@@ -101,8 +101,8 @@ for nSample in range(rx.run_min):
 
 #=======================PLOTTING=======================
 plt.title('IN-SITU vs WRF-SFIRE W')
-plt.plot(subset_time[-rx.run_min:],np.array(wWRF)[:,0], label='WRF-SFIRE (8 m)')
-plt.plot(subset_time[-rx.run_min:],np.array(wMET)[-rx.run_min:], label='In-situ tower (5.8 m)')
+plt.plot(subset_time[-rx.run_min:],np.array(wWRF)[:,0],'r--', label='WRF-SFIRE (8 m)')
+plt.plot(subset_time[-rx.run_min:],np.array(wMET)[-rx.run_min:],'k', label='In-situ tower (5.8 m)')
 ax = plt.gca()
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 plt.gcf().autofmt_xdate()
