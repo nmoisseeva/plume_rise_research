@@ -22,7 +22,7 @@ for nCase,Case in enumerate(plume.tag):
 
     cspath = plume.wrfdir + 'interp/wrfcs_' + Case + '.npy'
     print('Opening data: %s' %cspath)
-    csdict = np.load(cspath).item()
+    csdict = np.load(cspath, allow_pickle=True).item()
 
     dimT, dimZ, dimX = np.shape(csdict['temp'])
 
