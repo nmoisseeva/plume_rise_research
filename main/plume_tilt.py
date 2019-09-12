@@ -269,9 +269,10 @@ sc0 = ax.scatter(fireHeat[Rtag==0],inv_cumT[Rtag==0],marker='o', c=plume.read_ta
 sc1 = ax.scatter(fireHeat[Rtag==1],inv_cumT[Rtag==1],marker='s', c=plume.read_tag('S',RunList)[Rtag==1], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
 sc2 = ax.scatter(fireHeat[Rtag==2],inv_cumT[Rtag==2],marker='^', c=plume.read_tag('S',RunList)[Rtag==2], cmap=plt.cm.PiYG_r, vmin=-600, vmax=600)
 
-#
-# plt.plot(fireHeat[Rtag==0], regR0(fireHeat[Rtag==0]))
-# plt.plot(fireHeat[Rtag==1], regR1(fireHeat[Rtag==1]))
+
+plt.plot(fireHeat[Rtag==0], regR0(fireHeat[Rtag==0]), 'r')
+plt.plot(fireHeat[Rtag==1], regR1(fireHeat[Rtag==1]), 'b')
+plt.plot(fireHeat[Rtag==2], regR2(fireHeat[Rtag==2]), 'g')
 
 for i, txt in enumerate(plume.read_tag('F',RunList)):
     ax.annotate(txt, (fireHeat[i]+20,inv_cumT[i]+20), fontsize=9)
@@ -285,54 +286,54 @@ plt.close()
 
 
 
+#
+#
+# plt.figure(figsize=(12,6))
+# clr = plt.cm.plasma(plt.Normalize()(fireHeat))
+# # clr[..., -1] = plt.Normalize()(fireLine[:,0])
+# for nCase,Case in enumerate(RunList):
+#     plt.subplot(1,2,2)
+#     plt.title('NORMALIZED VERTICAL Q/Qmax PROFILES')
+#     plt.plot(Qprofiles[nCase,:]/(np.max(Qprofiles[nCase,:])),plume.lvl/plume_tops[nCase],c=clr[nCase] )
+#     plt.ylabel('normalized height')
+#     plt.xlabel('normalized $H_2O$ profile ')
+#     # plt.colorbar(label='fireline intensity ')
+#     plt.ylim([0,2])
+#     plt.subplot(1,2,1)
+#     plt.title('NORMALIZED VERTICAL Q/Umean PROFILES')
+#     plt.plot(Qprofiles[nCase,:]/charU[nCase],plume.lvl/plume_tops[nCase], c=clr[nCase] )
+#     plt.ylabel('normalized height')
+#     plt.xlabel('normalized $H_2O$ profile [g s / kg m]')
+#     plt.ylim([0,2])
+# plt.savefig(plume.figdir + 'normProfsI.pdf')
+# # plt.show()
+# plt.close()
+#
+#
+# plt.figure(figsize=(12,6))
+# # clr = plt.cm.PiYG_r(plt.Normalize(-200,200)(plume.read_tag('S',RunList))) 	#color by surface flux
+# clr = plt.cm.viridis(plt.Normalize(2,12)(charU)) 								#color by windspeed
+#
+# clr[..., -1] = plt.Normalize()(fireHeat) 									#add opacity based on fire intensity
+# for nCase,Case in enumerate(RunList):
+#     plt.subplot(1,2,2)
+#     plt.title('NORMALIZED VERTICAL Q/Qmax PROFILES')
+#     plt.plot(Qprofiles[nCase,:]/(np.max(Qprofiles[nCase,:])),plume.lvl/plume_tops[nCase],c=clr[nCase] )
+#     plt.ylabel('normalized height')
+#     plt.xlabel('normalized $H_2O$ profile ')
+#     # plt.colorbar(label='fireline intensity ')
+#     plt.ylim([0,2])
+#     plt.subplot(1,2,1)
+#     plt.title('NORMALIZED VERTICAL Q/Umean PROFILES')
+#     plt.plot(Qprofiles[nCase,:]/charU[nCase],plume.lvl/plume_tops[nCase], c=clr[nCase] )
+#     plt.ylabel('normalized height')
+#     plt.xlabel('normalized $H_2O$ profile [g s / kg m]')
+#     plt.ylim([0,2])
+# plt.savefig(plume.figdir + 'normProfsHFX.pdf')
+# # plt.show()
+# plt.close()
 
-
-plt.figure(figsize=(12,6))
-clr = plt.cm.plasma(plt.Normalize()(fireHeat))
-# clr[..., -1] = plt.Normalize()(fireLine[:,0])
-for nCase,Case in enumerate(RunList):
-    plt.subplot(1,2,2)
-    plt.title('NORMALIZED VERTICAL Q/Qmax PROFILES')
-    plt.plot(Qprofiles[nCase,:]/(np.max(Qprofiles[nCase,:])),plume.lvl/plume_tops[nCase],c=clr[nCase] )
-    plt.ylabel('normalized height')
-    plt.xlabel('normalized $H_2O$ profile ')
-    # plt.colorbar(label='fireline intensity ')
-    plt.ylim([0,2])
-    plt.subplot(1,2,1)
-    plt.title('NORMALIZED VERTICAL Q/Umean PROFILES')
-    plt.plot(Qprofiles[nCase,:]/charU[nCase],plume.lvl/plume_tops[nCase], c=clr[nCase] )
-    plt.ylabel('normalized height')
-    plt.xlabel('normalized $H_2O$ profile [g s / kg m]')
-    plt.ylim([0,2])
-plt.savefig(plume.figdir + 'normProfsI.pdf')
-# plt.show()
-plt.close()
-
-
-plt.figure(figsize=(12,6))
-# clr = plt.cm.PiYG_r(plt.Normalize(-200,200)(plume.read_tag('S',RunList))) 	#color by surface flux
-clr = plt.cm.viridis(plt.Normalize(2,12)(charU)) 								#color by windspeed
-
-clr[..., -1] = plt.Normalize()(fireHeat) 									#add opacity based on fire intensity
-for nCase,Case in enumerate(RunList):
-    plt.subplot(1,2,2)
-    plt.title('NORMALIZED VERTICAL Q/Qmax PROFILES')
-    plt.plot(Qprofiles[nCase,:]/(np.max(Qprofiles[nCase,:])),plume.lvl/plume_tops[nCase],c=clr[nCase] )
-    plt.ylabel('normalized height')
-    plt.xlabel('normalized $H_2O$ profile ')
-    # plt.colorbar(label='fireline intensity ')
-    plt.ylim([0,2])
-    plt.subplot(1,2,1)
-    plt.title('NORMALIZED VERTICAL Q/Umean PROFILES')
-    plt.plot(Qprofiles[nCase,:]/charU[nCase],plume.lvl/plume_tops[nCase], c=clr[nCase] )
-    plt.ylabel('normalized height')
-    plt.xlabel('normalized $H_2O$ profile [g s / kg m]')
-    plt.ylim([0,2])
-plt.savefig(plume.figdir + 'normProfsHFX.pdf')
-# plt.show()
-plt.close()
-
-plt.title('INITAL ATMOSPHERIC PROFILES (R0 and R1)')
+plt.title('INITAL ATMOSPHERIC PROFILES (R0 | R1 | R2)')
 for Case in T0[Rtag==0]:
     lR0 = plt.plot(Case, plume.lvl, color='red', label='R0')
 for Case in T0[Rtag==1]:
