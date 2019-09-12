@@ -250,7 +250,7 @@ fgg = np.argmin(abs(disp_dict['time'][tidx] - gg_end))
 #top view of smoke for corkscrew with average obs location
 
 #HARDCODED:
-rotCS_lcn = [30.56683,-86.75389]    #calculated by rotating 30
+rotCS_lcn = [30.56653,-86.75507]    #calculated by rotating 30
 ROT_cs_dist, ROT_cs_grid_id = gridTree.query(np.array(rotCS_lcn))
 ROTidxy,ROTidxx = np.unravel_index(ROT_cs_grid_id,np.shape(wrfgeo['XLONG']))
 ROT_profile_mukg = tracerinterp[258,:,ROTidxy,ROTidxx]
@@ -259,18 +259,17 @@ ROT_profile = 1e-3 * ROT_profile_mukg * molar_mass['air'] / molar_mass['CO2']   
 
 cs_lon =  np.mean(disp_dict['lcn'][tidx][ics:fcs,1])
 cs_lat = np.mean(disp_dict['lcn'][tidx][ics:fcs,0])
-tot_column_mukg = np.nansum(ncdict['CO'][258,:,:,:],0)
-smokeim = 1e-3 * tot_column_mukg * molar_mass['air']/molar_mass['CO']   #convert to ppmv
-im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower',vmin=0,vmax=50)
+tot_column_mukg = np.sum(ncdict['CO2'][258,:,:,:],0)
+smokeim = 1e-3 * tot_column_mukg * molar_mass['air']/molar_mass['CO2']   #convert to ppmv
+im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower',vmin=0,vmax=801)
 bm.scatter(cs_lon,cs_lat,40,marker='*',color='r',label='average location of corkscrew profile')
 bm.scatter(rotCS_lcn[1],rotCS_lcn[0],20,marker='o',color='k',label='wind-corrected profile location')
-plt.colorbar(im, label='total column CO [ppmv]')
+plt.colorbar(im, label='total column CO$_2$ [ppmv]')
 plt.legend()
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'CSLocation.pdf')
 plt.show()
 plt.close()
-
 
 #CO2 profiles from garage flights
 plt.figure(figsize=(10,6))
@@ -333,7 +332,7 @@ if animations:
     # create initial frame
     cntr = plt.contourf(cw_sum[0,:,:],cmap=plt.cm.PuBu,levels=np.arange(100000,2050000,50000))
     cbar = plt.colorbar()
-    cbar.set_label('total CO$_{2}O$ mixing ratio [ppmv]')
+    cbar.set_label('total CO$_{2}$ mixing ratio [ppmv]')
     plt.xlabel('distance [km]')
     plt.ylabel('height [m]')
     ax.set_yticks(np.arange(0,numLvl,5))

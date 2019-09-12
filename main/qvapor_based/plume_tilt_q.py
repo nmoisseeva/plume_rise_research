@@ -1,5 +1,5 @@
 # nmoisseeva@eoas.ubc.ca
-# September 2019
+# January 2018
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ import imp
 #====================INPUT===================
 
 #all common variables are stored separately
-import plume
+import plume_q as plume
 imp.reload(plume) 	#force load each time
 
 preIgnT = 1 		#boolean: whether to use pre-ignition temp profile or averaged upwind profile
