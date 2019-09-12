@@ -24,13 +24,7 @@ tag = [i[len(dirpath)-1:-4] for i in dirlist]    #W*S*F*R0
 # tag = ['W8S400F7R0']
 
 #exclude list (low wind speeds, F1, F4 (too hot), too high, randomly low, not sure)
-exclude_runs = ['W1S400F7R0','W2S400F3R0','W2S400F1R0',\
-                'W4S400F1R0','W12S400F1R0','W8S400F1R0',\
-                'W7S0F4R0','W3S0F4R0','W5S0F4R0','W9S0F4R0',\
-                'W4S400F13R0',\
-                'W4S400F9R0','W4S400F8R0','W4Sn200F8R0',\
-                'W11S400F10R0']
-
+exclude_runs = ['W5F7R2L3']
 
 #common functions
 #--------------------------------
