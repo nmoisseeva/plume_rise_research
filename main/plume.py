@@ -37,14 +37,11 @@ def read_tag(str_tag, str_array):
         numbers = re.findall('\d+', tag)
         if str_tag=='W':
             out_array.append(int(numbers[0]))
-        elif str_tag=='S':
-            if 'Sn' in letters:
-                out_array.append(int(numbers[1])*-1)
-            else:
-                out_array.append(int(numbers[1]))
         elif str_tag=='F':
-            out_array.append(int(numbers[2]))
+            out_array.append(int(numbers[1]))
         elif str_tag=='R':
+            out_array.append(int(numbers[2]))
+        elif str_tag=='L':
             out_array.append(int(numbers[3]))
     out_array = np.array(out_array)
     return out_array
