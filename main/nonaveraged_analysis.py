@@ -55,9 +55,9 @@ for nCase,Case in enumerate(plume.tag):
     ax = plt.gca()
     ax.set_title('HORIZONTAL VELOCITY CONVERGENCE: %s' %Case)
     maxU = int(np.max(csdict['u']))
-    maxQ = int(np.max(csdict['qvapor']))
+    maxPM = int(np.max(csdict['pm25']))
     uLevels = np.arange(-maxU,maxU+.1,maxU/20.)
-    qLevels = np.arange(maxQ*0.05,maxQ,maxQ/40.)
+    pmLevels = np.arange(maxPM*0.05,maxPM,maxPM/40.)
     # create initial frame
     # ---u contours and colorbar
     cntrf = ax.contourf(csdict['u'][0,:,:], cmap=plt.cm.Spectral_r,levels=uLevels,extend='both')
@@ -67,7 +67,9 @@ for nCase,Case in enumerate(plume.tag):
     ax.set_ylabel('height AGL [m]')
     ax.set_xlim([0,dimX])
     # ---non-filled vapor contours and colorbar
-    cntr = ax.contour(csdict['qvapor'][0,:,:], cmap=plt.cm.Greys,levels=np.arange(0,2.1,0.3),linewidths=2)
+    # cntr = ax.contour(csdict['pm25'][0,:,:], cmap=plt.cm.Greys,levels=np.arange(0,2.1,0.3),linewidths=2)
+    cntr = ax.contour(csdict['pm25'][0,:,:], cmap=plt.cm.Greys,linewidths=2)
+
     #
     # ---heat flux
     axh = ax.twinx()
@@ -85,7 +87,7 @@ for nCase,Case in enumerate(plume.tag):
         ax.clear()
         ax.set_title('HORIZONTAL VELOCITY CONVERGENCE: %s' %Case)
         cntrf = ax.contourf(csdict['u'][n,:,:],cmap=plt.cm.Spectral_r, levels=uLevels,extend='both')
-        cntr = ax.contour(csdict['qvapor'][n,:,:], cmap=plt.cm.Greys,levels=qLevels,linewidths=0.6)
+        cntr = ax.contour(csdict['pm25'][n,:,:], cmap=plt.cm.Greys,levels=pmLevels,linewidths=0.6)
         ax.set_xlabel('horizontal distance [km]')
         ax.set_ylabel('height AGL [m]')
         ax.set_yticks(np.arange(0,len(plume.lvl),10))
@@ -114,9 +116,9 @@ for nCase,Case in enumerate(plume.tag):
     ax = plt.gca()
     ax.set_title('VERTICAL VELOCITY : %s' %Case)
     maxW = int(np.max(csdict['w']))
-    maxQ = int(np.max(csdict['qvapor']))
+    maxPM = int(np.max(csdict['pm25']))
     wLevels = np.arange(-maxW,maxW+.1,maxW/20)
-    qLevels = np.arange(maxQ*0.05,maxQ,maxQ/40)
+    pmLevels = np.arange(maxPM*0.05,maxPM,maxPM/40)
     # create initial frame
     # ---u contours and colorbar
     cntrf = ax.contourf(csdict['w'][0,:,:], cmap=plt.cm.PRGn_r,levels=wLevels,extend='both')
@@ -126,7 +128,8 @@ for nCase,Case in enumerate(plume.tag):
     ax.set_ylabel('height AGL [m]')
     ax.set_xlim([0,dimX])
     # ---non-filled vapor contours and colorbar
-    cntr = ax.contour(csdict['qvapor'][0,:,:], cmap=plt.cm.Greys,levels=np.arange(0,2.1,0.3),linewidths=2)
+    # cntr = ax.contour(csdict['pm25'][0,:,:], cmap=plt.cm.Greys,levels=np.arange(0,2.1,0.3),linewidths=2)
+    cntr = ax.contour(csdict['pm25'][0,:,:], cmap=plt.cm.Greys,linewidths=2)
     #
     # ---heat flux
     axh = ax.twinx()
@@ -144,7 +147,7 @@ for nCase,Case in enumerate(plume.tag):
         ax.clear()
         ax.set_title('VERTICAL VELOCITY: %s' %Case)
         cntrf = ax.contourf(csdict['w'][n,:,:],cmap=plt.cm.PRGn_r, levels=wLevels,extend='both')
-        cntr = ax.contour(csdict['qvapor'][n,:,:], cmap=plt.cm.Greys,levels=qLevels,linewidths=0.6)
+        cntr = ax.contour(csdict['pm25'][n,:,:], cmap=plt.cm.Greys,levels=pmLevels,linewidths=0.6)
         ax.set_xlabel('horizontal distance [km]')
         ax.set_ylabel('height AGL [m]')
         ax.set_yticks(np.arange(0,len(plume.lvl),10))
