@@ -87,7 +87,8 @@ for nCase,Case in enumerate(RunList):
     tilt = np.poly1d(np.polyfit(PMmax_idx,plume.lvl[np.isfinite(PMmax_profile)],1))
 
     #create a vertical slize based at a single downwind location of maximum plume rise
-    PMslicewtop = avedict['pm25'][:,wmax_idx[-1]]
+    sliceLoc = wmax_idx[-1]
+    PMslicewtop = avedict['pm25'][:,sliceLoc]
     PMprofiles[nCase,:] = PMslicewtop
 
     #look at what happens with temperature structure----------------------
@@ -223,25 +224,19 @@ for nCase,Case in enumerate(RunList):
     plt.title('Time-averaged W')
     # ---w contours and colorbar
     ax1=plt.gca()
-    # cntrf = ax.contourf(w_tave, cmap=plt.cm.PRGn_r, levels=np.arange(-7,7.1,0.5),extend='both')
-    # cbarf = fig.colorbar(cntrf, orientation='horizontal',fraction=0.046, pad=0.1)
-    # cbarf.set_label('vertical velocity $[m s^{-2}]$')
-    im = ax1.imshow(avedict['w'], origin='lower', cmap=plt.cm.PRGn_r, vmin=-5, vmax=5)
+    im = ax1.imshow(avedict['w'], origin='lower',extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.PRGn_r, vmin=-5, vmax=5)
     ax1.set_aspect('auto')
     cbari =fig.colorbar(im, orientation='horizontal', fraction=0.046, pad=0.1)
     cbari.set_label('horizontal velocity w $[m s^{-2}]$')
     ax1.set_xlabel('horizontal distance [m]')
     ax1.set_ylabel('height AGL [m]')
-    ax1.set_yticks(np.arange(0,len(plume.lvl),10))
-    ax1.set_yticklabels(plume.lvl[::10])
-    ax1.set_xlim([0,dimX])
-    ax1.set_xticks(np.arange(0,dimX,int(dimX/10)))
-    ax1.set_xticklabels((np.arange(0,dimX,int(dimX/10))*plume.dx).astype(int))
-    # ax.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
-    # ax.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    # ax.axhline(y=plume_tops[nCase],ls='--', c='red',label='derived plume top')
+    ax1.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
+    ax1.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
+    ax1.axhline(y=plume_tops[nCase],ls='--', c='black',label='derived plume top')
+    ax1.axvline(x = sliceLoc*plume.dx, ls=':',c='black',label='location of concentration profile')
+    ax1.legend()
     # ---non-filled pm contours and colorbar
-    cntr = ax1.contour(avedict['pm25'], cmap=plt.cm.Greys,levels=pmLevels,linewidths=1)
+    cntr = ax1.contour(avedict['pm25'], extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.Greys,levels=pmLevels,linewidths=1)
     # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
     # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
     # cbar.set_label('PM2.5 mixing ratio $[ug/kg]$',size=8)
@@ -251,38 +246,38 @@ for nCase,Case in enumerate(RunList):
     axh1.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
     axh1.set_ylim([0,150])
     axh1.tick_params(axis='y', colors='red')
-    ln = axh1.plot(avedict['ghfx'], 'r-')
+    ln = axh1.plot(np.arange(dimX) * plume.dx, avedict['ghfx'], 'r-')
+    axh1.set_xlim([0,dimX*plume.dx])
+
 
     plt.subplot(1,2,2)
     plt.title('Time-averaged U')
     ax2 = plt.gca()
     # ---u contours and colorbar
-    # cntrf = ax.contourf(avedict['u'], cmap=plt.cm.RdBu_r, levels=uLevels,extend='both')
-    # cbarf = fig.colorbar(cntrf, orientation='horizontal',fraction=0.046, pad=0.1)
-    # cbarf.set_label('horizontal velocity u$[m s^{-2}]$')
-    im = ax2.imshow(avedict['u'], origin='lower', cmap=plt.cm.RdBu_r, vmin=BLdict['Ua'][nCase]-5, vmax=BLdict['Ua'][nCase]+5)
+    im = ax2.imshow(avedict['u'], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.RdBu_r, vmin=BLdict['Ua'][nCase]-5, vmax=BLdict['Ua'][nCase]+5)
     ax2.set_aspect('auto')
     cbari =fig.colorbar(im, orientation='horizontal', fraction=0.046, pad=0.1)
     cbari.set_label('horizontal velocity u $[m s^{-2}]$')
     ax2.set_xlabel('horizontal distance [m]')
     ax2.set_ylabel('height AGL [m]')
-    ax2.set_yticks(np.arange(0,len(plume.lvl),10))
-    ax2.set_yticklabels(plume.lvl[::10])
-    ax2.set_xticks(np.arange(0,dimX,int(dimX/10)))
-    ax2.set_xticklabels((np.arange(0,dimX,int(dimX/10))*plume.dx).astype(int))
-
+    ax2.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
+    ax2.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
+    ax2.axhline(y=plume_tops[nCase],ls='--', c='black',label='derived plume top')
+    ax2.axvline(x = sliceLoc*plume.dx, ls=':',c='black',label='location of concentration profile')
     # ---non-filled vapor contours and colorbar
-    cntr = ax2.contour(avedict['pm25'], cmap=plt.cm.Greys,levels=pmLevels,linewidths=1)
+    cntr = ax2.contour(avedict['pm25'], extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.Greys,levels=pmLevels,linewidths=1)
     # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
     # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
     # cbar.set_label('PM2.5 mixing ratio $[ug/kg]$',size=8)
     # cbar.ax.tick_params(labelsize=8)
     # ---heat flux
     axh2 = ax2.twinx()
-    ln = axh2.plot(avedict['ghfx'], 'r-')
+    ln = axh2.plot(np.arange(dimX)*plume.dx, avedict['ghfx'], 'r-')
     axh2.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
     axh2.set_ylim([0,150])
     axh2.tick_params(axis='y', colors='red')
+    axh2.set_xlim([0,dimX*plume.dx])
+
     plt.tight_layout()
     plt.savefig(plume.figdir + 'averages/ave%s' %Case)
     print('.....-->saved in: %s' %(plume.figdir + 'averages/ave%s' %Case))
@@ -290,7 +285,6 @@ for nCase,Case in enumerate(RunList):
 
 #---------------------calculations over all plumes--------------
 Rtag = np.array([i for i in plume.read_tag('R',RunList)])  #list of initialization rounds (different soundings)
-
 #WHAT LEVEL TO PICK FOR defining characteristic U
 # print('Variability of normalized intensity for given U level:')
 # print('%d.2' %np.std(parcelHeat))
@@ -326,64 +320,32 @@ plt.close()
 
 
 #-------------subplots for eatch R run-----------
-plt.figure(figsize=(18,6))
-plt.subplot(1,3,1)
-plt.title('R0 RUNS')
-ax1 = plt.scatter(parcelHeat[Rtag==0],cumT[Rtag==0],marker='o', c=plume.read_tag('W',RunList)[Rtag==0], cmap=plt.cm.viridis)
-for i, txt in enumerate(plume.read_tag('F',RunList)[Rtag==0]):
-    plt.gca().annotate(txt, (parcelHeat[Rtag==0][i]+20,cumT[Rtag==0][i]+20), fontsize=9)
-plt.xlabel('normalized fireline intensity [$K m$]')
-plt.ylabel('cumulative temperature [K m]')
-plt.colorbar(ax1,label='windspeed [m/s]')
-plt.xlim([0,6000])
-plt.ylim([0,1000])
-
-plt.subplot(1,3,2)
-plt.title('R1 RUNS')
-ax2 = plt.scatter(parcelHeat[Rtag==1],cumT[Rtag==1],marker='s', c=plume.read_tag('W',RunList)[Rtag==1], cmap=plt.cm.viridis)
-for i, txt in enumerate(plume.read_tag('F',RunList)[Rtag==1]):
-    plt.gca().annotate(txt, (parcelHeat[Rtag==1][i]+20,cumT[Rtag==1][i]+20), fontsize=9)
-plt.xlabel('normalized fireline intensity [$K m$]')
-plt.ylabel('cumulative temperature [K m]')
-plt.colorbar(ax1,label='windspeed [m/s]')
-plt.xlim([0,6000])
-plt.ylim([0,1000])
-
-plt.subplot(1,3,3)
-plt.title('R2 RUNS')
-ax3 = plt.scatter(parcelHeat[Rtag==2],cumT[Rtag==2],marker='^', c=plume.read_tag('W',RunList)[Rtag==2], cmap=plt.cm.viridis)
-for i, txt in enumerate(plume.read_tag('F',RunList)[Rtag==2]):
-    plt.gca().annotate(txt, (parcelHeat[Rtag==2][i]+20,cumT[Rtag==2][i]+20), fontsize=9)
-plt.xlabel('normalized fireline intensity [$K m$]')
-plt.ylabel('cumulative temperature [K m]')
-plt.colorbar(ax1,label='windspeed [m/s]')
-plt.xlim([0,6000])
-plt.ylim([0,1000])
-
+plt.figure(figsize=(18,12))
+for R in set(Rtag):
+    plt.subplot(2,3,R+1)
+    plt.title('R%s RUNS' %R, color='C%s' %R)
+    ax1 = plt.scatter(parcelHeat[Rtag==R],cumT[Rtag==R],marker='o', c=plume.read_tag('W',RunList)[Rtag==R], cmap=plt.cm.viridis)
+    for i, txt in enumerate(plume.read_tag('F',RunList)[Rtag==R]):
+        plt.gca().annotate(txt, (parcelHeat[Rtag==R][i]+20,cumT[Rtag==R][i]+20), fontsize=9)
+    plt.xlabel('normalized fireline intensity [$K m$]')
+    plt.ylabel('cumulative temperature [K m]')
+    plt.colorbar(ax1,label='windspeed [m/s]')
+    plt.xlim([0,6000])
+    plt.ylim([0,1000])
 plt.tight_layout()
 plt.savefig(plume.figdir + 'Rn_sublots.pdf')
 plt.show()
 plt.close()
 
 #-------------main plot with CumT-----------
-#get linear regression for the normalized fireLine
-regR0 = np.poly1d(np.polyfit(parcelHeat[Rtag==0],cumT[Rtag==0],1))
-regR1 = np.poly1d(np.polyfit(parcelHeat[Rtag==1],cumT[Rtag==1],1))
-regR2 = np.poly1d(np.polyfit(parcelHeat[Rtag==2],cumT[Rtag==2],1))
-# mrkr = ['s' if i==1 else 'o' for i in plume.read_tag('R',RunList)]
-print('R0 profiles: regression fit equation: %s ' %regR0)
-print('R1 profiles: regression fit equation: %s ' %regR1)
-print('R2 profiles: regression fit equation: %s ' %regR2)
-
+plt.figure()
 plt.title('NORMALIZED FIRELINE INTENSITY vs CumT')
 ax = plt.gca()
-sc0 = ax.scatter(parcelHeat[Rtag==0],cumT[Rtag==0],marker='o', c='C0',label='R0')
-sc1 = ax.scatter(parcelHeat[Rtag==1],cumT[Rtag==1],marker='s', c='C1',label='R1')
-sc2 = ax.scatter(parcelHeat[Rtag==2],cumT[Rtag==2],marker='^', c='C2',label='R2')
-
-plt.plot(parcelHeat[Rtag==0], regR0(parcelHeat[Rtag==0]), 'C0')
-plt.plot(parcelHeat[Rtag==1], regR1(parcelHeat[Rtag==1]), 'C1')
-plt.plot(parcelHeat[Rtag==2], regR2(parcelHeat[Rtag==2]), 'C2')
+for R in set(Rtag):
+    regR = np.poly1d(np.polyfit(parcelHeat[Rtag==R],cumT[Rtag==R],1))
+    print('R%s profiles: regression fit equation: %s ' %(R,regR))
+    ax.scatter(parcelHeat[Rtag==R],cumT[Rtag==R], c='C%s'%R ,label='R%s' %R)
+    plt.plot(parcelHeat[Rtag==R], regR(parcelHeat[Rtag==R]), 'C%s' %R)
 plt.xlabel('normalized fireline intensity [$K m$]')
 plt.ylabel('cumulative temperature [K m]')
 plt.legend()
@@ -392,10 +354,20 @@ plt.savefig(plume.figdir + 'parcelHeat_cumT.pdf')
 plt.show()
 plt.close()
 
+#-------------plot initial profiles---------------
+plt.figure()
+plt.title('INITAL ATMOSPHERIC PROFILES')
+leg_handles = []
+for R in set(Rtag):
+    for Case in T0[Rtag==R]:
+        lR = plt.plot(Case, plume.lvl, color='C%s' %R, label='R%s' %R)
+    leg_handles.extend(lR)
+plt.xlabel('potential temperature [K]')
+plt.ylabel('height [m]')
+plt.legend(handles=leg_handles)
+plt.savefig(plume.figdir + 'T0profiles.pdf')
+plt.show()
 
-
-#
-#
 # plt.figure(figsize=(12,6))
 # clr = plt.cm.plasma(plt.Normalize()(parcelHeat))
 # # clr[..., -1] = plt.Normalize()(fireLine[:,0])
@@ -440,19 +412,3 @@ plt.close()
 # plt.savefig(plume.figdir + 'normProfsHFX.pdf')
 # # plt.show()
 # plt.close()
-
-plt.title('INITAL ATMOSPHERIC PROFILES (R0 | R1 | R2)')
-for Case in T0[Rtag==0]:
-    lR0 = plt.plot(Case, plume.lvl, color='C0', label='R0')
-for Case in T0[Rtag==1]:
-    lR1 = plt.plot(Case, plume.lvl, color ='C1', label='R1')
-for Case in T0[Rtag==2]:
-    lR2 = plt.plot(Case, plume.lvl, color ='C2', label='R2')
-plt.xlabel('potential temperature [K]')
-plt.ylabel('height [m]')
-plt.legend(handles=[lR0[-1],lR1[-1],lR2[-1]])
-plt.savefig(plume.figdir + 'T0profiles.pdf')
-plt.show()
-
-# plt.scatter(Ti,A)
-# plt.show()
