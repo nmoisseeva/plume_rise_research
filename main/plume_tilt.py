@@ -10,6 +10,8 @@ import os.path
 #import cmocean
 import sys
 import imp
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
 
 #====================INPUT===================
 
@@ -147,6 +149,11 @@ for nCase,Case in enumerate(RunList):
 
     # A[nCase] = g* parcelHeat[nCase]/ (zi*Ti[nCase])           #some sort of non-dimensional variable
     #===========================plotting===========================
+
+    maxPM = int(np.max(avedict['pm25']))
+    pmLevels = np.arange(maxPM*0.001,maxPM/2.,maxPM/10.)
+    uLevels = np.arange(int(BLdict['Ua'][nCase]) - 5, int(BLdict['Ua'][nCase])+5, 1)
+    dimZ, dimX = np.shape(avedict['w'])
     #vertical concentration slice at donwind locations of wmax and qmax
     plt.figure(figsize=(12,12))
     plt.suptitle('%s' %Case)
@@ -206,7 +213,79 @@ for nCase,Case in enumerate(RunList):
     plt.ylim([0,plume.lvl[-1]])
     plt.xlim([285,330])
     # plt.show()
-    plt.savefig(plume.figdir + 'profiles_%s.pdf' %Case)
+    plt.savefig(plume.figdir + 'profiles/profiles_%s.pdf' %Case)
+    plt.close()
+
+    #plot contours
+    fig = plt.figure(figsize=(12,6))
+    plt.suptitle('%s' %Case)
+    plt.subplot(1,2,1)
+    plt.title('Time-averaged W')
+    # ---w contours and colorbar
+    ax1=plt.gca()
+    # cntrf = ax.contourf(w_tave, cmap=plt.cm.PRGn_r, levels=np.arange(-7,7.1,0.5),extend='both')
+    # cbarf = fig.colorbar(cntrf, orientation='horizontal',fraction=0.046, pad=0.1)
+    # cbarf.set_label('vertical velocity $[m s^{-2}]$')
+    im = ax1.imshow(avedict['w'], origin='lower', cmap=plt.cm.PRGn_r, vmin=-5, vmax=5)
+    ax1.set_aspect('auto')
+    cbari =fig.colorbar(im, orientation='horizontal', fraction=0.046, pad=0.1)
+    cbari.set_label('horizontal velocity w $[m s^{-2}]$')
+    ax1.set_xlabel('horizontal distance [m]')
+    ax1.set_ylabel('height AGL [m]')
+    ax1.set_yticks(np.arange(0,len(plume.lvl),10))
+    ax1.set_yticklabels(plume.lvl[::10])
+    ax1.set_xlim([0,dimX])
+    ax1.set_xticks(np.arange(0,dimX,int(dimX/10)))
+    ax1.set_xticklabels((np.arange(0,dimX,int(dimX/10))*plume.dx).astype(int))
+    # ax.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
+    # ax.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
+    # ax.axhline(y=plume_tops[nCase],ls='--', c='red',label='derived plume top')
+    # ---non-filled pm contours and colorbar
+    cntr = ax1.contour(avedict['pm25'], cmap=plt.cm.Greys,levels=pmLevels,linewidths=1)
+    # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
+    # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
+    # cbar.set_label('PM2.5 mixing ratio $[ug/kg]$',size=8)
+    # cbar.ax.tick_params(labelsize=8)
+    # ---heat flux
+    axh1 = ax1.twinx()
+    axh1.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+    axh1.set_ylim([0,150])
+    axh1.tick_params(axis='y', colors='red')
+    ln = axh1.plot(avedict['ghfx'], 'r-')
+
+    plt.subplot(1,2,2)
+    plt.title('Time-averaged U')
+    ax2 = plt.gca()
+    # ---u contours and colorbar
+    # cntrf = ax.contourf(avedict['u'], cmap=plt.cm.RdBu_r, levels=uLevels,extend='both')
+    # cbarf = fig.colorbar(cntrf, orientation='horizontal',fraction=0.046, pad=0.1)
+    # cbarf.set_label('horizontal velocity u$[m s^{-2}]$')
+    im = ax2.imshow(avedict['u'], origin='lower', cmap=plt.cm.RdBu_r, vmin=BLdict['Ua'][nCase]-5, vmax=BLdict['Ua'][nCase]+5)
+    ax2.set_aspect('auto')
+    cbari =fig.colorbar(im, orientation='horizontal', fraction=0.046, pad=0.1)
+    cbari.set_label('horizontal velocity u $[m s^{-2}]$')
+    ax2.set_xlabel('horizontal distance [m]')
+    ax2.set_ylabel('height AGL [m]')
+    ax2.set_yticks(np.arange(0,len(plume.lvl),10))
+    ax2.set_yticklabels(plume.lvl[::10])
+    ax2.set_xticks(np.arange(0,dimX,int(dimX/10)))
+    ax2.set_xticklabels((np.arange(0,dimX,int(dimX/10))*plume.dx).astype(int))
+
+    # ---non-filled vapor contours and colorbar
+    cntr = ax2.contour(avedict['pm25'], cmap=plt.cm.Greys,levels=pmLevels,linewidths=1)
+    # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
+    # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
+    # cbar.set_label('PM2.5 mixing ratio $[ug/kg]$',size=8)
+    # cbar.ax.tick_params(labelsize=8)
+    # ---heat flux
+    axh2 = ax2.twinx()
+    ln = axh2.plot(avedict['ghfx'], 'r-')
+    axh2.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+    axh2.set_ylim([0,150])
+    axh2.tick_params(axis='y', colors='red')
+    plt.tight_layout()
+    plt.savefig(plume.figdir + 'averages/ave%s' %Case)
+    print('.....-->saved in: %s' %(plume.figdir + 'averages/ave%s' %Case))
     plt.close()
 
 #---------------------calculations over all plumes--------------

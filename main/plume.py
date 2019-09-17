@@ -13,7 +13,7 @@ dz = 40
 lvl = np.arange(0,2800,dz)	 	#vertical levels in m
 dx = 40.                        #horizontal grid spacing
 
-cs = 20                         #+/- grids for cross-section
+cs = 10                         #+/- grids for cross-section
 wi, wf = 10, 65
 
 
@@ -24,7 +24,7 @@ tag = [i[len(dirpath)-1:-4] for i in dirlist]    #W*S*F*R0
 # tag = ['W8S400F7R0']
 
 #exclude list (low wind speeds, F1, F4 (too hot), too high, randomly low, not sure)
-exclude_runs = ['W5F7R2L3']
+exclude_runs = []
 
 #common functions
 #--------------------------------
