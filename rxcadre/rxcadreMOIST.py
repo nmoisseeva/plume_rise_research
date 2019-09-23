@@ -4,7 +4,7 @@ import numpy as np
 #paths
 wrfdata = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_test_main'
 fig_dir = '/Users/nmoisseeva/code/plume/rxcadre/figs/'
-spinup_path = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_sfmo70_spinup'
+spinup_path = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_spinup_bubble'
 wrfinput = '/Users/nmoisseeva/data/plume/rxcadre/wrfinput_d01'
 input_fc = '/Users/nmoisseeva/sfire/wrf-fire/WRFV3/test/em_fire/rxcadre_moist/input_fc'
 
