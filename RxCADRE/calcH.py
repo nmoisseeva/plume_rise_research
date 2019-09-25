@@ -12,7 +12,11 @@ from datetime import datetime, timezone, timedelta
 import matplotlib.dates as mdates
 import pytz
 
-datapath = './H.csv'
+#all common variables are stored separately
+import rxcadreMOIST as rx
+imp.reload(rx)		        #force load each time
+
+datapath = './csv/H-covTw.csv'
 data = np.genfromtxt(datapath,usecols=(1,2,3,4),skip_header=4,delimiter=',',dtype=float)
 
 freq = 1 #hz
@@ -26,24 +30,24 @@ bad = range(28, 1000)
 
 H = []
 
-for nSample in range(data_samples):
+for nSample in range(int(data_samples)):
 	if nSample not in bad:
 		subset = data[nSample*num_pts:(nSample+1)*num_pts, 2:].T
 		min_cov = np.cov(subset)[0,1]
 		H.append(min_cov)
 	else:
-		print 'excluding value'
+		print('excluding value')
 
 plt.title('SURFACE HEAT FLUX')
 lbl = ['10:00','10:20','10:40','11:00','11:20','11:40','12:00','12:20']
 plt.plot(H)
 plt.ylim([0,0.3])
 plt.xlabel('time (CST)')
-plt.ylabel('kinematic heat flux ($\overline{T\'w\'} $) [$K m s^{-1}$]')
+plt.ylabel('kinematic heat flux $\overline{T\'w\'}$ ($K m s^{-1}$)')
 ax = plt.gca()
 ax.set_xticks(np.arange(0,29,4))
 ax.set_xticklabels(lbl)
-plt.savefig(fig_dir + 'KinH.pdf')
+plt.savefig(rx.fig_dir + 'KinH.pdf')
 plt.show()
 
 mean_flux = np.mean(H)

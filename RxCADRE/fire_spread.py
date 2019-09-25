@@ -255,7 +255,7 @@ colors = ['lightblue','lightblue','pink','pink']
 for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
-plt.ylabel('heat flux $[kW m^{-2}]$')
+plt.ylabel('heat flux $(kW m^{-2})$')
 plt.ylim([0,25])
 # plt.savefig(rx.fig_dir + 'AveHx.pdf')
 # plt.show()
@@ -270,7 +270,7 @@ colors = ['lightblue','lightblue','pink','pink']
 for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
-plt.ylabel('heat flux $[kW m^{-2}]$')
+plt.ylabel('heat flux $(kW m^{-2})$')
 # plt.savefig(rx.fig_dir + 'MaxHx.pdf')
 # plt.show()
 # plt.close()
@@ -284,7 +284,7 @@ colors = ['lightblue','lightblue','pink','pink']
 for patch, color in zip(box['boxes'], colors):
     patch.set_facecolor(color)
 plt.xticks([1,2,3,4],['L2G','HIP1','LES','LES HIP1'])
-plt.ylabel('ROS $[m s^{-1}]$')
+plt.ylabel('ROS $(m s^{-1})$')
 plt.ylim([0,0.5])
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'FireBehavior.pdf')

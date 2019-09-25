@@ -16,7 +16,7 @@ import plume
 imp.reload(plume) 	#force load each time
 
 preIgnT = 1 		#boolean: whether to use pre-ignition temp profile or averaged upwind profile
-testCases = ['W5F7R2','W5F7R2L410km']
+testCases = ['W5F7R2','W5F7R2L3','W5F7R2L410km']
 #=================end of input===============
 
 runCnt = len(testCases)

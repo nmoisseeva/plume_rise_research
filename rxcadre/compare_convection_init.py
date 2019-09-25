@@ -13,7 +13,7 @@ import imp
 import rxcadreMOIST as rx
 imp.reload(rx)		        #force load each time
 #====================INPUT===================
-testTime = 140          #min since start
+testTime = 120          #min since start
 testLvl = 17 			#height level to run the analysis on
 blLvl = 28              #level of BL top
 #=================end of input===============
