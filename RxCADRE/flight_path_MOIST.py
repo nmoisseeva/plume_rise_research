@@ -298,6 +298,7 @@ plt.close()
 
 
 #vertical column evoluation
+import matplotlib.ticker as ticker
 column_mukg = np.sum(np.sum(tracerinterp,2),2)
 column_ppmv = 1e-3 * column_mukg * molar_mass['air']/molar_mass['CO2']
 plt.pcolor(column_ppmv.T,cmap=plt.cm.cubehelix_r)
