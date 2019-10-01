@@ -299,10 +299,11 @@ plt.close()
 
 #vertical column evoluation
 import matplotlib.ticker as ticker
+comma_fmt = ticker.FuncFormatter(lambda x, p: format(int(x), ','))
 column_mukg = np.sum(np.sum(tracerinterp,2),2)
 column_ppmv = 1e-3 * column_mukg * molar_mass['air']/molar_mass['CO2']
 plt.pcolor(column_ppmv.T,cmap=plt.cm.cubehelix_r)
-plt.colorbar(label='total domain CO$_2$ anomaly (ppmv)')
+plt.colorbar(format=comma_fmt,label='total domain CO$_2$ anomaly (ppmv)')
 ax = plt.gca()
 plt.ylabel('height (m)')
 ax.set_yticks(np.arange(0,numLvl,10))
