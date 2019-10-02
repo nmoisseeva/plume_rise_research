@@ -31,10 +31,10 @@ print('===================================')
 
 
 param_dict = {'fire':[]}
-profile_dict = {'wmax':[],'pm_wmax':[],'tilt':[]}
-profile_dict['meta'] = 'wmax: profiles of maximum velocity; \
-    pm_wmax: tracer profile at downwind location of maximum vertical velocity \
-    tilt: grid number of wmax profile locations'
+profile_dict = {'wmin':[],'pm_wmin':[],'tilt':[]}
+profile_dict['meta'] = 'wmin: profiles of minimum velocity; \
+    pm_wmin: tracer profile at downwind location of minimum vertical velocity \
+    tilt: grid number of wmin profile locations'
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
 runCnt = len(RunList)
@@ -47,8 +47,6 @@ fireWidth = np.empty((runCnt))* np.nan
 parcelHeat = np.empty(runCnt)* np.nan
 T0 = np.empty((runCnt,len(plume.lvl))) * np.nan
 PMprofiles = np.empty((runCnt,len(plume.lvl)))* np.nan
-# exT = np.empty(runCnt)* np.nan
-A = np.empty(runCnt)* np.nan
 firelineTest = []
 
 BLdict = {'Ua':np.empty(runCnt) * np.nan, \
@@ -73,6 +71,18 @@ for nCase,Case in enumerate(RunList):
     if Case in plume.fireline_runs:
         firelineTest.append(nCase)
 
+    #mask plume as being at last 50ppm---------------------------------
+    w = ma.masked_where(avedict['pm25'] <= 50, avedict['w'] )
+
+    #find out where pm max in horizontal changes to pm max in vertical - see if it coincides
+    PMmaxH = np.nanmax(avedict['pm25'],1)
+    PMmaxHidx = np.nanargmax(avedict['pm25'],1)
+
+
+    for i in range(100):
+        print('%.2f, %.2f' %(np.nanmax(avedict['pm25'][:,i]),PMmaxH[i])) DOESNT WORK YET!
+
+!!!!!!!!! STOPPED HERE!!!!!!!!!!!!!!!!!
     #extract lcoations of max pm, w, temp ------------------------------
     PMmax_profile = np.nanmax(avedict['pm25'],1) 	#get max q profile
     top_threshold = max(PMmax_profile)*0.001 	#variable threshold (based on near-surface high concentrations!!!!)

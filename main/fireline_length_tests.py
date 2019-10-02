@@ -16,10 +16,10 @@ import plume
 imp.reload(plume) 	#force load each time
 
 preIgnT = 1 		#boolean: whether to use pre-ignition temp profile or averaged upwind profile
-testCases = ['W5F7R2','W5F7R2L3','W5F7R2L410km']
+plume.fireline_runs = ['W5F7R2','W5F7R2L2','W5F7R2L3','W5F7R2L410km']
 #=================end of input===============
 
-runCnt = len(testCases)
+runCnt = len(plume.fireline_runs)
 
 
 plume_tops = np.empty(runCnt) * np.nan
@@ -34,7 +34,7 @@ BLdict = {'Ua':np.empty(runCnt) * np.nan, \
             'Ti':np.empty(runCnt) * np.nan,\
             'zi': np.empty(runCnt)* np.nan}
 
-for nCase,Case in enumerate(testCases):
+for nCase,Case in enumerate(plume.fireline_runs):
     #----------get preignition temperature profile-----------------
     cspath = plume.wrfdir + 'interp/wrfcs_' + Case + '.npy'
     print('Opening data: %s' %cspath)
@@ -291,6 +291,8 @@ plt.gca().scatter(parcelHeat,cumT)
 plt.plot(parcelHeat, regR(parcelHeat))
 plt.xlabel('normalized fireline intensity [$K m$]')
 plt.ylabel('cumulative temperature [K m]')
+for i, txt in enumerate(plume.fireline_runs):
+    plt.gca().annotate(txt, (parcelHeat[i]+2,cumT[i]+2), fontsize=9)
 plt.tight_layout()
 plt.savefig(plume.figdir + 'fireline/parcelHeat_cumT.pdf')
 plt.show()
