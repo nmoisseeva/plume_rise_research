@@ -72,43 +72,45 @@ for nCase,Case in enumerate(RunList):
         firelineTest.append(nCase)
 
     #mask plume as being at last 50ppm---------------------------------
+    pm = ma.masked_where(avedict['pm25'] <= 50, avedict['pm25'] )
     w = ma.masked_where(avedict['pm25'] <= 50, avedict['w'] )
 
     #find out where pm max in horizontal changes to pm max in vertical - see if it coincides
-    PMmaxH = np.nanmax(avedict['pm25'],1)
-    PMmaxHidx = np.nanargmax(avedict['pm25'],1)
+    PMmaxVidx = np.nanargmax(pm,0)
+    xmax,ymax = np.nanargmax(PMmaxVidx), np.nanmax(PMmaxVidx)
+
+    WminV = np.nanmin(w,1)
+
+    tilt = ymax/xmax
 
 
-    for i in range(100):
-        print('%.2f, %.2f' %(np.nanmax(avedict['pm25'][:,i]),PMmaxH[i])) DOESNT WORK YET!
+#
+# !!!!!!!!! STOPPED HERE!!!!!!!!!!!!!!!!!
+    # #extract lcoations of max pm, w, temp ------------------------------
+    # PMmax_profile = np.nanmax(avedict['pm25'],1) 	#get max q profile
+    # top_threshold = max(PMmax_profile)*0.001 	#variable threshold (based on near-surface high concentrations!!!!)
+    # PMmax_profile[PMmax_profile<top_threshold] = np.nan
+    # PMmax_idx = np.nanargmax(avedict['pm25'][np.isfinite(PMmax_profile)],1)		#get donwind location
 
-!!!!!!!!! STOPPED HERE!!!!!!!!!!!!!!!!!
-    #extract lcoations of max pm, w, temp ------------------------------
-    PMmax_profile = np.nanmax(avedict['pm25'],1) 	#get max q profile
-    top_threshold = max(PMmax_profile)*0.001 	#variable threshold (based on near-surface high concentrations!!!!)
-    PMmax_profile[PMmax_profile<top_threshold] = np.nan
-    PMmax_idx = np.nanargmax(avedict['pm25'][np.isfinite(PMmax_profile)],1)		#get donwind location
-    PMmax_meters = PMmax_idx*plume.dx
+    # wave_plume = avedict['w'].copy()
+    # wave_plume[avedict['pm25']<top_threshold] = np.nan 		#mask where there is no plume
+    # wmax_profile = np.nanmax(wave_plume,1) 		#get the profiles
+    # wmax_idx = np.nanargmax(wave_plume[np.isfinite(wmax_profile)],1)		#get downwind location (index)
+    # watPM_profile = np.array([avedict['w'][ni,i] for ni, i in enumerate(PMmax_idx)])	#get the profiles
+    #
+    # tmax_profile = np.nanmax(avedict['temp'],1)
+    # tmax_profile[np.isnan(PMmax_profile)] = np.nan
+    # tmax_idx = np.nanargmax(avedict['temp'][np.isfinite(tmax_profile)],1)
+    # watt_profile = np.array([avedict['w'][ni,i] for ni, i in enumerate(tmax_idx)])
+    # t_at_wmax = np.array([avedict['temp'][ni,i] for ni, i in enumerate(wmax_idx)])
 
-    wave_plume = avedict['w'].copy()
-    wave_plume[avedict['pm25']<top_threshold] = np.nan 		#mask where there is no plume
-    wmax_profile = np.nanmax(wave_plume,1) 		#get the profiles
-    wmax_idx = np.nanargmax(wave_plume[np.isfinite(wmax_profile)],1)		#get downwind location (index)
-    watPM_profile = np.array([avedict['w'][ni,i] for ni, i in enumerate(PMmax_idx)])	#get the profiles
+    # #get plume tilt through linear regression of max concentration values
+    # tilt = np.poly1d(np.polyfit(PMmax_idx,plume.lvl[np.isfinite(PMmax_profile)],1))
 
-    tmax_profile = np.nanmax(avedict['temp'],1)
-    tmax_profile[np.isnan(PMmax_profile)] = np.nan
-    tmax_idx = np.nanargmax(avedict['temp'][np.isfinite(tmax_profile)],1)
-    watt_profile = np.array([avedict['w'][ni,i] for ni, i in enumerate(tmax_idx)])
-    t_at_wmax = np.array([avedict['temp'][ni,i] for ni, i in enumerate(wmax_idx)])
-
-    #get plume tilt through linear regression of max concentration values
-    tilt = np.poly1d(np.polyfit(PMmax_idx,plume.lvl[np.isfinite(PMmax_profile)],1))
-
-    #create a vertical slize based at a single downwind location of maximum plume rise
-    sliceLoc = wmax_idx[-1]
-    PMslicewtop = avedict['pm25'][:,sliceLoc]
-    PMprofiles[nCase,:] = PMslicewtop
+    # #create a vertical slize based at a single downwind location of maximum plume rise
+    # sliceLoc = wmax_idx[-1]
+    # PMslicewtop = avedict['pm25'][:,sliceLoc]
+    # PMprofiles[nCase,:] = PMslicewtop
 
     #look at what happens with temperature structure----------------------
     #load initial temperature profileT
@@ -118,13 +120,6 @@ for nCase,Case in enumerate(RunList):
     else:
         T0[nCase] = avedict['temp'][:,0]
 
-    # #calculate temeperature excess(option1)
-    # excessT = t_at_wmax-T0[:len(wmax_idx)]
-    # exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
-
-    # # calculate temeprature excess (option 2)
-    # excessT = tmax_profile[:len(wmax_idx)]-T0[nCase][:len(wmax_idx)]
-    # exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
 
     #BL characteristics -------------------------------------------------
     # U = np.nanmean(avedict['u'][3:,0]) 	#exclude bottom three layers due to friction  #based on mean wind
@@ -147,15 +142,15 @@ for nCase,Case in enumerate(RunList):
     parcelHeat[nCase] = sum(kinI * plume.dx) / BLdict['Ua'][nCase]
 
     #store data
-    plumeTilt[nCase] = tilt.c[0]
+    plumeTilt[nCase] = tilt
     fireWidth[nCase] = len(ignited)
-    plume_tops[nCase] = plume.lvl[len(wmax_idx)-1]
+    plume_tops[nCase] = plume.lvl[ymax]
     print('Plume top: %d m' %plume_tops[nCase])
 
 
     #estimate atmospheric heating and cumT --------------------------------
     #get cumulative T based on  delT
-    delTplume = T0[nCase][int(si+1):len(wmax_idx)]-T0[nCase][si:len(wmax_idx)-1]
+    delTplume = T0[nCase][int(si+1):ymax]-T0[nCase][si:ymax-1]
     cumT[nCase] = np.sum(delTplume * plume.dz)
 
     # #get invCumT
@@ -170,75 +165,75 @@ for nCase,Case in enumerate(RunList):
     # A[nCase] = g* parcelHeat[nCase]/ (zi*Ti[nCase])           #some sort of non-dimensional variable
     #===========================plotting===========================
 
-    maxPM = int(np.max(avedict['pm25']))
-    # pmLevels = np.arange(maxPM*0.001,maxPM/2.,maxPM/10.)
-    uLevels = np.arange(int(BLdict['Ua'][nCase]) - 5, int(BLdict['Ua'][nCase])+5, 1)
+    # maxPM = int(np.max(avedict['pm25']))
+    # # pmLevels = np.arange(maxPM*0.001,maxPM/2.,maxPM/10.)
+    # uLevels = np.arange(int(BLdict['Ua'][nCase]) - 5, int(BLdict['Ua'][nCase])+5, 1)
     dimZ, dimX = np.shape(avedict['w'])
-    #vertical concentration slice at donwind locations of wmax and qmax
-    plt.figure(figsize=(12,12))
-    plt.suptitle('%s' %Case)
-    plt.subplot(2,2,1)
-    plt.title('PROFILES OF VERTICAL VELOCITY ALONG W and PM MAXIMA')
-    plt.plot(wmax_profile,plume.lvl,'.-',label='$w_{max}$')
-    plt.plot(watPM_profile,plume.lvl[np.isfinite(PMmax_profile)],'k.-',label='$w_{qmax}$')
-    # plt.axvline(x = Wf, ls='-.', c ='red', label='Wf (fire characteristic velocity)')
-    plt.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
-    plt.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    plt.axhline(y=plume_tops[nCase],ls='--', c='red',label='derived plume top')
-    # plt.plot(watt_profile,plume.lvl[np.isfinite(tmax_profile)],'r.-',label='$w_{tmax}$')
-    plt.xlabel('velocity [m/s]')
-    plt.ylabel('height [m]')
-    plt.legend()
-    plt.ylim([0,plume.lvl[-1]])
-
-    plt.subplot(2,2,2)
-    plt.title('HORIZONTAL LOCATION OF EXTREMA')
-    plt.plot(wmax_idx,plume.lvl[np.isfinite(wmax_profile)],'.-',label='$w_{max}$')
-    plt.plot(PMmax_idx,plume.lvl[np.isfinite(PMmax_profile)],'k.--',label='$q_{max}$')
-    # plt.plot(tmax_idx,plume.lvl[np.isfinite(tmax_profile)],'r.--',label='$t_{max}$')
-    plt.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
-    plt.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    plt.axhline(y=plume_tops[nCase],ls='--', c='red',label='derived plume top')
-    plt.plot(PMmax_idx, tilt(PMmax_idx))
-    plt.xlabel('x distance [m]')
-    ax = plt.gca()
-    ax.set_xticks(np.arange(0,120,20))
-    ax.set_xticklabels(np.arange(0,120,20)*40)
-    plt.ylabel('height [m]')
-    plt.ylim([0,plume.lvl[-1]])
-    plt.legend()
-
-    plt.subplot(2,2,3)
-    plt.title('PM CONCENTRATION DOWNWIND (SLICE)')
-    plt.plot(PMslicewtop, plume.lvl, 'g.--', label='concentration based on $w_{top}$')
-    plt.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
-    plt.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    plt.axhline(y=plume_tops[nCase],ls='--', c='red',label='derived plume top')
-    plt.xlabel('PM2.5 concentration [ug/kg]')
-    plt.ylabel('height [m]')
-    plt.ylim([0,plume.lvl[-1]])
-    plt.legend()
-
-    plt.subplot(2,2,4)
-    plt.title('PLUME vs AMBIENT TEMPERATURE')
-    plt.plot(T0[nCase], plume.lvl, label='pre-ignition profile',c='lightblue')
-    plt.plot(t_at_wmax,plume.lvl[:len(wmax_idx)],c = 'orange',label='in-plume temperature')
-    plt.plot(avedict['temp'][:len(wmax_idx),0],plume.lvl[:len(wmax_idx)],label='ambient temperature')
-    plt.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
-    plt.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    plt.axhline(y=plume_tops[nCase],ls='--', c='red',label='derived plume top')
-    plt.xlabel('temperature [K]')
-    plt.ylabel('height [m]')
-    plt.legend()
-    plt.ylim([0,plume.lvl[-1]])
-    plt.xlim([285,330])
-    # plt.show()
-    plt.savefig(plume.figdir + 'profiles/profiles_%s.pdf' %Case)
-    plt.close()
+    # #vertical concentration slice at donwind locations of wmax and qmax
+    # plt.figure(figsize=(12,12))
+    # plt.suptitle('%s' %Case)
+    # plt.subplot(2,2,1)
+    # plt.title('PROFILES OF VERTICAL VELOCITY ALONG W and PM MAXIMA')
+    # plt.plot(wmax_profile,plume.lvl,'.-',label='$w_{max}$')
+    # plt.plot(watPM_profile,plume.lvl[np.isfinite(PMmax_profile)],'k.-',label='$w_{qmax}$')
+    # # plt.axvline(x = Wf, ls='-.', c ='red', label='Wf (fire characteristic velocity)')
+    # plt.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
+    # plt.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
+    # plt.axhline(y=plume_tops[nCase],ls='--', c='red',label='derived plume top')
+    # # plt.plot(watt_profile,plume.lvl[np.isfinite(tmax_profile)],'r.-',label='$w_{tmax}$')
+    # plt.xlabel('velocity [m/s]')
+    # plt.ylabel('height [m]')
+    # plt.legend()
+    # plt.ylim([0,plume.lvl[-1]])
+    #
+    # plt.subplot(2,2,2)
+    # plt.title('HORIZONTAL LOCATION OF EXTREMA')
+    # plt.plot(wmax_idx,plume.lvl[np.isfinite(wmax_profile)],'.-',label='$w_{max}$')
+    # plt.plot(PMmax_idx,plume.lvl[np.isfinite(PMmax_profile)],'k.--',label='$q_{max}$')
+    # # plt.plot(tmax_idx,plume.lvl[np.isfinite(tmax_profile)],'r.--',label='$t_{max}$')
+    # plt.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
+    # plt.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
+    # plt.axhline(y=plume_tops[nCase],ls='--', c='red',label='derived plume top')
+    # plt.plot(PMmax_idx, tilt(PMmax_idx))
+    # plt.xlabel('x distance [m]')
+    # ax = plt.gca()
+    # ax.set_xticks(np.arange(0,120,20))
+    # ax.set_xticklabels(np.arange(0,120,20)*40)
+    # plt.ylabel('height [m]')
+    # plt.ylim([0,plume.lvl[-1]])
+    # plt.legend()
+    #
+    # plt.subplot(2,2,3)
+    # plt.title('PM CONCENTRATION DOWNWIND (SLICE)')
+    # plt.plot(PMslicewtop, plume.lvl, 'g.--', label='concentration based on $w_{top}$')
+    # plt.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
+    # plt.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
+    # plt.axhline(y=plume_tops[nCase],ls='--', c='red',label='derived plume top')
+    # plt.xlabel('PM2.5 concentration [ug/kg]')
+    # plt.ylabel('height [m]')
+    # plt.ylim([0,plume.lvl[-1]])
+    # plt.legend()
+    #
+    # plt.subplot(2,2,4)
+    # plt.title('PLUME vs AMBIENT TEMPERATURE')
+    # plt.plot(T0[nCase], plume.lvl, label='pre-ignition profile',c='lightblue')
+    # plt.plot(t_at_wmax,plume.lvl[:len(wmax_idx)],c = 'orange',label='in-plume temperature')
+    # plt.plot(avedict['temp'][:len(wmax_idx),0],plume.lvl[:len(wmax_idx)],label='ambient temperature')
+    # plt.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
+    # plt.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
+    # plt.axhline(y=plume_tops[nCase],ls='--', c='red',label='derived plume top')
+    # plt.xlabel('temperature [K]')
+    # plt.ylabel('height [m]')
+    # plt.legend()
+    # plt.ylim([0,plume.lvl[-1]])
+    # plt.xlim([285,330])
+    # # plt.show()
+    # plt.savefig(plume.figdir + 'profiles/profiles_%s.pdf' %Case)
+    # plt.close()
 
     #plot contours
 
-    PMcontours = ma.masked_where(avedict['pm25'] <= maxPM*0.001,avedict['pm25'] )
+    PMcontours = ma.masked_where(avedict['pm25'] <= 50,avedict['pm25'] )
     fig = plt.figure(figsize=(18,6))
     plt.suptitle('%s' %Case)
     plt.subplot(1,3,1)
@@ -254,7 +249,7 @@ for nCase,Case in enumerate(RunList):
     ax1.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
     ax1.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
     ax1.axhline(y=plume_tops[nCase],ls='--', c='black',label='derived plume top')
-    ax1.axvline(x = sliceLoc*plume.dx, ls=':',c='black',label='location of concentration profile')
+    ax1.axvline(x = xmax*plume.dx, ls=':',c='black',label='location of concentration profile')
     ax1.legend()
     # ---non-filled pm contours and colorbar
     cntr = ax1.contour(PMcontours, extent=[0,dimX*plume.dx,0,plume.lvl[-1]],locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=1)
@@ -285,7 +280,7 @@ for nCase,Case in enumerate(RunList):
     ax2.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
     ax2.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
     ax2.axhline(y=plume_tops[nCase],ls='--', c='black',label='derived plume top')
-    ax2.axvline(x = sliceLoc*plume.dx, ls=':',c='black',label='location of concentration profile')
+    ax2.axvline(x = xmax*plume.dx, ls=':',c='black',label='location of concentration profile')
     # ---non-filled vapor contours and colorbar
     cntr = ax2.contour(PMcontours, extent=[0,dimX*plume.dx,0,plume.lvl[-1]], locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=1)
     # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
@@ -313,7 +308,7 @@ for nCase,Case in enumerate(RunList):
     ax3.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
     ax3.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
     ax3.axhline(y=plume_tops[nCase],ls='--', c='black',label='derived plume top')
-    ax3.axvline(x = sliceLoc*plume.dx, ls=':',c='black',label='location of concentration profile')
+    ax3.axvline(x = xmax*plume.dx, ls=':',c='black',label='location of concentration profile')
     # ---non-filled vapor contours and colorbar
     cntr = ax3.contour(PMcontours, extent=[0,dimX*plume.dx,0,plume.lvl[-1]], locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=1)
     # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
@@ -331,7 +326,7 @@ for nCase,Case in enumerate(RunList):
     plt.subplots_adjust(top=0.85)
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.savefig(plume.figdir + 'averages/ave%s' %Case)
-    print('.....-->saved in: %s' %(plume.figdir + 'averages/ave%s' %Case))
+    print('.....-->saved in: %s' %(plume.figdir + 'minima/min%s' %Case))
     plt.close()
 
 #---------------------calculations over all plumes--------------

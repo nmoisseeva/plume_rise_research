@@ -14,7 +14,7 @@ lvl = np.arange(0,2800,dz)	 	#vertical levels in m
 dx = 40.                        #horizontal grid spacing
 
 cs = 10                         #+/- grids for cross-section
-wi, wf = 10, 65
+wi, wf = 20, 130
 
 
 # dirlist = os.listdir(wrfdir+'interp/') 	#get all files in directory

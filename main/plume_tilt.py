@@ -117,7 +117,7 @@ for nCase,Case in enumerate(RunList):
     # exT[nCase] = np.sum(excessT[excessT>0]) * plume.dz
 
     #BL characteristics -------------------------------------------------
-    # U = np.nanmean(avedict['u'][3:,0]) 	#exclude bottom three layers due to friction  #based on mean wind
+    # BLdict['Ua'][nCase] = np.nanmean(avedict['u'][3:,0]) 	#exclude bottom three layers due to friction  #based on mean wind
     BLdict['Ua'][nCase] = avedict['u'][2,0]
     print('Wind speed near ground: %.1f m/s' %(BLdict['Ua'][nCase]))
 
