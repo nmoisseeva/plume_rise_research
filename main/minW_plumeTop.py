@@ -81,10 +81,12 @@ for nCase,Case in enumerate(RunList):
 
     WminV = np.nanmin(w,1)
 
+
     tilt = ymax/xmax
 
 
-#
+# IDEA:
+# -plume rize is where the temperature anomaly along the centerline ceases
 # !!!!!!!!! STOPPED HERE!!!!!!!!!!!!!!!!!
     # #extract lcoations of max pm, w, temp ------------------------------
     # PMmax_profile = np.nanmax(avedict['pm25'],1) 	#get max q profile
@@ -253,6 +255,7 @@ for nCase,Case in enumerate(RunList):
     ax1.legend()
     # ---non-filled pm contours and colorbar
     cntr = ax1.contour(PMcontours, extent=[0,dimX*plume.dx,0,plume.lvl[-1]],locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=1)
+    ax1.plot(np.arange(dimX)*plume.dx,plume.lvl[PMmaxVidx],ls='--', c='darkgrey',label='plume centerline' )
     # cntr = ax1.contour(avedict['pm25'], extent=[0,dimX*plume.dx,0,plume.lvl[-1]],locator=ticker.LogLocator(),cmap=plt.cm.Greys,levels=pmLevels,linewidths=1)
     # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
     # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
@@ -283,6 +286,7 @@ for nCase,Case in enumerate(RunList):
     ax2.axvline(x = xmax*plume.dx, ls=':',c='black',label='location of concentration profile')
     # ---non-filled vapor contours and colorbar
     cntr = ax2.contour(PMcontours, extent=[0,dimX*plume.dx,0,plume.lvl[-1]], locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=1)
+    ax2.plot(np.arange(dimX)*plume.dx,plume.lvl[PMmaxVidx],ls='--', c='darkgrey' )
     # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
     # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
     # cbar.set_label('PM2.5 mixing ratio $[ug/kg]$',size=8)
@@ -311,6 +315,7 @@ for nCase,Case in enumerate(RunList):
     ax3.axvline(x = xmax*plume.dx, ls=':',c='black',label='location of concentration profile')
     # ---non-filled vapor contours and colorbar
     cntr = ax3.contour(PMcontours, extent=[0,dimX*plume.dx,0,plume.lvl[-1]], locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=1)
+    ax3.plot(np.arange(dimX)*plume.dx,plume.lvl[PMmaxVidx],ls='--', c='darkgrey' )
     # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
     # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
     # cbar.set_label('PM2.5 mixing ratio $[ug/kg]$',size=8)
@@ -322,6 +327,7 @@ for nCase,Case in enumerate(RunList):
     axh3.set_ylim([0,150])
     axh3.tick_params(axis='y', colors='red')
     axh3.set_xlim([0,dimX*plume.dx])
+
 
     plt.subplots_adjust(top=0.85)
     plt.tight_layout(rect=[0, 0, 1, 0.95])
