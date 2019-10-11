@@ -40,7 +40,7 @@ profile_dict['meta'] = 'wmin: profiles of minimum velocity; \
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
 runCnt = len(RunList)
 
-plume_tops = np.empty(runCnt) * np.nan
+plume_inj = np.empty(runCnt) * np.nan
 cumT = np.empty(runCnt)* np.nan
 inv_cumT = np.empty(runCnt) * np.nan
 plumeTilt = np.empty(runCnt)* np.nan
@@ -73,14 +73,12 @@ for nCase,Case in enumerate(RunList):
         firelineTest.append(nCase)
 
     #mask plume as being at last 50ppm---------------------------------
-    pm = ma.masked_where(avedict['pm25'] <= 50, avedict['pm25'] )
-    w = ma.masked_where(avedict['pm25'] <= 50, avedict['w'] )
+    pm = ma.masked_where(avedict['pm25'] <= 30, avedict['pm25'] )
+    w = ma.masked_where(avedict['pm25'] <= 30, avedict['w'] )
 
-
-    #find out where pm max in horizontal changes to pm max in vertical - see if it coincides
-    PMmaxVidx = np.nanargmax(pm,0)
+    PMmaxVidx = pm.argmax(0)
     xmax,ymax = np.nanargmax(PMmaxVidx), np.nanmax(PMmaxVidx)
-
+    centerline = ma.masked_where(plume.lvl[PMmaxVidx] == 0, plume.lvl[PMmaxVidx])
     tilt = ymax/xmax
 
     if preIgnT:
@@ -90,19 +88,23 @@ for nCase,Case in enumerate(RunList):
         T0[nCase] = avedict['temp'][:,0]
 
     #charatertistics of plume temperature anomalyies---------------------
-    diffT = ma.masked_where(avedict['pm25'] <= 50, (avedict['temp'].T-T0[nCase]).T)           #get temperature anomaly
+    diffT = ma.masked_where(avedict['pm25'] <= 30, (avedict['temp'].T-T0[nCase]).T)           #get temperature anomaly
     Tctr = np.array([diffT[i,ni] for ni, i in enumerate(PMmaxVidx)])
-    # plt.plot(Tctr)
-    # plt.axhline(y=0)
-    # plt.savefig(plume.figdir + '/temp/%s.pdf' %Case)
-    # plt.close()
-
-    #charatertistics of vertical velocity along centerline---------------------
     Wctr = np.array([w[i,ni] for ni, i in enumerate(PMmaxVidx)])
-    plt.plot(Wctr)
-    plt.axhline(y=0)
-    plt.savefig(plume.figdir + '/temp/w%s.pdf' %Case)
-    plt.close()
+    Uctr = np.array([avedict['u'][i,ni] for ni, i in enumerate(PMmaxVidx)])
+
+    #based slice location on temperature anomaly
+
+    intXnan = np.argwhere(np.diff(np.sign(Tctr))).flatten()             #find where the interesepts are
+    intX = intXnan[np.isfinite(Tctr[intXnan])]                          #get only the values in the plume
+    intX = intX[intX > plume.wi]                                        #get rid of everything ahead of fireline
+    intX = intX[PMmaxVidx[intX] > 0]                                    #remove any near-surface kinks
+    if len(intX) < 2:
+        sliceX = np.nanargmin(Wctr[plume.wi:]) + plume.wi
+    else:
+        sliceX = intX[1]
+    sliceZ = PMmaxVidx[sliceX]
+
 
     #BL characteristics -------------------------------------------------
     # U = np.nanmean(avedict['u'][3:,0]) 	#exclude bottom three layers due to friction  #based on mean wind
@@ -127,13 +129,13 @@ for nCase,Case in enumerate(RunList):
     #store data
     plumeTilt[nCase] = tilt
     fireWidth[nCase] = len(ignited)
-    plume_tops[nCase] = plume.lvl[ymax]
-    print('Plume top: %d m' %plume_tops[nCase])
+    plume_inj[nCase] = plume.lvl[sliceZ]
+    print('Plume top: %d m' %plume_inj[nCase])
 
 
     #estimate atmospheric heating and cumT --------------------------------
     #get cumulative T based on  delT
-    delTplume = T0[nCase][int(si+1):ymax]-T0[nCase][si:ymax-1]
+    delTplume = T0[nCase][int(si+1):sliceZ]-T0[nCase][si:sliceZ-1]
     cumT[nCase] = np.sum(delTplume * plume.dz)
 
     # #get invCumT
@@ -153,7 +155,7 @@ for nCase,Case in enumerate(RunList):
 
 
     #plot contours
-    PMcontours = ma.masked_where(avedict['pm25'] <= 50,avedict['pm25'] )
+    PMcontours = ma.masked_where(avedict['pm25'] <= 30,avedict['pm25'] )
     fig = plt.figure(figsize=(18,10))
     plt.suptitle('%s' %Case)
     gs = fig.add_gridspec(ncols=3, nrows=2,height_ratios=[3,1])
@@ -170,12 +172,12 @@ for nCase,Case in enumerate(RunList):
     ax1.set_ylabel('height AGL [m]')
     ax1.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
     ax1.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    ax1.axhline(y=plume_tops[nCase],ls='--', c='black',label='derived plume top')
-    ax1.axvline(x = xmax*plume.dx, ls=':',c='black',label='location of concentration profile')
+    ax1.axhline(y=plume_inj[nCase],ls='--', c='black',label='derived plume top')
+    ax1.axvline(x = sliceX*plume.dx, ls=':',c='black',label='location of concentration profile')
     ax1.legend()
     # ---non-filled pm contours and colorbar
     cntr = ax1.contour(PMcontours, extent=[0,haxis[-1],0,plume.lvl[-1]],locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=1)
-    ax1.plot(haxis,plume.lvl[PMmaxVidx],ls='--', c='darkgrey',label='plume centerline' )
+    ax1.plot(haxis,centerline,ls='--', c='darkgrey',label='plume centerline' )
     # ---heat flux
     axh1 = ax1.twinx()
     axh1.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
@@ -198,11 +200,11 @@ for nCase,Case in enumerate(RunList):
     ax2.set_ylabel('height AGL [m]')
     ax2.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
     ax2.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    ax2.axhline(y=plume_tops[nCase],ls='--', c='black',label='derived plume top')
-    ax2.axvline(x = xmax*plume.dx, ls=':',c='black',label='location of concentration profile')
+    ax2.axhline(y=plume_inj[nCase],ls='--', c='black',label='derived plume top')
+    ax2.axvline(x = sliceX*plume.dx, ls=':',c='black',label='location of concentration profile')
     # ---non-filled vapor contours and colorbar
     cntr = ax2.contour(PMcontours, extent=[0,dimX*plume.dx,0,plume.lvl[-1]], locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=1)
-    ax2.plot(np.arange(dimX)*plume.dx,plume.lvl[PMmaxVidx],ls='--', c='darkgrey' )
+    ax2.plot(np.arange(dimX)*plume.dx,centerline,ls='--', c='darkgrey' )
     # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
     # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
     # cbar.set_label('PM2.5 mixing ratio $[ug/kg]$',size=8)
@@ -227,11 +229,11 @@ for nCase,Case in enumerate(RunList):
     ax3.set_ylabel('height AGL [m]')
     ax3.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
     ax3.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    ax3.axhline(y=plume_tops[nCase],ls='--', c='black',label='derived plume top')
-    ax3.axvline(x = xmax*plume.dx, ls=':',c='black',label='location of concentration profile')
+    ax3.axhline(y=plume_inj[nCase],ls='--', c='black',label='derived plume top')
+    ax3.axvline(x = sliceX*plume.dx, ls=':',c='black',label='location of concentration profile')
     # ---non-filled vapor contours and colorbar
     cntr = ax3.contour(PMcontours, extent=[0,dimX*plume.dx,0,plume.lvl[-1]], locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=1)
-    ax3.plot(np.arange(dimX)*plume.dx,plume.lvl[PMmaxVidx],ls='--', c='darkgrey' )
+    ax3.plot(np.arange(dimX)*plume.dx,centerline,ls='--', c='darkgrey' )
     # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
     # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
     # cbar.set_label('PM2.5 mixing ratio $[ug/kg]$',size=8)
@@ -247,19 +249,25 @@ for nCase,Case in enumerate(RunList):
 
     ax4 = fig.add_subplot(gs[1,0])
     ax4.plot(haxis, Wctr)
-    ax4.axhline(y=0)
+    ax4.axhline(y=0, color='black')
+    ax4.axvline(x = sliceX*plume.dx, ls=':',c='black',label='location of concentration profile')
+    ax4.set_xlim([0,haxis[-1]])
     plt.xlabel('horizontal distance [m]')
     plt.ylabel('$w_{ctr}$ [m/s]')
 
     ax5 = fig.add_subplot(gs[1,1])
-    ax5.plot(haxis, Wctr)
-    ax5.axhline(y=0)
+    ax5.plot(haxis, Uctr)
+    ax5.axhline(y=plume.read_tag('W',RunList)[nCase], color='black')
+    ax5.axvline(x = sliceX*plume.dx, ls=':',c='black',label='location of concentration profile')
+    ax5.set_xlim([0,haxis[-1]])
     plt.xlabel('horizontal distance [m]')
     plt.ylabel('$w_{ctr}$ [m/s]')
 
     ax6 = fig.add_subplot(gs[1,2])
     ax6.plot(haxis, Tctr)
-    ax6.axhline(y=0)
+    ax6.axhline(y=0, color='black')
+    ax6.axvline(x = sliceX*plume.dx, ls=':',c='black',label='location of concentration profile')
+    ax6.set_xlim([0,haxis[-1]])
     plt.xlabel('horizontal distance [m]')
     plt.ylabel('$T_{ctr}$ anomaly [K]')
 
@@ -361,14 +369,14 @@ for nCase,Case in enumerate(RunList):
 # # for nCase,Case in enumerate(RunList):
 # #     plt.subplot(1,2,2)
 # #     plt.title('NORMALIZED VERTICAL Q/Qmax PROFILES')
-# #     plt.plot(Qprofiles[nCase,:]/(np.max(Qprofiles[nCase,:])),plume.lvl/plume_tops[nCase],c=clr[nCase] )
+# #     plt.plot(Qprofiles[nCase,:]/(np.max(Qprofiles[nCase,:])),plume.lvl/plume_inj[nCase],c=clr[nCase] )
 # #     plt.ylabel('normalized height')
 # #     plt.xlabel('normalized $H_2O$ profile ')
 # #     # plt.colorbar(label='fireline intensity ')
 # #     plt.ylim([0,2])
 # #     plt.subplot(1,2,1)
 # #     plt.title('NORMALIZED VERTICAL Q/Umean PROFILES')
-# #     plt.plot(Qprofiles[nCase,:]/Ua[nCase],plume.lvl/plume_tops[nCase], c=clr[nCase] )
+# #     plt.plot(Qprofiles[nCase,:]/Ua[nCase],plume.lvl/plume_inj[nCase], c=clr[nCase] )
 # #     plt.ylabel('normalized height')
 # #     plt.xlabel('normalized $H_2O$ profile [g s / kg m]')
 # #     plt.ylim([0,2])
@@ -385,14 +393,14 @@ for nCase,Case in enumerate(RunList):
 # # for nCase,Case in enumerate(RunList):
 # #     plt.subplot(1,2,2)
 # #     plt.title('NORMALIZED VERTICAL Q/Qmax PROFILES')
-# #     plt.plot(Qprofiles[nCase,:]/(np.max(Qprofiles[nCase,:])),plume.lvl/plume_tops[nCase],c=clr[nCase] )
+# #     plt.plot(Qprofiles[nCase,:]/(np.max(Qprofiles[nCase,:])),plume.lvl/plume_inj[nCase],c=clr[nCase] )
 # #     plt.ylabel('normalized height')
 # #     plt.xlabel('normalized $H_2O$ profile ')
 # #     # plt.colorbar(label='fireline intensity ')
 # #     plt.ylim([0,2])
 # #     plt.subplot(1,2,1)
 # #     plt.title('NORMALIZED VERTICAL Q/Umean PROFILES')
-# #     plt.plot(Qprofiles[nCase,:]/Ua[nCase],plume.lvl/plume_tops[nCase], c=clr[nCase] )
+# #     plt.plot(Qprofiles[nCase,:]/Ua[nCase],plume.lvl/plume_inj[nCase], c=clr[nCase] )
 # #     plt.ylabel('normalized height')
 # #     plt.xlabel('normalized $H_2O$ profile [g s / kg m]')
 # #     plt.ylim([0,2])

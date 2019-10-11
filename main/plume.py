@@ -13,8 +13,8 @@ dz = 40
 lvl = np.arange(0,2800,dz)	 	#vertical levels in m
 dx = 40.                        #horizontal grid spacing
 
-cs = 10                         #+/- grids for cross-section
-wi, wf = 20, 130
+cs = 20                         #+/- grids for cross-section
+wi, wf = 20, 330
 
 
 # dirlist = os.listdir(wrfdir+'interp/') 	#get all files in directory
@@ -23,8 +23,8 @@ dirlist = glob.glob(dirpath) #get all  interp files in directory
 tag = [i[len(dirpath)-1:-4] for i in dirlist]    #W*S*F*R0
 # tag = ['W8S400F7R0']
 
-#exclude list (low wind speeds, F1, F4 (too hot), too high, randomly low, not sure)
-exclude_runs = []
+#exclude list (F1, F8?,F9?)
+exclude_runs = ['W5F1R0','W5F1R1','W5F1R2','W5F1R3','W5F1R4','W5F8R0','W5F8R1','W5F8R2','W5F8R3','W5F8R4','W5F9R0','W5F9R1','W5F9R2','W5F9R3','W5F9R4']
 fireline_runs = ['W5F7R2','W5F7R2L2','W5F7R2L3','W5F7R2L410km']
 
 #common functions
