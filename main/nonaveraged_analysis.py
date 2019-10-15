@@ -170,3 +170,65 @@ for nCase,Case in enumerate(plume.tag):
         ani.save(plume.figdir + 'anim/w/w%s.mp4' %Case, writer='ffmpeg',fps=10, dpi=250)
         plt.close()
         print('.....saved in: %s' %(plume.figdir + 'anim/w/w%s.mp4' %Case))
+
+        #
+        # #create an animation of temperature anomaly velocity---------------------------------------------
+        # print('.....creating vertical crossection of delT + PM2.5 animation')
+        # fig = plt.figure(figsize=(8,6))
+        # ax = plt.gca()
+        # ax.set_title('TEMPERATURE ANOMALY: %s' %Case)
+        # maxT = int(np.max(csdict['temp']))
+        # maxPM = int(np.max(csdict['pm25']))
+        # uLevels = np.arange(-maxT,maxT+.1,maxT/20.)
+        # pmLevels = np.arange(maxPM*0.05,maxPM,maxPM/40.)
+        # # create initial frame
+        # # ---T contours and colorbar
+        # cntrf = ax.contourf(csdict['u'][0,:,:], cmap=plt.cm.Spectral_r,levels=uLevels,extend='both')
+        # cbarf = fig.colorbar(cntrf, orientation='horizontal',fraction=0.046, pad=0.1)
+        # cbarf.set_label('horizontal velocity $[m s^{-1}]$')
+        # ax.set_xlabel('horizontal distance [km]')
+        # ax.set_ylabel('height AGL [m]')
+        # ax.set_xlim([0,dimX])
+        # # ---non-filled vapor contours and colorbar
+        # # cntr = ax.contour(csdict['pm25'][0,:,:], cmap=plt.cm.Greys,levels=np.arange(0,2.1,0.3),linewidths=2)
+        # cntr = ax.contour(csdict['pm25'][0,:,:], cmap=plt.cm.Greys,linewidths=2)
+        #
+        # #
+        # # ---heat flux
+        # axh = ax.twinx()
+        # axh.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+        # axh.set_ylim([0,140])
+        # axh.set_xlim([0,dimX])
+        # axh.set_xticks(np.arange(0,dimX,int(dimX/10)))
+        # axh.set_xticklabels((np.arange(0,dimX,int(dimX/10))*plume.dx/1000).astype(int))
+        # axh.tick_params(axis='y', colors='red')
+        # ln = axh.plot(csdict['ghfx'][0,:], 'r-')
+        # # fig.tight_layout()
+        #
+        #
+        # def update_plot(n,csdict,cntrf,cntr):
+        #     ax.clear()
+        #     ax.set_title('HORIZONTAL VELOCITY CONVERGENCE: %s' %Case)
+        #     cntrf = ax.contourf(csdict['u'][n,:,:],cmap=plt.cm.Spectral_r, levels=uLevels,extend='both')
+        #     cntr = ax.contour(csdict['pm25'][n,:,:], cmap=plt.cm.Greys,levels=pmLevels,linewidths=0.6)
+        #     ax.set_xlabel('horizontal distance [km]')
+        #     ax.set_ylabel('height AGL [m]')
+        #     ax.set_yticks(np.arange(0,len(plume.lvl),10))
+        #     ax.set_yticklabels(plume.lvl[::10])
+        #     axh.clear()
+        #     axh.set_ylim([0,140])
+        #     axh.set_xlim([0,dimX])
+        #     axh.set_xticks(np.arange(0,dimX,int(dimX/10)))
+        #     axh.set_xticklabels((np.arange(0,dimX,int(dimX/10))*plume.dx/1000).astype(int))
+        #     ln = axh.plot(csdict['ghfx'][n,:], 'r-')
+        #     axh.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+        #     # fig   .tight_layout()
+        #
+        #     return cntrf, ln, cntr,
+        #
+        # #plot all frames
+        # ani=animation.FuncAnimation(fig, update_plot, dimT, fargs=(csdict,cntrf,cntr), interval=3)
+        # # plt.show()
+        # ani.save(plume.figdir + 'anim/u/u%s.mp4' %Case, writer='ffmpeg',fps=10, dpi=250)
+        # plt.close()
+        # print('.....saved in: %s' %(plume.figdir + 'anim/u/u%s.mp4' %Case))
