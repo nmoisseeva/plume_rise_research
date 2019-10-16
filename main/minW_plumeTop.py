@@ -45,14 +45,17 @@ cumT = np.empty(runCnt)* np.nan
 inv_cumT = np.empty(runCnt) * np.nan
 plumeTilt = np.empty(runCnt)* np.nan
 fireWidth = np.empty((runCnt))* np.nan
+kinI = np.empty((runCnt))* np.nan
 parcelHeat = np.empty(runCnt)* np.nan
 T0 = np.empty((runCnt,len(plume.lvl))) * np.nan
+U0 = np.empty((runCnt,len(plume.lvl))) * np.nan
 PMprofiles = np.empty((runCnt,len(plume.lvl)))* np.nan
 firelineTest = []
 
 BLdict = {'Ua':np.empty(runCnt) * np.nan, \
             'Ti':np.empty(runCnt) * np.nan,\
-            'zi': np.empty(runCnt)* np.nan}
+            'zi': np.empty(runCnt)* np.nan,\
+            'inversion': np.empty((runCnt))* np.nan}
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -79,13 +82,15 @@ for nCase,Case in enumerate(RunList):
     PMmaxVidx = pm.argmax(0)
     xmax,ymax = np.nanargmax(PMmaxVidx), np.nanmax(PMmaxVidx)
     centerline = ma.masked_where(plume.lvl[PMmaxVidx] == 0, plume.lvl[PMmaxVidx])
-    tilt = ymax/xmax
+    tilt = ymax/xmax                #tilt is calculated based on max centerline height, not injection height!
 
     if preIgnT:
         profpath = plume.wrfdir + 'interp/profT0' + Case + '.npy'
         T0[nCase] = np.load(profpath)
     else:
         T0[nCase] = avedict['temp'][:,0]
+
+    U0[nCase] = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
 
     #charatertistics of plume temperature anomalyies---------------------
     diffT = ma.masked_where(avedict['pm25'] <= 30, (avedict['temp'].T-T0[nCase]).T)           #get temperature anomaly
@@ -107,24 +112,30 @@ for nCase,Case in enumerate(RunList):
 
 
     #BL characteristics -------------------------------------------------
-    # U = np.nanmean(avedict['u'][3:,0]) 	#exclude bottom three layers due to friction  #based on mean wind
-    BLdict['Ua'][nCase] = avedict['u'][2,0]
-    print('Wind speed near ground: %.1f m/s' %(BLdict['Ua'][nCase]))
+
 
     dT = T0[nCase][1:]-T0[nCase][0:-1]
     gradT = dT[1:] - dT[0:-1]
     si = 2
     BLdict['Ti'][nCase] = T0[nCase][si+1]              #characteristic BL temperature
-    BLdict['zi'][nCase] = plume.dz * (np.argmax(gradT[si:]) + si)
+    zi_idx = np.argmax(gradT[si:]) + si                 #vertical level index of BL top
+    BLdict['inversion'][nCase] = np.mean(dT[zi_idx:zi_idx+20])/plume.dz
+    BLdict['zi'][nCase] = plume.dz * zi_idx
 
+    # U = np.nanmean(avedict['u'][3:,0]) 	#exclude bottom three layers due to friction  #based on mean wind
+    BLdict['Ua'][nCase] = np.mean(U0[nCase][2])
+    # BLdict['Ua'][nCase] = np.mean(U0[nCase][3:zi_idx])
+    # BLdict['Ua'][nCase] = avedict['u'][2,0]
+    print('Wind speed near ground: %.1f m/s' %(BLdict['Ua'][nCase]))
     #fire behavior ------------------------------------------------------
 
     # #calculate total flux from ground and fire
     ignited = np.array([i for i in avedict['ghfx'] if i > 2])
 
     #convert to kinematic heat flux (from kW/m2)
-    kinI = ignited * 1000/(1.2 * 1005)
-    parcelHeat[nCase] = sum(kinI * plume.dx) / BLdict['Ua'][nCase]
+    I = ignited * 1000/(1.2 * 1005)
+    kinI[nCase] = sum(I)
+    parcelHeat[nCase] =kinI[nCase] * plume.dx / BLdict['Ua'][nCase]
 
     #store data
     plumeTilt[nCase] = tilt
@@ -193,7 +204,8 @@ for nCase,Case in enumerate(RunList):
     plt.title('Time-averaged U')
     # ax2 = plt.gca()
     # ---u contours and colorbar
-    im = ax2.imshow(avedict['u'], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.RdBu_r, vmin=BLdict['Ua'][nCase]-5, vmax=BLdict['Ua'][nCase]+5)
+    # im = ax2.imshow((avedict['u'].T-U0[nCase]).T, origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.RdBu_r, vmin=BLdict['Ua'][nCase]-5, vmax=BLdict['Ua'][nCase]+5)
+    im = ax2.imshow((avedict['u'].T-U0[nCase]).T, origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.RdBu_r, vmin=-4, vmax=4)
     ax2.set_aspect('auto')
     cbari =fig.colorbar(im, orientation='horizontal', fraction=0.046, pad=0.1)
     cbari.set_label('horizontal velocity u $[m s^{-2}]$')
@@ -282,6 +294,7 @@ for nCase,Case in enumerate(RunList):
 
 #---------------------calculations over all plumes--------------
 Rtag = np.array([i for i in plume.read_tag('R',RunList)])  #list of initialization rounds (different soundings)
+Ftag = np.array([i for i in plume.read_tag('F',RunList)])
 #WHAT LEVEL TO PICK FOR defining characteristic U
 # print('Variability of normalized intensity for given U level:')
 # print('%d.2' %np.std(parcelHeat))
@@ -292,16 +305,19 @@ plt.figure(figsize=(18,6))
 plt.subplot(1,3,1)
 plt.title('FIRELINE INTENSITY vs TILT')
 ax1 = plt.scatter(parcelHeat,plumeTilt,c=BLdict['Ua'],cmap=plt.cm.viridis)
-plt.xlabel('fireline intensity [kW/m]')
+plt.xlabel('parcel heat [K m]')
 plt.ylabel('plume tilt')
 plt.colorbar(ax1,label='windspeed [m/s]')
 
 plt.subplot(1,3,2)
 plt.title('WIND vs TILT')
-ax2 = plt.scatter(BLdict['Ua'],plumeTilt,c=parcelHeat,cmap=plt.cm.plasma)
-plt.xlabel('mean wind (m/s)')
-plt.ylabel('plume tilt')
-plt.colorbar(ax2, label='fireline intensity [kW/m]')
+ax2 = plt.scatter(BLdict['Ua'],plumeTilt/(kinI/fireWidth),c=BLdict['zi'],cmap=plt.cm.plasma)
+plt.scatter(BLdict['Ua'][firelineTest], plumeTilt[firelineTest]/(kinI[firelineTest]/fireWidth[firelineTest]), c='green',marker='^')
+# ax2 = plt.scatter(BLdict['Ua'],plumeTilt/parcelHeat,c=BLdict['zi'],cmap=plt.cm.plasma)
+
+plt.xlabel('near-surface wind (m/s)')
+plt.ylabel('plume tilt/(kinI/fireWidth) [$m_x \cdot s \cdot K^{-1} \cdot m_z^{-1}$]')
+plt.colorbar(ax2, label='BL height [m]')
 
 plt.subplot(1,3,3)
 plt.title('WIDTH vs TILT')
@@ -313,9 +329,18 @@ plt.colorbar(ax3,label='windspeed [m/s]')
 plt.tight_layout()
 plt.savefig(plume.figdir + 'tilt_subplots.pdf')
 # plt.show()
-plt.close()
+# plt.close()
 
 
+#attempt at characteristic vertical velocity
+c = BLdict['Ua']**(-2.) * BLdict['inversion']**(-1.) * BLdict['zi']**(-1.)
+fromplot=plumeTilt * BLdict['Ua']
+fromtest = c * BLdict['Ua']**(2.) * kinI/fireWidth
+plt.scatter(fromplot,fromtest,c=kinI/fireWidth)
+regV = np.poly1d(np.polyfit(fromplot,fromtest,1))
+plt.xlim([0,10])
+plt.ylim([0,10])
+print(regV)
 #-------------subplots for eatch R run-----------
 plt.figure(figsize=(18,12))
 for R in set(Rtag):
@@ -365,6 +390,11 @@ plt.ylabel('height [m]')
 plt.legend(handles=leg_handles)
 plt.savefig(plume.figdir + 'T0profiles.pdf')
 plt.show()
+
+
+#how to estaimte bounary curvature
+# At each boundary point, we calculate the boundary curvature by fitting a circle to that boundary point and the two points that are 10 boundary points away from it. The magnitude of the boundary curvature is then defined as the reciprocal of the radius of that circle. If the midpoint of the two points 10 boundary points away is inside the cell, the curvature is defined as positive, otherwise it is defined as negative. For visualization, the curvature is smoothed over 3 boundary points and 3 frames, and the color scale is cut off at a maximum curvature magnitude.
+#tracting boundaries: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3305346/
 
 # plt.figure(figsize=(12,6))
 # clr = plt.cm.plasma(plt.Normalize()(parcelHeat))

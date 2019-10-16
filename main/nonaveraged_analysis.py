@@ -29,10 +29,14 @@ for nCase,Case in enumerate(plume.tag):
     dimT, dimZ, dimX = np.shape(csdict['temp'])
 
     #save initial temperature prfile
-    profpath = plume.wrfdir + 'interp/profT0' + Case + '.npy'
+    profpathT = plume.wrfdir + 'interp/profT0' + Case + '.npy'
     profileT = np.mean(csdict['temp'][0,:,:],1)
-    np.save(profpath,profileT)
+    np.save(profpathT,profileT)
 
+    #save initial temperature prfile
+    profpathU = plume.wrfdir + 'interp/profU0' + Case + '.npy'
+    profileU = np.mean(csdict['u'][0,:,:],1)
+    np.save(profpathU,profileU)
 
     fig = plt.figure(figsize=(12,6))
     for nTime,Time in enumerate(np.arange(0,dimT,15)):
