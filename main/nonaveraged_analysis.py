@@ -70,7 +70,7 @@ for nCase,Case in enumerate(plume.tag):
         fig = plt.figure(figsize=(10,5))
         gs = fig.add_gridspec(ncols=2, nrows=1,width_ratios=[3,1])
         print('.....creating vertical crossection of U + PM2.5 animation')
-        plt.suptitle('RELATIVE HORIZONTAL VELOCITY CONVERGENCE: %s' %Case)
+        plt.suptitle('RELATIVE HORIZONTAL VELOCITY: %s' %Case)
 
         ax1=fig.add_subplot(gs[0])
         # create initial frame
@@ -141,7 +141,7 @@ for nCase,Case in enumerate(plume.tag):
         gs = fig.add_gridspec(ncols=2, nrows=1,width_ratios=[3,1])
 
         print('.....creating vertical crossection of W + PM2.5 animation')
-        plt.suptitle('RELATIVE HORIZONTAL VELOCITY CONVERGENCE: %s' %Case)
+        plt.suptitle('RELATIVE VERTICAL VELOCITY: %s' %Case)
 
         ax1=fig.add_subplot(gs[0])
         # create initial frame
