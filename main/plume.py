@@ -13,7 +13,7 @@ dz = 40
 lvl = np.arange(0,2800,dz)	 	#vertical levels in m
 dx = 40.                        #horizontal grid spacing
 
-cs = 20                         #+/- grids for cross-section
+cs = 10                         #+/- grids for cross-section
 wi, wf = 20, 230
 
 
