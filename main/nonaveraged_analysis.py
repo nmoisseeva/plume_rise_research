@@ -89,7 +89,7 @@ for nCase,Case in enumerate(plume.tag):
         # ---heat flux
         axh1 = ax1.twinx()
         ln = axh1.plot(np.arange(dimX)*plume.dx, csdict['ghfx'][0,:], 'r-')
-        axh1.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+        axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
         axh1.set_ylim([0,150])
         axh1.set_xlim([0,dimX*plume.dx])
         axh1.tick_params(axis='y', colors='red')
@@ -116,7 +116,7 @@ for nCase,Case in enumerate(plume.tag):
             axh1.set_ylim([0,150])
             axh1.set_xlim([0,dimX*plume.dx])
             ln = axh1.plot(np.arange(dimX)*plume.dx, csdict['ghfx'][n,:], 'r-')
-            axh1.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+            axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
 
             ax2.clear()
             fim = ax2.imshow(csdict['ghfx2D'][n,50:100,0:75],cmap=plt.cm.YlOrRd,extent=[0,3000,2000,4000],vmin=0, vmax = 150)
@@ -160,7 +160,7 @@ for nCase,Case in enumerate(plume.tag):
         # ---heat flux
         axh1 = ax1.twinx()
         ln = axh1.plot(np.arange(dimX)*plume.dx, csdict['ghfx'][0,:], 'r-')
-        axh1.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+        axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
         axh1.set_ylim([0,150])
         axh1.set_xlim([0,dimX*plume.dx])
         axh1.tick_params(axis='y', colors='red')
@@ -187,7 +187,7 @@ for nCase,Case in enumerate(plume.tag):
             axh1.set_ylim([0,150])
             axh1.set_xlim([0,dimX*plume.dx])
             ln = axh1.plot(np.arange(dimX)*plume.dx, csdict['ghfx'][n,:], 'r-')
-            axh1.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+            axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
 
             ax2.clear()
             fim = ax2.imshow(csdict['ghfx2D'][n,50:100,0:75],cmap=plt.cm.YlOrRd,extent=[0,3000,2000,4000],vmin=0, vmax = 150)

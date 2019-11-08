@@ -98,18 +98,64 @@ for nCase,Case in enumerate(RunList):
     si = 3                                                      #surface layer
     Ti[nCase] = T0[si+1]                                        #characteristic BL temperature
     zi_idx = np.argmax(gradT[si:]) + si                         #vertical level index of BL top
-    Gamma[nCase] = np.mean(dT[zi_idx:zi_idx+20])/plume.dz       #inversion strength
+    # Gamma[nCase] = np.mean(dT[zi_idx:zi_idx+20])/plume.dz       #inversion strength
+    Gamma[nCase] = np.sum(dT[:sliceZ])*plume.dz                 #cumulative inversion temperature
     zi[nCase] = plume.dz * zi_idx                               #BL height
     Ua[nCase] = np.mean(U0[si:10])                               #ambient BL wind
 
 
+#
+# H_bar = (H * np.sqrt( zi / g )) / ( r * Ti )
+# Gamma_bar = Gamma * r / Ti
+# g_bar = zi / r
+# U_bar = Ua * np.sqrt(zi / g) / r
+# zCL_bar = zCL / r
+#
+# fig = plt.figure(figsize=(12,10))
+# plt.suptitle('DIMENSIONLESS ANALYSIS')
+# plt.subplot(2,3,1)
+# plt.scatter(H_bar, zCL_bar)
+# plt.xlabel('$\overline{H}$')
+# plt.ylabel(' $\overline{z_{CL}}$ ')
+#
+# plt.subplot(2,3,2)
+# plt.scatter(Gamma_bar, zCL_bar)
+# plt.xlabel('$\overline{\Gamma}$')
+# plt.ylabel(' $\overline{z_{CL}}$ ')
+# #
+# plt.subplot(2,3,3)
+# plt.scatter(U_bar, zCL_bar)
+# plt.xlabel('$\overline{U_a}$')
+# plt.ylabel(' $\overline{z_{CL}}$ ')
+#
+# plt.subplot(2,3,4)
+# plt.scatter(g_bar, zCL_bar)
+# plt.xlabel('$\overline{z_i}$')
+# plt.ylabel(' $\overline{z_{CL}}$ ')
+#
+# plt.subplot(2,3,5)
+# plt.scatter(H_bar, U_bar)
+# plt.xlabel('$\overline{H}$')
+# plt.ylabel(' $\overline{U_a}$ ')
+#
+# plt.subplot(2,3,6)
+# plt.scatter(g_bar, Gamma_bar)
+# plt.xlabel('$\overline{z_i}$')
+# plt.ylabel(' $\overline{\Gamma}}$ ')
+#
+# plt.subplots_adjust(top=0.85)
+# plt.tight_layout(rect=[0, 0, 1, 0.95])
+# plt.show()
+# plt.savefig(plume.figdir + 'BuckPi.pdf' )
 
-H_bar = (H * np.sqrt( zi / g )) / ( r * Ti )
-Gamma_bar = Gamma * r / Ti
-g_bar = zi / r
-U_bar = Ua * np.sqrt(zi / g) / r
-zCL_bar = zCL / r
 
+Gamma_bar = Gamma / (Ti * zi)
+r_bar = r / zi
+
+H_bar = H / (Ua * Ti)
+g_bar = (g * zi) / Ua**2
+
+zCL_bar = zCL / zi
 
 
 fig = plt.figure(figsize=(12,10))
@@ -125,7 +171,7 @@ plt.xlabel('$\overline{\Gamma}$')
 plt.ylabel(' $\overline{z_{CL}}$ ')
 #
 plt.subplot(2,3,3)
-plt.scatter(U_bar, zCL_bar)
+plt.scatter(r_bar, zCL_bar)
 plt.xlabel('$\overline{U_a}$')
 plt.ylabel(' $\overline{z_{CL}}$ ')
 
@@ -133,18 +179,18 @@ plt.subplot(2,3,4)
 plt.scatter(g_bar, zCL_bar)
 plt.xlabel('$\overline{z_i}$')
 plt.ylabel(' $\overline{z_{CL}}$ ')
-
-plt.subplot(2,3,5)
-plt.scatter(H_bar, U_bar)
-plt.xlabel('$\overline{H}$')
-plt.ylabel(' $\overline{U_a}$ ')
-
-plt.subplot(2,3,6)
-plt.scatter(g_bar, Gamma_bar)
-plt.xlabel('$\overline{z_i}$')
-plt.ylabel(' $\overline{\Gamma}}$ ')
+#
+# plt.subplot(2,3,5)
+# plt.scatter(H_bar, U_bar)
+# plt.xlabel('$\overline{H}$')
+# plt.ylabel(' $\overline{U_a}$ ')
+#
+# plt.subplot(2,3,6)
+# plt.scatter(g_bar, Gamma_bar)
+# plt.xlabel('$\overline{z_i}$')
+# plt.ylabel(' $\overline{\Gamma}}$ ')
 
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
-plt.savefig(plume.figdir + 'BuckPi.pdf' )
+# plt.savefig(plume.figdir + 'BuckPi.pdf' )

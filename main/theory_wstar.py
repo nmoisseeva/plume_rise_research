@@ -63,7 +63,6 @@ for nCase,Case in enumerate(RunList):
 
     T0 = np.load(plume.wrfdir + 'interp/profT0' + Case + '.npy')
     U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
-    Uz[nCase,:] = U0
 
     #charatertistics of plume temperature anomalyies---------------------
     # diffT = ma.masked_where(avedict['pm25'] <= 30, (avedict['temp'].T-T0).T)           #get temperature anomaly
@@ -112,30 +111,31 @@ for nCase,Case in enumerate(RunList):
         edgeRidx = np.nanargmin(abs(hslice - edge)[xCL:]) + xCL
         if nLvl == sliceZ:
             break
-        radius[nCase,nLvl] = (edgeRidx - edgeLidx) * plume.dx
+        radius[nCase,nLvl] = ((edgeRidx - edgeLidx) * plume.dx) / r
         wCL[nCase,nLvl] = np.nanmax(w[nLvl,:])
         tempCL = np.nanargmax(diffT[nLvl,:])
         B[nCase,nLvl] = g* tempCL / T0[nLvl]
+        Uz[nCase,nLvl] = U0[nLvl]
 
     fig = plt.figure(figsize=(10,10))
     plt.suptitle('PLUME RADIUS: %s' %Case)
     plt.subplot(2,2,1)
-    plt.scatter(wCL[nCase,:nLvl],radius[nCase,:nLvl])
+    plt.scatter(wCL[nCase,:],radius[nCase,:])
     plt.ylabel('radius [m]')
     plt.xlabel('w [m/s]')
 
     plt.subplot(2,2,2)
-    plt.scatter(1/wCL[nCase,:nLvl]**2,radius[nCase,:nLvl])
+    plt.scatter(1/wCL[nCase,:]**2,radius[nCase,:])
     plt.ylabel('radius [m]')
     plt.xlabel( '$1/w^2$  $[s^2/m^2]$')
 
     plt.subplot(2,2,3)
-    plt.scatter(B[nCase,:nLvl]/wCL[nCase,:nLvl],radius[nCase,:nLvl])
+    plt.scatter(B[nCase,:]/wCL[nCase,:],radius[nCase,:])
     plt.ylabel('radius [m]')
     plt.xlabel('$B/w^2$ $[m^{-1}]$')
 
     plt.subplot(2,2,4)
-    plt.scatter(U0[:nLvl],radius[nCase,:nLvl])
+    plt.scatter(Uz[nCase],radius[nCase,:])
     plt.ylabel('radius [m]')
     plt.xlabel('Uz [m/s]')
 
@@ -147,22 +147,22 @@ for nCase,Case in enumerate(RunList):
 fig = plt.figure(figsize=(10,10))
 plt.suptitle('PLUME RADIUS: %s' %Case)
 plt.subplot(2,2,1)
-plt.scatter(wCL[:,:nLvl].ravel(),radius[:,:nLvl].ravel())
+plt.scatter(wCL.ravel(),radius.ravel())
 plt.ylabel('radius [m]')
 plt.xlabel('w [m/s]')
 
 plt.subplot(2,2,2)
-plt.scatter((1/wCL[:,:nLvl]**2).ravel(),radius[:,:nLvl].ravel())
+plt.scatter((1/wCL**2).ravel(),radius.ravel())
 plt.ylabel('radius [m]')
 plt.xlabel( '$1/w^2$  $[s^2/m^2]$')
 
 plt.subplot(2,2,3)
-plt.scatter(B[:,:nLvl].ravel()/wCL[:,:nLvl].ravel(),radius[:,:nLvl].ravel())
+plt.scatter(B.ravel()/wCL.ravel(),radius.ravel())
 plt.ylabel('radius [m]')
 plt.xlabel('$B/w^2$ $[m^{-1}]$')
 
 plt.subplot(2,2,4)
-plt.scatter(Uz[:,:nLvl].ravel()/wCL[:,:nLvl].ravel(),radius[:,:nLvl].ravel())
+plt.scatter(Uz.ravel(),radius.ravel())
 plt.ylabel('radius [m]')
 plt.xlabel('Uz [m/s]$')
 
