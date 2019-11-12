@@ -151,7 +151,6 @@ for nCase,Case in enumerate(RunList):
 
 Gamma_bar = Gamma / (Ti * zi)
 r_bar = r / zi
-
 H_bar = H / (Ua * Ti)
 g_bar = (g * zi) / Ua**2
 
@@ -169,26 +168,26 @@ plt.subplot(2,3,2)
 plt.scatter(Gamma_bar, zCL_bar)
 plt.xlabel('$\overline{\Gamma}$')
 plt.ylabel(' $\overline{z_{CL}}$ ')
-#
+
 plt.subplot(2,3,3)
 plt.scatter(r_bar, zCL_bar)
-plt.xlabel('$\overline{U_a}$')
+plt.xlabel('$\overline{r}$')
 plt.ylabel(' $\overline{z_{CL}}$ ')
 
 plt.subplot(2,3,4)
 plt.scatter(g_bar, zCL_bar)
-plt.xlabel('$\overline{z_i}$')
+plt.xlabel('$\overline{g}$')
 plt.ylabel(' $\overline{z_{CL}}$ ')
-#
-# plt.subplot(2,3,5)
-# plt.scatter(H_bar, U_bar)
-# plt.xlabel('$\overline{H}$')
-# plt.ylabel(' $\overline{U_a}$ ')
-#
-# plt.subplot(2,3,6)
-# plt.scatter(g_bar, Gamma_bar)
-# plt.xlabel('$\overline{z_i}$')
-# plt.ylabel(' $\overline{\Gamma}}$ ')
+
+plt.subplot(2,3,5)
+plt.scatter(H_bar, Gamma_bar)
+plt.xlabel('$\overline{H}$')
+plt.ylabel(' $\overline{Gamma}$ ')
+
+plt.subplot(2,3,6)
+plt.scatter(H_bar, g_bar)
+plt.xlabel('$\overline{H}$')
+plt.ylabel(' $\overline{g}}$ ')
 
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
