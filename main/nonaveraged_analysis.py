@@ -95,7 +95,7 @@ for nCase,Case in enumerate(plume.tag):
         axh1.tick_params(axis='y', colors='red')
 
         ax2=fig.add_subplot(gs[1])
-        fim = ax2.imshow(csdict['ghfx2D'][0,50:100,0:75],cmap=plt.cm.YlOrRd, extent=[0,3000,2000,4000],vmin=0, vmax = 150)
+        fim = ax2.imshow(csdict['ghfx2D'][0,75:175,0:75],cmap=plt.cm.YlOrRd, extent=[0,3000,3000,7000],vmin=0, vmax = 150)
         ax2.set_aspect('auto')
         cbarif = fig.colorbar(fim, orientation='horizontal')
         cbarif.set_label('heat flux [$kW / m^2$]')
@@ -119,7 +119,7 @@ for nCase,Case in enumerate(plume.tag):
             axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
 
             ax2.clear()
-            fim = ax2.imshow(csdict['ghfx2D'][n,50:100,0:75],cmap=plt.cm.YlOrRd,extent=[0,3000,2000,4000],vmin=0, vmax = 150)
+            fim = ax2.imshow(csdict['ghfx2D'][n,75:175,0:75],cmap=plt.cm.YlOrRd,extent=[0,3000,3000,7000],vmin=0, vmax = 150)
             ax2.set_aspect('auto')
             ax2.set_xlabel('x distance [m]')
             ax2.set_ylabel('y distance [m]')
@@ -166,7 +166,7 @@ for nCase,Case in enumerate(plume.tag):
         axh1.tick_params(axis='y', colors='red')
 
         ax2=fig.add_subplot(gs[1])
-        fim = ax2.imshow(csdict['ghfx2D'][0,50:100,0:75],cmap=plt.cm.YlOrRd, extent=[0,3000,2000,4000],vmin=0, vmax = 150)
+        fim = ax2.imshow(csdict['ghfx2D'][0,75:175,0:75],cmap=plt.cm.YlOrRd, extent=[0,3000,3000,7000],vmin=0, vmax = 150)
         ax2.set_aspect('auto')
         cbarif = fig.colorbar(fim, orientation='horizontal')
         cbarif.set_label('heat flux [$kW / m^2$]')
@@ -190,7 +190,7 @@ for nCase,Case in enumerate(plume.tag):
             axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
 
             ax2.clear()
-            fim = ax2.imshow(csdict['ghfx2D'][n,50:100,0:75],cmap=plt.cm.YlOrRd,extent=[0,3000,2000,4000],vmin=0, vmax = 150)
+            fim = ax2.imshow(csdict['ghfx2D'][n,75:175,0:75],cmap=plt.cm.YlOrRd,extent=[0,3000,3000,7000],vmin=0, vmax = 150)
             ax2.set_aspect('auto')
             ax2.set_xlabel('x distance [m]')
             ax2.set_ylabel('y distance [m]')
