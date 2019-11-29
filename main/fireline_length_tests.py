@@ -16,7 +16,7 @@ import plume
 imp.reload(plume) 	#force load each time
 
 preIgnT = 1 		#boolean: whether to use pre-ignition temp profile or averaged upwind profile
-plume.fireline_runs = ['W5F7R2','W5F7R2L2','W5F7R2L3','W5F7R2L410km']
+plume.fireline_runs = ['W4F7R4L1','W4F7R4','W4F7R4L4']
 #=================end of input===============
 
 runCnt = len(plume.fireline_runs)
@@ -28,7 +28,9 @@ plumeTilt = np.empty(runCnt)* np.nan
 fireWidth = np.empty((runCnt))* np.nan
 parcelHeat = np.empty(runCnt)* np.nan
 T0 = np.empty((runCnt,len(plume.lvl))) * np.nan
+U0 = np.empty((runCnt,len(plume.lvl))) * np.nan
 PMprofiles = np.empty((runCnt,len(plume.lvl)))* np.nan
+UprimeCS=[]
 
 BLdict = {'Ua':np.empty(runCnt) * np.nan, \
             'Ti':np.empty(runCnt) * np.nan,\
@@ -55,7 +57,7 @@ for nCase,Case in enumerate(plume.fireline_runs):
         sys.exit('ERROR: no averaged data found - run prep_plumes.py via submit_interp.sh first on Cedar!')
 
     #extract lcoations of max pm, w, temp ------------------------------
-    PMmax_profile = np.nanmax(avedict['pm25'],1) 	#get max q profile
+    PMmax_profile = np.nanmax(avedict['pm25'],1) 	#get max smoke profile
     top_threshold = max(PMmax_profile)*0.001 	#variable threshold (based on near-surface high concentrations!!!!)
     PMmax_profile[PMmax_profile<top_threshold] = np.nan
     PMmax_idx = np.nanargmax(avedict['pm25'][np.isfinite(PMmax_profile)],1)		#get donwind location
@@ -82,11 +84,13 @@ for nCase,Case in enumerate(plume.fireline_runs):
     PMprofiles[nCase,:] = PMslicewtop
 
     #look at what happens with temperature structure----------------------
-    #load initial temperature profileT
+    #load initial profiles
     if preIgnT:
         T0[nCase] = np.load(profpath)
     else:
         T0[nCase] = avedict['temp'][:,0]
+
+    U0[nCase] = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
 
     #BL characteristics -------------------------------------------------
     BLdict['Ua'][nCase] = avedict['u'][2,0]
@@ -97,6 +101,12 @@ for nCase,Case in enumerate(plume.fireline_runs):
     si = 2
     BLdict['Ti'][nCase] = T0[nCase][si+1]              #characteristic BL temperature
     BLdict['zi'][nCase] = plume.dz * (np.argmax(gradT[si:]) + si)
+
+    #save wind anomaly crossection --------------------------------------
+    Uprime = (avedict['u'].T-U0[nCase]).T
+    ReverseFlow = Uprime[10,:]
+    UprimeCS.append(ReverseFlow)
+    print(avedict['ghfx']  > 2)
 
     #fire behavior ------------------------------------------------------
 
@@ -187,71 +197,6 @@ for nCase,Case in enumerate(plume.fireline_runs):
     plt.savefig(plume.figdir + 'fireline/profiles_%s.pdf' %Case)
     plt.close()
 
-    #plot contours
-    fig = plt.figure(figsize=(12,6))
-    plt.suptitle('%s' %Case)
-    plt.subplot(1,2,1)
-    plt.title('Time-averaged W')
-    # ---w contours and colorbar
-    ax1=plt.gca()
-    im = ax1.imshow(avedict['w'], origin='lower',extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.PRGn_r, vmin=-5, vmax=5)
-    ax1.set_aspect('auto')
-    cbari =fig.colorbar(im, orientation='horizontal', fraction=0.046, pad=0.1)
-    cbari.set_label('horizontal velocity w $[m s^{-2}]$')
-    ax1.set_xlabel('horizontal distance [m]')
-    ax1.set_ylabel('height AGL [m]')
-    ax1.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
-    ax1.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    ax1.axhline(y=plume_tops[nCase],ls='--', c='black',label='derived plume top')
-    ax1.axvline(x = sliceLoc*plume.dx, ls=':',c='black',label='location of concentration profile')
-    ax1.legend()
-    # ---non-filled pm contours and colorbar
-    cntr = ax1.contour(avedict['pm25'], extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.Greys,levels=pmLevels,linewidths=1)
-    # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
-    # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
-    # cbar.set_label('PM2.5 mixing ratio $[ug/kg]$',size=8)
-    # cbar.ax.tick_params(labelsize=8)
-    # ---heat flux
-    axh1 = ax1.twinx()
-    axh1.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
-    axh1.set_ylim([0,150])
-    axh1.tick_params(axis='y', colors='red')
-    ln = axh1.plot(np.arange(dimX) * plume.dx, avedict['ghfx'], 'r-')
-    axh1.set_xlim([0,dimX*plume.dx])
-
-
-    plt.subplot(1,2,2)
-    plt.title('Time-averaged U')
-    ax2 = plt.gca()
-    # ---u contours and colorbar
-    im = ax2.imshow(avedict['u'], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.RdBu_r, vmin=BLdict['Ua'][nCase]-5, vmax=BLdict['Ua'][nCase]+5)
-    ax2.set_aspect('auto')
-    cbari =fig.colorbar(im, orientation='horizontal', fraction=0.046, pad=0.1)
-    cbari.set_label('horizontal velocity u $[m s^{-2}]$')
-    ax2.set_xlabel('horizontal distance [m]')
-    ax2.set_ylabel('height AGL [m]')
-    ax2.axhline(y = si * plume.dz, ls=':', c='lightgrey', label='surface layer height at ignition')
-    ax2.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    ax2.axhline(y=plume_tops[nCase],ls='--', c='black',label='derived plume top')
-    ax2.axvline(x = sliceLoc*plume.dx, ls=':',c='black',label='location of concentration profile')
-    # ---non-filled vapor contours and colorbar
-    cntr = ax2.contour(avedict['pm25'], extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.Greys,levels=pmLevels,linewidths=1)
-    # ains = inset_axes(plt.gca(), width='40%', height='2%', loc=1)
-    # cbar = fig.colorbar(cntr, cax=ains, orientation='horizontal')
-    # cbar.set_label('PM2.5 mixing ratio $[ug/kg]$',size=8)
-    # cbar.ax.tick_params(labelsize=8)
-    # ---heat flux
-    axh2 = ax2.twinx()
-    ln = axh2.plot(np.arange(dimX)*plume.dx, avedict['ghfx'], 'r-')
-    axh2.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
-    axh2.set_ylim([0,150])
-    axh2.tick_params(axis='y', colors='red')
-    axh2.set_xlim([0,dimX*plume.dx])
-
-    plt.tight_layout()
-    plt.savefig(plume.figdir + 'fireline/ave%s' %Case)
-    print('.....-->saved in: %s' %(plume.figdir + 'fireline/ave%s' %Case))
-    plt.close()
 #-------------subplots of tilt predictors-----------
 #create scatter plots of tilts vs other variables
 plt.figure(figsize=(18,6))
@@ -286,7 +231,6 @@ plt.close()
 plt.figure()
 plt.title('NORMALIZED FIRELINE INTENSITY vs CumT')
 regR = np.poly1d(np.polyfit(parcelHeat,cumT,1))
-print('Regression fit equation: %s ' %regR)
 plt.gca().scatter(parcelHeat,cumT)
 plt.plot(parcelHeat, regR(parcelHeat))
 plt.xlabel('normalized fireline intensity [$K m$]')
@@ -295,5 +239,23 @@ for i, txt in enumerate(plume.fireline_runs):
     plt.gca().annotate(txt, (parcelHeat[i]+2,cumT[i]+2), fontsize=9)
 plt.tight_layout()
 plt.savefig(plume.figdir + 'fireline/parcelHeat_cumT.pdf')
+plt.close()
+
+#------------Velocity Enhancement-----------
+plt.figure()
+haxis = np.arange(dimX)*plume.dx
+ax = plt.gca()
+plt.title('FIRE-INDUCED WIND DYNAMCIS at 400 m AGL')
+plt.plot(haxis, UprimeCS[0], label='1 km')
+plt.plot(haxis, UprimeCS[1], label='2 km')
+plt.plot(haxis, UprimeCS[2], label='4 km')
+# ax.axvspan(16*plume.dx, 22*plume.dx, alpha=0.2, color='red')
+# ax.axvspan(15*plume.dx, 23*plume.dx, alpha=0.2, color='red')
+plt.xlabel('horizontal distance [m]')
+plt.ylabel('Uprime [m/s]' )
+plt.xlim([0,max(haxis)])
+plt.tight_layout()
+plt.legend()
+plt.savefig(plume.figdir + 'fireline/Uprime400m.pdf')
 plt.show()
 plt.close()
