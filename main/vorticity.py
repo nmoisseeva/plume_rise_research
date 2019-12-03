@@ -32,7 +32,10 @@ for nCase,Case in enumerate(plume.fireline_runs):
 
     dimT, dimZ, dimY, dimX = np.shape(interpdict['u'])
 
+    print('.....calculating slab vorticity')
     vorticity = mepty.calc.vorticity(interpdict['u'][70, 1,:,:], interpdict['v'][70, 1,:,:], plume.dx, plume.dy)
+
+    print('.....plotting horizontal crosssection')
     plt.contourf(vorticity)
     plt.colorbar()
     plt.show()
