@@ -11,7 +11,10 @@ import imp
 from matplotlib import animation
 from numpy import ma
 from matplotlib import ticker
-import metpy
+import metpy.calc as mpcalc
+from metpy.units import units
+# import metpy
+import pickle
 
 
 #====================INPUT===================
@@ -28,16 +31,22 @@ for nCase,Case in enumerate(plume.fireline_runs):
 
     interppath = plume.wrfdir + 'interp/wrfinterp_' + Case + '.npy'
     print('Opening data: %s' %interppath)
-    interpdict = np.load(interppath, allow_pickle=True).item()
+    # interpdict = np.load(interppath, allow_pickle=True).item()
+    interpfile = open(interppath,'rb')
+    interpdict = pickle.load(interpfile)   # load here the above pickle
 
     dimT, dimZ, dimY, dimX = np.shape(interpdict['u'])
 
     print('.....calculating slab vorticity')
-    vorticity = mepty.calc.vorticity(interpdict['u'][70, 1,:,:], interpdict['v'][70, 1,:,:], plume.dx, plume.dy)
+    vorticity = mpcalc.vorticity(units('m/s')*interpdict['U'][70, 5,:,:],units('m/s')*interpdict['V'][70, 5,:,:], units.meter* plume.dx, units.meter*plume.dy)
 
     print('.....plotting horizontal crosssection')
-    plt.contourf(vorticity)
+    plt.title('VERTICAL VORTICITY OF HORIZONTAL WIND at 200m')
+    plt.contourf(vorticity, vmin=-0.2, vmax=0.2, cmap=plt.cm.PuOr)
+    plt.xlabel('x [m]')
+    plt.xlabel('y [m]')
     plt.colorbar()
+    plt.savefig(plume.figdir + 'fireline/vorticity/curl200m%s.mp4' %Case)
     plt.show()
 
 

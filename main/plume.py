@@ -12,6 +12,7 @@ figdir = '/Users/nmoisseeva/code/plume/main/figs/'
 dz = 40
 lvl = np.arange(0,2800,dz)	 	#vertical levels in m
 dx = 40.                        #horizontal grid spacing
+dy = 40.
 
 cs = 10                         #+/- grids for cross-section
 wi, wf = 20, 230
@@ -25,7 +26,7 @@ tag = [i[len(dirpath)-1:-4] for i in dirlist]    #W*S*F*R0
 
 #exclude list (F1, F8?,F9?)
 exclude_runs = []
-fireline_runs = ['W4F7R4L1','W4F7R4','W4F7R4L2']
+fireline_runs = ['W4F7R4','W4F7R4L4']
 
 #common functions
 #--------------------------------
