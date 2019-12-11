@@ -8,13 +8,8 @@ import matplotlib.pyplot as plt
 from scipy.io import netcdf
 import sys
 import imp
-from matplotlib import animation
-from numpy import ma
-from matplotlib import ticker
-import metpy.calc as mpcalc
-from metpy.units import units
-# import metpy
 import pickle
+from scipy.io import netcdf
 
 
 #====================INPUT===================
@@ -23,7 +18,6 @@ import pickle
 import plume
 imp.reload(plume) 	#force load each time
 
-doAnimations = 0    #flag to do animations:
 #=================end of input===============
 
 
@@ -35,74 +29,46 @@ for nCase,Case in enumerate(plume.fireline_runs):
     interpfile = open(interppath,'rb')
     interpdict = pickle.load(interpfile)   # load here the above pickle
 
-    dimT, dimZ, dimY, dimX = np.shape(interpdict['u'])
+    dimT, dimZ, dimY, dimX = np.shape(interpdict['U'])
 
-    print('.....calculating slab vorticity')
-    vorticity = mpcalc.vorticity(units('m/s')*interpdict['U'][70, 5,:,:],units('m/s')*interpdict['V'][70, 5,:,:], units.meter* plume.dx, units.meter*plume.dy)
+    #dump netcdf file for ParaView
+    netcdfout = netcdf.netcdf_file(plume.wrfdir + 'velField_%s.nc' %Case, 'w')
+    netcdfout.history = 'Destaggered interpolated velocity field'
 
-    print('.....plotting horizontal crosssection')
-    plt.title('VERTICAL VORTICITY OF HORIZONTAL WIND at 200m')
-    plt.contourf(vorticity, vmin=-0.2, vmax=0.2, cmap=plt.cm.PuOr)
-    plt.xlabel('x [m]')
-    plt.xlabel('y [m]')
-    plt.colorbar()
-    plt.savefig(plume.figdir + 'fireline/vorticity/curl200m%s.mp4' %Case)
-    plt.show()
+    dimTime = np.arange(0,dimT,4)
 
+    netcdfout.createDimension('Time', len(dimTime))
+    Time = netcdfout.createVariable('Time', 'i', ('Time',))
+    Time[:] = np.arange(len(dimTime))
+    Time.units = 'minutes'
 
-    if doAnimations:
+    netcdfout.createDimension('dimz', dimZ)
+    dimz = netcdfout.createVariable('dimz', 'i', ('dimz',))
+    dimz[:] = plume.lvl
+    dimz.units = 'meters'
 
-        vorticityArray = np.empty((dimT,dimY,dimX))
-        for nT in dimT:
-            vorticityArray[nT,:,:] = mepty.calc.vorticity(interpdict['u'][nT,1,:,:], interpdict['v'][nT, 1,:,:], plume.dx, plume.dy)
+    netcdfout.createDimension('dimy', dimY)
+    dimy = netcdfout.createVariable('dimy', 'i', ('dimy',))
+    dimy[:] = np.arange(0, dimY*plume.dy, plume.dy)
+    dimy.units = 'meters'
 
+    netcdfout.createDimension('dimx', int(dimX/3))
+    dimx = netcdfout.createVariable('dimx', 'i', ('dimx',))
+    dimx[:] = np.arange(0, int(dimX/3)*plume.dx, plume.dx)
+    dimx.units = 'meters'
 
-        #create an animation of vorticity---------------------------------------------
-        fig = plt.figure(figsize=(10,5))
-        gs = fig.add_gridspec(ncols=2, nrows=1,width_ratios=[3,1])
-        print('.....creating animation of surface vertical vorticity')
-        plt.suptitle('VERTICAL VORTICITY: %s' %Case)
+    u = netcdfout.createVariable('U', 'f', ('Time','dimz','dimy','dimx',))
+    u.units = 'meters/sec'
+    v = netcdfout.createVariable('V', 'f', ('Time','dimz','dimy','dimx',))
+    v.units = 'meters/sec'
+    w = netcdfout.createVariable('W', 'f', ('Time','dimz','dimy','dimx',))
+    w.units = 'meters/sec'
+    grnhfx = netcdfout.createVariable('grnhfx', 'f', ('Time','dimy','dimx',))
+    grnhfx.units = 'Watt/meters^2'
 
-        ax1=fig.add_subplot(gs[0])
-        # create initial frame
-        # ---u contours and colorbar
-        im = ax1.imshow(vorticityArray[0,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.dy],cmap=plt.cm.RdBu_r)
-        ax1.set_aspect('auto')
-        cbari = fig.colorbar(im, orientation='horizontal')
-        cbari.set_label('vertical vorticity $[s^{-1}]$')
-
-        ax2=fig.add_subplot(gs[1])
-        fim = ax2.imshow(interpdict['ghfx'][0,75:175,0:75],cmap=plt.cm.YlOrRd, extent=[0,3000,3000,7000],vmin=0, vmax = 150)
-        ax2.set_aspect('auto')
-        cbarif = fig.colorbar(fim, orientation='horizontal')
-        cbarif.set_label('heat flux [$kW / m^2$]')
-        ax2.set_xlabel('x distance [m]')
-        ax2.set_ylabel('y distance [m]')
-        # plt.subplots_adjust(top=0.85)
-        plt.tight_layout(rect=[0, 0, 1, 0.92])
-
-        def update_plot(n,csdict,cntrf,cntr):
-            ax1.clear()
-            im = ax1.imshow(vorticityArray[n,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.dy],cmap=plt.cm.RdBu_r)
-            ax1.set_aspect('auto')
-            ax1.set_xlabel('x [m]')
-            ax1.set_ylabel('y[m]')
-            ax1.set_ylim([0,plume.dimY])
-            axh1.clear()
-            axh1.set_ylim([0,dimY*plume.dy])
-            axh1.set_xlim([0,dimX*plume.dx])
-
-            ax2.clear()
-            fim = ax2.imshow(interpdict['ghfx'][n,75:175,0:75],cmap=plt.cm.YlOrRd,extent=[0,3000,3000,7000],vmin=0, vmax = 150)
-            ax2.set_aspect('auto')
-            ax2.set_xlabel('x distance [m]')
-            ax2.set_ylabel('y distance [m]')
-
-            return cntrf, ln, cntr,
-
-        #plot all frames
-        ani=animation.FuncAnimation(fig, update_plot, dimT, fargs=(csdict,im,cntr), interval=3)
-        # plt.show()
-        ani.save(plume.figdir + 'anim/vorticity/curl%s.mp4' %Case, writer='ffmpeg',fps=10, dpi=250)
-        plt.close()
-        print('.....saved in: %s' %(plume.figdir + 'anim/vorticity/curl%s.mp4' %Case))
+    for nTime, time in enumerate(dimTime):
+        u[nTime,:,:,:] = interpdict['U'][time,:,:,:int(dimX/3)]
+        v[nTime,:,:,:]  = interpdict['V'][time,:,:,:int(dimX/3)]
+        w[nTime,:,:,:] = interpdict['W'][time,:,:,:int(dimX/3)]
+        grnhfx[nTime,:,:] = interpdict['GRNHFX'][time,:,:int(dimX/3)]
+    netcdfout.close()

@@ -147,7 +147,7 @@ for nCase,Case in enumerate(RunList):
 fig = plt.figure(figsize=(10,10))
 plt.suptitle('PLUME RADIUS: %s' %Case)
 plt.subplot(2,2,1)
-plt.scatter(wCL.ravel(),radius.ravel())
+plt.scatter(wCL.ravel(),radius.ravel()/)
 plt.ylabel('radius [m]')
 plt.xlabel('w [m/s]')
 
@@ -165,6 +165,7 @@ plt.subplot(2,2,4)
 plt.scatter(Uz.ravel(),radius.ravel())
 plt.ylabel('radius [m]')
 plt.xlabel('Uz [m/s]$')
+plt.show()
 
 
 # plt.subplots_adjust(top=0.85)

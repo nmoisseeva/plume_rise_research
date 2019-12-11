@@ -30,6 +30,7 @@ zi = np.empty((runCnt)) * np.nan
 Ti = np.empty((runCnt)) * np.nan
 Gamma = np.empty((runCnt)) * np.nan
 zCL = np.empty((runCnt)) * np.nan
+wStar = np.empty((runCnt)) * np.nan
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -98,98 +99,105 @@ for nCase,Case in enumerate(RunList):
     si = 3                                                      #surface layer
     Ti[nCase] = T0[si+1]                                        #characteristic BL temperature
     zi_idx = np.argmax(gradT[si:]) + si                         #vertical level index of BL top
-    # Gamma[nCase] = np.mean(dT[zi_idx:zi_idx+20])/plume.dz       #inversion strength
-    Gamma[nCase] = np.sum(dT[:sliceZ])*plume.dz                 #cumulative inversion temperature
+    Gamma[nCase] = np.mean(dT[zi_idx:zi_idx+20])/plume.dz       #inversion strength
+    print('inversion std: %0.2f' %np.std(dT[zi_idx:zi_idx+20]))
+    # Gamma[nCase] = np.sum(dT[:sliceZ])*plume.dz                 #cumulative inversion temperature
     zi[nCase] = plume.dz * zi_idx                               #BL height
     Ua[nCase] = np.mean(U0[si:10])                               #ambient BL wind
 
-
-#
-# H_bar = (H * np.sqrt( zi / g )) / ( r * Ti )
-# Gamma_bar = Gamma * r / Ti
-# g_bar = zi / r
-# U_bar = Ua * np.sqrt(zi / g) / r
-# zCL_bar = zCL / r
-#
-# fig = plt.figure(figsize=(12,10))
-# plt.suptitle('DIMENSIONLESS ANALYSIS')
-# plt.subplot(2,3,1)
-# plt.scatter(H_bar, zCL_bar)
-# plt.xlabel('$\overline{H}$')
-# plt.ylabel(' $\overline{z_{CL}}$ ')
-#
-# plt.subplot(2,3,2)
-# plt.scatter(Gamma_bar, zCL_bar)
-# plt.xlabel('$\overline{\Gamma}$')
-# plt.ylabel(' $\overline{z_{CL}}$ ')
-# #
-# plt.subplot(2,3,3)
-# plt.scatter(U_bar, zCL_bar)
-# plt.xlabel('$\overline{U_a}$')
-# plt.ylabel(' $\overline{z_{CL}}$ ')
-#
-# plt.subplot(2,3,4)
-# plt.scatter(g_bar, zCL_bar)
-# plt.xlabel('$\overline{z_i}$')
-# plt.ylabel(' $\overline{z_{CL}}$ ')
-#
-# plt.subplot(2,3,5)
-# plt.scatter(H_bar, U_bar)
-# plt.xlabel('$\overline{H}$')
-# plt.ylabel(' $\overline{U_a}$ ')
-#
-# plt.subplot(2,3,6)
-# plt.scatter(g_bar, Gamma_bar)
-# plt.xlabel('$\overline{z_i}$')
-# plt.ylabel(' $\overline{\Gamma}}$ ')
-#
-# plt.subplots_adjust(top=0.85)
-# plt.tight_layout(rect=[0, 0, 1, 0.95])
-# plt.show()
-# plt.savefig(plume.figdir + 'BuckPi.pdf' )
+    #analysis with w*
+    # wStar[nCase] = (g*zi[nCase]*H[nCase]/Ti[nCase])**(1/3.)
+    wStar[nCase] = (g*zi[nCase]*0.2/Ti[nCase])**(1/3.)
 
 
-Gamma_bar = Gamma / (Ti * zi)
-r_bar = r / zi
-H_bar = H / (Ua * Ti)
-g_bar = (g * zi) / Ua**2
 
+
+
+H_bar = H / (Gamma * wStar * zi)
 zCL_bar = zCL / zi
+Ua_bar = (Ua * zi) / (r * wStar)
 
-
-fig = plt.figure(figsize=(12,10))
+fig = plt.figure(figsize=(12,4))
 plt.suptitle('DIMENSIONLESS ANALYSIS')
-plt.subplot(2,3,1)
-plt.scatter(H_bar, zCL_bar)
-plt.xlabel('$\overline{H}$')
-plt.ylabel(' $\overline{z_{CL}}$ ')
+plt.subplot(1,3,1)
+plt.scatter(H_bar, zCL_bar, c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+plt.xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
+plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
 
-plt.subplot(2,3,2)
-plt.scatter(Gamma_bar, zCL_bar)
-plt.xlabel('$\overline{\Gamma}$')
-plt.ylabel(' $\overline{z_{CL}}$ ')
+plt.subplot(1,3,2)
+plt.scatter(H_bar, Ua_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+plt.xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
+plt.ylabel(r'$\frac{U_a * z_i}{r * w_*}$')
 
-plt.subplot(2,3,3)
-plt.scatter(r_bar, zCL_bar)
-plt.xlabel('$\overline{r}$')
-plt.ylabel(' $\overline{z_{CL}}$ ')
-
-plt.subplot(2,3,4)
-plt.scatter(g_bar, zCL_bar)
-plt.xlabel('$\overline{g}$')
-plt.ylabel(' $\overline{z_{CL}}$ ')
-
-plt.subplot(2,3,5)
-plt.scatter(H_bar, Gamma_bar)
-plt.xlabel('$\overline{H}$')
-plt.ylabel(' $\overline{Gamma}$ ')
-
-plt.subplot(2,3,6)
-plt.scatter(H_bar, g_bar)
-plt.xlabel('$\overline{H}$')
-plt.ylabel(' $\overline{g}}$ ')
+plt.subplot(1,3,3)
+plt.scatter(Ua_bar, zCL_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+plt.xlabel(r'$\frac{U_a * z_i}{r * w_*}$')
+plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
+plt.colorbar(label='fuel category')
 
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
-# plt.savefig(plume.figdir + 'BuckPi.pdf' )
+plt.savefig(plume.figdir + 'BuckPi.pdf' )
+
+
+
+from mpl_toolkits.mplot3d import Axes3D
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(H_bar, Ua_bar, zCL_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+#
+ax.set_xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
+ax.set_ylabel(r'$\frac{U_a * z_i}{r * w_*}$')
+ax.set_zlabel(r'$\frac{z_{CL}}{z_i}$ ')
+
+plt.show()
+
+
+
+#
+# H_bar = (H * r ) / (Ua * Ti * zi)
+# zCL_bar = zCL / zi
+# Gamma_bar = (Gamma * zi) / Ti
+# g_bar = (g * r**2) / (Ua**2 * zi)
+#
+# fig = plt.figure(figsize=(12,10))
+# plt.suptitle('DIMENSIONLESS ANALYSIS')
+# plt.subplot(2,3,1)
+# plt.scatter(H_bar, zCL_bar, c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+# plt.xlabel(r'$\frac{H * r}{U_a * T_i * zi}$')
+# plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
+#
+# plt.subplot(2,3,2)
+# plt.scatter(H_bar, Gamma_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+# plt.xlabel(r'$\frac{H * r}{U_a * T_i * zi}$')
+# plt.ylabel(r'$\frac{\Gamma * z_i}{T_i}$')
+#
+# plt.subplot(2,3,3)
+# plt.scatter(H_bar, g_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+# plt.xlabel(r'$\frac{H * r}{U_a * T_i * zi}$')
+# plt.ylabel(r'$\frac{g * r^2}{U_a^2 * zi}$')
+# plt.colorbar()
+#
+#
+# plt.subplot(2,3,4)
+# plt.scatter(zCL_bar, Gamma_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+# plt.xlabel(r'$\frac{z_{CL}}{z_i}$ ')
+# plt.ylabel(r'$\frac{\Gamma * z_i}{T_i}$')
+#
+# plt.subplot(2,3,5)
+# plt.scatter(zCL_bar, g_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+# plt.xlabel(r'$\frac{z_{CL}}{z_i}$ ')
+# plt.ylabel(r'$\frac{g * r^2}{U_a^2 * zi}$')
+#
+# plt.subplot(2,3,6)
+# plt.scatter(g_bar, Gamma_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+# plt.xlabel(r'$\frac{g * r^2}{U_a^2 * zi}$')
+# plt.ylabel(r'$\frac{\Gamma * z_i}{T_i}$')
+# plt.colorbar()
+#
+#
+# plt.subplots_adjust(top=0.85)
+# plt.tight_layout(rect=[0, 0, 1, 0.95])
+# plt.show()
+# # plt.savefig(plume.figdir + 'BuckPi.pdf' )

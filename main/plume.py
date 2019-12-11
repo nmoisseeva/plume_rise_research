@@ -26,7 +26,7 @@ tag = [i[len(dirpath)-1:-4] for i in dirlist]    #W*S*F*R0
 
 #exclude list (F1, F8?,F9?)
 exclude_runs = []
-fireline_runs = ['W4F7R4','W4F7R4L4']
+fireline_runs = ['W4F7R4L4']
 
 #common functions
 #--------------------------------

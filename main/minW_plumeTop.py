@@ -96,7 +96,9 @@ for nCase,Case in enumerate(RunList):
     diffT = ma.masked_where(avedict['pm25'] <= 30, (avedict['temp'].T-T0[nCase]).T)           #get temperature anomaly
     Tctr = np.array([diffT[i,ni] for ni, i in enumerate(PMmaxVidx)])
     Wctr = np.array([w[i,ni] for ni, i in enumerate(PMmaxVidx)])
-    Uctr = np.array([avedict['u'][i,ni] for ni, i in enumerate(PMmaxVidx)])
+    # Uctr = np.array([avedict['u'][i,ni] for ni, i in enumerate(PMmaxVidx)])
+
+
 
     #based slice location on temperature anomaly
 
@@ -116,17 +118,16 @@ for nCase,Case in enumerate(RunList):
 
     dT = T0[nCase][1:]-T0[nCase][0:-1]
     gradT = dT[1:] - dT[0:-1]
-    si = 2
+    si = 3
     BLdict['Ti'][nCase] = T0[nCase][si+1]              #characteristic BL temperature
     zi_idx = np.argmax(gradT[si:]) + si                 #vertical level index of BL top
     BLdict['inversion'][nCase] = np.mean(dT[zi_idx:zi_idx+20])/plume.dz
     BLdict['zi'][nCase] = plume.dz * zi_idx
-
-    # U = np.nanmean(avedict['u'][3:,0]) 	#exclude bottom three layers due to friction  #based on mean wind
-    BLdict['Ua'][nCase] = np.mean(U0[nCase][2])
-    # BLdict['Ua'][nCase] = np.mean(U0[nCase][3:zi_idx])
-    # BLdict['Ua'][nCase] = avedict['u'][2,0]
+    BLdict['Ua'][nCase] = np.mean(U0[nCase][si:10])
     print('Wind speed near ground: %.1f m/s' %(BLdict['Ua'][nCase]))
+
+    Uf = np.array(avedict['u'][int(zi_idx/2.),:] - U0[nCase][int(zi_idx/2.)])
+
     #fire behavior ------------------------------------------------------
 
     # #calculate total flux from ground and fire
@@ -271,12 +272,12 @@ for nCase,Case in enumerate(RunList):
     plt.ylabel('$w_{ctr}$ [m/s]')
 
     ax5 = fig.add_subplot(gs[1,1])
-    ax5.plot(haxis, Uctr)
-    ax5.axhline(y=plume.read_tag('W',RunList)[nCase], color='black')
+    ax5.plot(haxis, Uf)
+    ax5.axhline(y=0, color='black')
     ax5.axvline(x = sliceX*plume.dx, ls=':',c='black',label='location of concentration profile')
     ax5.set_xlim([0,haxis[-1]])
     plt.xlabel('horizontal distance [m]')
-    plt.ylabel('$u_{ctr}$ [m/s]')
+    plt.ylabel('$u_{fire}$ [m/s]')
 
     ax6 = fig.add_subplot(gs[1,2])
     ax6.plot(haxis, Tctr)
