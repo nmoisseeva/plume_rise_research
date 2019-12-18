@@ -130,7 +130,7 @@ plt.xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
 plt.ylabel(r'$\frac{U_a * z_i}{r * w_*}$')
 
 plt.subplot(1,3,3)
-plt.scatter(Ua_bar, zCL_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.tab20)
+plt.scatter(Ua_bar, zCL_bar,c=plume.read_tag('F',RunList),v cmap=plt.cm.tab20)
 plt.xlabel(r'$\frac{U_a * z_i}{r * w_*}$')
 plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
 plt.colorbar(label='fuel category')
