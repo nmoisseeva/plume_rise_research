@@ -120,32 +120,32 @@ Ua_bar = (Ua * zi) / (r * wStar)
 fig = plt.figure(figsize=(12,4))
 plt.suptitle('DIMENSIONLESS ANALYSIS')
 plt.subplot(1,3,1)
-plt.scatter(H_bar, zCL_bar, c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+plt.scatter(H_bar, zCL_bar, c=plume.read_tag('F',RunList),cmap=plt.cm.tab20)
 plt.xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
 plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
 
 plt.subplot(1,3,2)
-plt.scatter(H_bar, Ua_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+plt.scatter(H_bar, Ua_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.tab20)
 plt.xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
 plt.ylabel(r'$\frac{U_a * z_i}{r * w_*}$')
 
 plt.subplot(1,3,3)
-plt.scatter(Ua_bar, zCL_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+plt.scatter(Ua_bar, zCL_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.tab20)
 plt.xlabel(r'$\frac{U_a * z_i}{r * w_*}$')
 plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
 plt.colorbar(label='fuel category')
 
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.show()
 plt.savefig(plume.figdir + 'BuckPi.pdf' )
+plt.close()
 
 
 
 from mpl_toolkits.mplot3d import Axes3D
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(H_bar, Ua_bar, zCL_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.Paired)
+ax.scatter(H_bar, Ua_bar, zCL_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.tab20)
 #
 ax.set_xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
 ax.set_ylabel(r'$\frac{U_a * z_i}{r * w_*}$')
