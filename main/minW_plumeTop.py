@@ -78,6 +78,8 @@ for nCase,Case in enumerate(RunList):
     #mask plume as being at last 50ppm---------------------------------
     pm = ma.masked_where(avedict['pm25'] <= 30, avedict['pm25'] )
     w = ma.masked_where(avedict['pm25'] <= 30, avedict['w'] )
+    # pm = ma.masked_where(avedict['pm25'] <= avedict['pm25'].max()*0.001, avedict['pm25'] )
+    # w = ma.masked_where(avedict['pm25'] <= avedict['pm25'].max()*0.001, avedict['w'] )
 
     PMmaxVidx = pm.argmax(0)
     xmax,ymax = np.nanargmax(PMmaxVidx), np.nanmax(PMmaxVidx)
@@ -111,7 +113,6 @@ for nCase,Case in enumerate(RunList):
     else:
         sliceX = intX[1]
     sliceZ = PMmaxVidx[sliceX]
-
 
     #BL characteristics -------------------------------------------------
 

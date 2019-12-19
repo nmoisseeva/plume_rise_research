@@ -31,6 +31,7 @@ Ti = np.empty((runCnt)) * np.nan
 Gamma = np.empty((runCnt)) * np.nan
 zCL = np.empty((runCnt)) * np.nan
 wStar = np.empty((runCnt)) * np.nan
+zCLend = np.empty((runCnt)) * np.nan
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -60,12 +61,16 @@ for nCase,Case in enumerate(RunList):
     else:
         sys.exit('ERROR: no averaged data found - run prep_plumes.py via submit_interp.sh first on Cedar!')
 
-    pm = avedict['pm25']
-    w = avedict['w']
+    pm = ma.masked_where(avedict['pm25'] <= 30, avedict['pm25'] )
+    w = ma.masked_where(avedict['pm25'] <= 30, avedict['w'] )
+    # pm = ma.masked_where(avedict['pm25'] <= avedict['pm25'].max()*0.001, avedict['pm25'] )
+    # w = ma.masked_where(avedict['pm25'] <= avedict['pm25'].max()*0.001, avedict['w'] )
 
     PMmaxVidx = pm.argmax(0)
     xmax,ymax = np.nanargmax(PMmaxVidx), np.nanmax(PMmaxVidx)
-    centerline = ma.masked_where(plume.lvl[PMmaxVidx] == 0, plume.lvl[PMmaxVidx])
+    # centerline = ma.masked_where(plume.lvl[PMmaxVidx] == 0, plume.lvl[PMmaxVidx])
+    centerline = plume.lvl[PMmaxVidx]
+    zCLend[nCase] = np.mean(centerline[centerline > 0][-5:])
 
     T0 = np.load(plume.wrfdir + 'interp/profT0' + Case + '.npy')
     U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
@@ -91,7 +96,13 @@ for nCase,Case in enumerate(RunList):
     sliceZ = PMmaxVidx[sliceX]
 
     zCL[nCase] = plume.lvl[sliceZ]
-    print('Plume zCL: %d m' %zCL[nCase])
+    if zCL[nCase] < 500 :
+        print('\033[93m' + 'Plume zCL: %d m' %zCL[nCase] + '\033[0m')
+        print(zCLend[nCase])
+    else:
+        print('Plume zCL: %d m' %zCL[nCase])
+        print(zCLend[nCase])
+
 
     #BL characteristics -------------------------------------------------
     dT = T0[1:]-T0[0:-1]
@@ -114,15 +125,16 @@ for nCase,Case in enumerate(RunList):
 
 
 H_bar = H / (Gamma * wStar * zi)
-zCL_bar = zCL / zi
+zCL_bar = zCLend / zi
 Ua_bar = (Ua * zi) / (r * wStar)
 
 fig = plt.figure(figsize=(12,4))
 plt.suptitle('DIMENSIONLESS ANALYSIS')
 plt.subplot(1,3,1)
-plt.scatter(H_bar, zCL_bar, c=plume.read_tag('F',RunList),cmap=plt.cm.tab20)
+plt.scatter(H_bar, zCL_bar, c=plume.read_tag('R',RunList),cmap=plt.cm.viridis)
 plt.xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
 plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
+plt.colorbar()
 
 plt.subplot(1,3,2)
 plt.scatter(H_bar, Ua_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.tab20)
@@ -130,7 +142,7 @@ plt.xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
 plt.ylabel(r'$\frac{U_a * z_i}{r * w_*}$')
 
 plt.subplot(1,3,3)
-plt.scatter(Ua_bar, zCL_bar,c=plume.read_tag('F',RunList),v cmap=plt.cm.tab20)
+plt.scatter(Ua_bar, zCL_bar,c=plume.read_tag('F',RunList), cmap=plt.cm.tab20)
 plt.xlabel(r'$\frac{U_a * z_i}{r * w_*}$')
 plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
 plt.colorbar(label='fuel category')
