@@ -35,7 +35,7 @@ for nCase,Case in enumerate(plume.fireline_runs):
     netcdfout = netcdf.netcdf_file(plume.wrfdir + 'velField_%s.nc' %Case, 'w')
     netcdfout.history = 'Destaggered interpolated velocity field'
 
-    dimTime = np.arange(0,dimT,4)
+    dimTime = np.arange(0,dimT,2)
 
     netcdfout.createDimension('Time', len(dimTime))
     Time = netcdfout.createVariable('Time', 'i', ('Time',))
