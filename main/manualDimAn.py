@@ -122,13 +122,13 @@ for nCase,Case in enumerate(RunList):
 
 
 
-wStar_bar = wStar / Ua
-zCL_bar = zCLend / r
+wStar_bar = wStar / zCL
+Ua_bar = Ua / r
 
 fig = plt.figure(figsize=(12,4))
 plt.suptitle('DIMENSIONLESS ANALYSIS')
 plt.subplot(1,3,1)
-plt.scatter(wStar_bar, zCL_bar, c=plume.read_tag('F',RunList),cmap=plt.cm.tab20)
+plt.scatter(wStar_bar, Ua_bar, c=plume.read_tag('F',RunList),cmap=plt.cm.tab20)
 # plt.xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
 # plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
 plt.colorbar()
