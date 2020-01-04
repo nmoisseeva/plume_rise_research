@@ -32,6 +32,7 @@ Gamma = np.empty((runCnt)) * np.nan
 zCL = np.empty((runCnt)) * np.nan
 wStar = np.empty((runCnt)) * np.nan
 zCLend = np.empty((runCnt)) * np.nan
+Omega = np.empty((runCnt)) * np.nan
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -114,27 +115,47 @@ for nCase,Case in enumerate(RunList):
     print('inversion std: %0.2f' %np.std(dT[zi_idx:zi_idx+20]))
     zi[nCase] = plume.dz * zi_idx                               #BL height
     Ua[nCase] = np.mean(U0[si:10])                               #ambient BL wind
+    Omega[nCase] = np.sum(dT[si+1::sliceZ]*plume.dz)
 
-    #analysis with w*
-    wStar[nCase] = (g*zi[nCase]*H[nCase]*Gamma[nCase]/(Ti[nCase]))**(1/4.)
+    if Omega[nCase] < 0 :
+        print('\033[93m' + '$\Omega$: %d ' %Omega[nCase] + '\033[0m')
+
+#
+# #analysis with w*
+# wStar[nCase] = (g*zi[nCase]*(H[nCase])/(Omega[nCase]))**(1/3.)
+#analysis with w*
+wStar = (g*H*Omega/(Gamma*zi*Ti))**(1/3.)
 
 
 
 
-
-wStar_bar = wStar / zCL
+wStar_bar = wStar / zCLend
 Ua_bar = Ua / r
 
-fig = plt.figure(figsize=(12,4))
+# wStar_bar = wStar / Ua
+# Ua_bar = zCLend / r
+
+regR = np.polyfit(Ua_bar,wStar_bar,1,full=True)
+print('Sum of residuals: %0.2d' %regR[1][0])
+
+
+
+fig = plt.figure(figsize=(12,6))
 plt.suptitle('DIMENSIONLESS ANALYSIS')
-plt.subplot(1,3,1)
-plt.scatter(wStar_bar, Ua_bar, c=plume.read_tag('F',RunList),cmap=plt.cm.tab20)
+plt.subplot(1,2,1)
+plt.scatter(Ua_bar,wStar_bar, c=plume.read_tag('F',RunList),cmap=plt.cm.tab20)
 # plt.xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
 # plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
 plt.colorbar()
 
+plt.subplot(1,2,2)
+plt.scatter(Ua_bar,wStar_bar, c=plume.read_tag('R',RunList),cmap=plt.cm.nipy_spectral)
+# plt.xlabel(r'$\frac{H}{\Gamma * z_i * w_*}$')
+# plt.ylabel(r'$\frac{z_{CL}}{z_i}$ ')
+plt.colorbar()
 
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.savefig(plume.figdir + 'DimAnalysis_Wf.pdf' )
-plt.close()
+plt.show()
+# plt.savefig(plume.figdir + 'DimAnalysis_Wf.pdf' )
+# plt.close()

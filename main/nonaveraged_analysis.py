@@ -64,67 +64,62 @@ for nCase,Case in enumerate(plume.tag):
 
     if doAnimations:
         maxPM = int(np.max(csdict['pm25']))
-        pmLevels = np.geomspace(30,maxPM/2,num=6)
+        pmLevels = np.geomspace(30,maxPM/10,num=6)
 
         #create an animation of horizontal velocity---------------------------------------------
-        fig = plt.figure(figsize=(10,5))
-        gs = fig.add_gridspec(ncols=2, nrows=1,width_ratios=[3,1])
+        fig = plt.figure(figsize=(22,4))
+        gs = fig.add_gridspec(ncols=2, nrows=1,width_ratios=[6,1])
         print('.....creating vertical crossection of U + PM2.5 animation')
         plt.suptitle('RELATIVE HORIZONTAL VELOCITY: %s' %Case)
 
         ax1=fig.add_subplot(gs[0])
+        axh1=ax1.twinx()
+
         # create initial frame
         # ---u contours and colorbar
         im = ax1.imshow((csdict['u'][0,:,:].T - profileU).T, origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.RdBu_r,vmin=-4, vmax=4)
-        ax1.set_aspect('auto')
-        # cbari = fig.colorbar(im, orientation='horizontal',fraction=0.046, pad=0.1)
-        cbari = fig.colorbar(im, orientation='horizontal')
+        cbari = fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
         cbari.set_label('ralative horizontal velocity $[m s^{-1}]$')
         # ---non-filled vapor contours and colorbar
-        cntr = ax1.contour(PMcontours[0,:,:],extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,cmap=plt.cm.Greys,linewidths=0.6)
-        ax1.set_xlim([0,dimX*plume.dx])
-        ax1.set_ylim([0,plume.lvl[-1]])
+        cntr = ax1.contour(PMcontours[0,:,:],extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.6)
         ax1.set_xlabel('horizontal distance [m]')
         ax1.set_ylabel('height AGL [m]')
+        ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,plume.lvl[-1]],aspect='equal')
+
         # ---heat flux
-        axh1 = ax1.twinx()
         ln = axh1.plot(np.arange(dimX)*plume.dx, csdict['ghfx'][0,:], 'r-')
         axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
-        axh1.set_ylim([0,150])
-        axh1.set_xlim([0,dimX*plume.dx])
+        axh1.set(xlim=[0,dimX*plume.dx],ylim=[0,150])
         axh1.tick_params(axis='y', colors='red')
+
 
         ax2=fig.add_subplot(gs[1])
         fim = ax2.imshow(csdict['ghfx2D'][0,75:175,0:75],cmap=plt.cm.YlOrRd, extent=[0,3000,3000,7000],vmin=0, vmax = 150)
-        ax2.set_aspect('auto')
+        ax2.set_aspect('equal')
         cbarif = fig.colorbar(fim, orientation='horizontal')
         cbarif.set_label('heat flux [$kW / m^2$]')
         ax2.set_xlabel('x distance [m]')
         ax2.set_ylabel('y distance [m]')
-        # plt.subplots_adjust(top=0.85)
-        plt.tight_layout(rect=[0, 0, 1, 0.92])
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
 
         def update_plot(n,csdict,cntrf,cntr):
             ax1.clear()
             im = ax1.imshow((csdict['u'][n,:,:].T - profileU).T,origin='lower',extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.RdBu_r,vmin=-4, vmax=4)
-            ax1.set_aspect('auto')
-            cntr = ax1.contour(PMcontours[n,:,:], extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,cmap=plt.cm.Greys,linewidths=0.6)
+            cntr = ax1.contour(PMcontours[n,:,:], extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.6)
             ax1.set_xlabel('horizontal distance [m]')
             ax1.set_ylabel('height AGL [m]')
-            ax1.set_ylim([0,plume.lvl[-1]])
+            ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,plume.lvl[-1]],aspect='equal')
+
             axh1.clear()
-            axh1.set_ylim([0,150])
-            axh1.set_xlim([0,dimX*plume.dx])
+            axh1.set(xlim=[0,dimX*plume.dx],ylim=[0,150])
             ln = axh1.plot(np.arange(dimX)*plume.dx, csdict['ghfx'][n,:], 'r-')
             axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
 
             ax2.clear()
             fim = ax2.imshow(csdict['ghfx2D'][n,75:175,0:75],cmap=plt.cm.YlOrRd,extent=[0,3000,3000,7000],vmin=0, vmax = 150)
-            ax2.set_aspect('auto')
+            ax2.set_aspect('equal')
             ax2.set_xlabel('x distance [m]')
             ax2.set_ylabel('y distance [m]')
-            # plt.subplots_adjust(top=0.85)
-
 
             return cntrf, ln, cntr,
 
