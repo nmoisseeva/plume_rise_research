@@ -31,6 +31,7 @@ T0 = np.empty((runCnt,len(plume.lvl))) * np.nan
 U0 = np.empty((runCnt,len(plume.lvl))) * np.nan
 PMprofiles = np.empty((runCnt,len(plume.lvl)))* np.nan
 UprimeCS=[]
+SmokeProfiles=np.empty((runCnt,3,len(plume.lvl)))* np.nan
 
 BLdict = {'Ua':np.empty(runCnt) * np.nan, \
             'Ti':np.empty(runCnt) * np.nan,\
@@ -107,6 +108,12 @@ for nCase,Case in enumerate(plume.fireline_runs):
     ReverseFlow = Uprime[10,:]
     UprimeCS.append(ReverseFlow)
     print(avedict['ghfx']  > 2)
+
+    #save smoke profiles  --------------------------------------
+    SmokeProfiles[nCase,0,:] = avedict['pm25'][:,55]/np.max(avedict['pm25'][:,55])
+    SmokeProfiles[nCase,1,:] = avedict['pm25'][:,100]/np.max(avedict['pm25'][:,100])
+    SmokeProfiles[nCase,2,:] = avedict['pm25'][:,150]/np.max(avedict['pm25'][:,150])
+
 
     #fire behavior ------------------------------------------------------
 
@@ -249,8 +256,7 @@ plt.title('FIRE-INDUCED WIND DYNAMCIS at 400 m AGL')
 plt.plot(haxis, UprimeCS[0], label='1 km')
 plt.plot(haxis, UprimeCS[1], label='2 km')
 plt.plot(haxis, UprimeCS[2], label='4 km')
-# ax.axvspan(16*plume.dx, 22*plume.dx, alpha=0.2, color='red')
-# ax.axvspan(15*plume.dx, 23*plume.dx, alpha=0.2, color='red')
+# plt.axhline(y=0,xmin=0,xmax=16000,color='grey')
 plt.xlabel('horizontal distance [m]')
 plt.ylabel('Uprime [m/s]' )
 plt.xlim([0,max(haxis)])
@@ -259,3 +265,29 @@ plt.legend()
 plt.savefig(plume.figdir + 'fireline/Uprime400m.pdf')
 plt.show()
 plt.close()
+
+#------------Profile Comparison-----------
+plt.figure(figsize=(12,4))
+plt.subplot(131)
+plt.suptitle('TIME-AVERAGED CONCENTRATIONS')
+plt.title('1 KM DOWNWIND')
+plt.plot(SmokeProfiles[0,0,:],plume.lvl)
+plt.plot(SmokeProfiles[1,0,:],plume.lvl)
+plt.plot(SmokeProfiles[2,0,:],plume.lvl)
+plt.gca().set(xlabel='normalized concentration', ylabel='height [m]')
+plt.subplot(132)
+plt.title('3 KM DOWNWIND')
+plt.plot(SmokeProfiles[0,1,:],plume.lvl)
+plt.plot(SmokeProfiles[1,1,:],plume.lvl)
+plt.plot(SmokeProfiles[2,1,:],plume.lvl)
+plt.gca().set(xlabel='normalized concentration', ylabel='height [m]')
+plt.subplot(133)
+plt.title('5 KM DOWNWIND')
+plt.plot(SmokeProfiles[0,2,:],plume.lvl,label='1 km fireline')
+plt.plot(SmokeProfiles[1,2,:],plume.lvl,label='2 km fireline')
+plt.plot(SmokeProfiles[2,2,:],plume.lvl,label='4 km fireline')
+plt.gca().set(xlabel='normalized concentration', ylabel='height [m]')
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.legend()
+plt.savefig(plume.figdir + 'fireline/DownwindSmokeProfiles.pdf')
+plt.show()
