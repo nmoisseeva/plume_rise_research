@@ -165,7 +165,7 @@ for nCase,Case in enumerate(RunList):
 
     dimZ, dimX = np.shape(avedict['w'])
     haxis = np.arange(dimX)*plume.dx
-
+    pmLevels = np.geomspace(30,int(np.max(avedict['pm25']))/10,num=10)
 
     #plot contours
     PMcontours = ma.masked_where(avedict['pm25'] <= 30,avedict['pm25'] )
@@ -293,6 +293,72 @@ for nCase,Case in enumerate(RunList):
     plt.savefig(plume.figdir + 'injectionH/ave%s.pdf' %Case)
     print('.....-->saved in: %s' %(plume.figdir + 'injectionH/ave%s.pdf' %Case))
     plt.close()
+
+
+    #create actual aspect ratio plots---------------------------------------------
+    fig = plt.figure(figsize=(14.5,12))
+
+    plt.suptitle('%s' %Case)
+
+    plt.subplot(311)
+    ax1 = plt.gca()
+    plt.title('Time-averaged W')
+    im = ax1.imshow(avedict['w'], origin='lower',extent=[0,haxis[-1],0,plume.lvl[-1]], cmap=plt.cm.PRGn_r, vmin=-5, vmax=5)
+    cbari =fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+    cbari.set_label('w $[m s^{-2}]$')
+    ax1.set(xlim=[0,haxis[-1]],ylim=[0,plume.lvl[-1]],aspect='equal',xlabel='horizontal distance [m]',ylabel='height AGL [m]')
+    ax1.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
+    ax1.plot(haxis,centerline,ls='--', c='darkgrey',label='plume centerline' )
+    ax1.legend()
+    cntr = ax1.contour(PMcontours, extent=[0,haxis[-1],0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.8)
+    axh1 = ax1.twinx()
+    axh1.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+    axh1.tick_params(axis='y', colors='red')
+    axh1.set(ylim=[0,150],xlim=[0,haxis[-1]])
+    ln = axh1.plot(haxis, avedict['ghfx'], 'r-')
+
+    plt.subplot(312)
+    ax2 = plt.gca()
+    plt.title('Time-averaged U anomaly')
+    im = ax2.imshow((avedict['u'].T-U0[nCase]).T, origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.RdBu_r, vmin=-4, vmax=4)
+    cbari =fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+    cbari.set_label('u $[m s^{-2}]$')
+    ax2.set(xlim=[0,haxis[-1]],ylim=[0,plume.lvl[-1]],aspect='equal',xlabel='horizontal distance [m]',ylabel='height AGL [m]')
+    ax2.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
+    ax2.plot(haxis,centerline,ls='--', c='darkgrey',label='plume centerline' )
+
+    ax2.legend()
+    cntr = ax2.contour(PMcontours, extent=[0,haxis[-1],0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.8)
+    axh2 = ax2.twinx()
+    axh2.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+    axh2.tick_params(axis='y', colors='red')
+    axh2.set(ylim=[0,150],xlim=[0,haxis[-1]])
+    ln = axh2.plot(haxis, avedict['ghfx'], 'r-')
+
+    plt.subplot(313)
+    ax3 = plt.gca()
+    plt.title('Time-averaged T anomaly')
+    ax3 = plt.gca()
+    im = ax3.imshow((avedict['temp'].T-T0[nCase]).T, origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.cubehelix_r,vmin=-2, vmax=16)
+    cbari =fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+    cbari.set_label('w $[m s^{-2}]$')
+    ax3.set(xlim=[0,haxis[-1]],ylim=[0,plume.lvl[-1]],aspect='equal',xlabel='horizontal distance [m]',ylabel='height AGL [m]')
+    ax3.axhline(y = BLdict['zi'][nCase], ls=':', c='darkgrey', label='BL height at ignition')
+    ax3.plot(haxis,centerline,ls='--', c='darkgrey',label='plume centerline' )
+    ax3.legend()
+    cntr = ax3.contour(PMcontours, extent=[0,haxis[-1],0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.8)
+    axh3 = ax3.twinx()
+    axh3.set_ylabel('ground heat flux $[kW m^{-2}]$', color='r')
+    axh3.tick_params(axis='y', colors='red')
+    axh3.set(ylim=[0,150],xlim=[0,haxis[-1]])
+    ln = axh3.plot(haxis, avedict['ghfx'], 'r-')
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+    plt.savefig(plume.figdir + 'fixedAspectAverages/ave%s.pdf' %Case)
+    print('.....-->saved in: %s' %(plume.figdir + 'fixedAspectAverages/ave%s.pdf' %Case))
+    # plt.show()
+    plt.close()
+
 
 #---------------------calculations over all plumes--------------
 Rtag = np.array([i for i in plume.read_tag('R',RunList)])  #list of initialization rounds (different soundings)
