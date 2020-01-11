@@ -8,6 +8,8 @@ from scipy import interpolate
 import os.path
 import sys
 import imp
+from matplotlib import ticker
+
 
 #====================INPUT===================
 
@@ -17,6 +19,7 @@ imp.reload(plume) 	#force load each time
 
 preIgnT = 1 		#boolean: whether to use pre-ignition temp profile or averaged upwind profile
 plume.fireline_runs = ['W4F7R4L1','W4F7R4','W4F7R4L4']
+BLtestruns = ['W4F7R0','W4F7R1','W4F7R3']
 #=================end of input===============
 
 runCnt = len(plume.fireline_runs)
@@ -290,4 +293,169 @@ plt.gca().set(xlabel='normalized concentration', ylabel='height [m]')
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.legend()
 plt.savefig(plume.figdir + 'fireline/DownwindSmokeProfiles.pdf')
+plt.savefig(plume.figdir + 'fireline/DownwindSmokeProfiles.jpg')
+plt.show()
+
+#----------------------------BL TESTS-----------------------------
+Up = np.empty((len(BLtestruns),dimZ,dimX)) * np.nan
+smokeBL = np.empty((len(BLtestruns),dimZ,dimX)) * np.nan
+ziBL = np.empty(len(BLtestruns))
+Wp = np.empty((len(BLtestruns),dimZ,dimX)) * np.nan
+
+for nCase,Case in enumerate(BLtestruns):
+
+    #----------check for interpolated data----------------------------
+    avepath = plume.wrfdir + 'interp/wrfave_' + Case + '.npy'
+
+    if os.path.isfile(avepath):
+        print('Averaged data found at: %s' %avepath)
+        avedict = np.load(avepath,allow_pickle=True).item()   # load here the above pickle
+    else:
+        sys.exit('ERROR: no averaged data found - run prep_plumes.py via submit_interp.sh first on Cedar!')
+
+    U0BL = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
+    T0BL = np.load(plume.wrfdir + 'interp/profT0' + Case + '.npy')
+
+    #save wind anomaly crossection --------------------------------------
+    Uprime = (avedict['u'].T-U0BL).T
+    Up[nCase,:,:] = Uprime
+
+    Wp[nCase,:,:] = avedict['w']
+
+    smokeBL[nCase,:,:] = avedict['pm25']            #save smoke
+
+    #save BL height
+    dT = T0BL[1:]-T0BL[0:-1]
+    gradT = dT[1:] - dT[0:-1]
+    si = 2
+    ziBL[nCase] = plume.dz * (np.argmax(gradT[si:]) + si)
+
+
+#plot difference between R0 and R1 (same zi, different Gamma)
+
+fig = plt.figure(figsize=(12, 10))
+plt.suptitle('INVERSION EFFECT: STRONG (R1) - WEAK (R0)')
+
+plt.subplot(311)
+ax1 = plt.gca()
+plt.title('U')
+im = ax1.imshow(Up[1,:,:]-Up[0,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.PiYG_r,vmin=-2, vmax=2)
+cbari =fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+cbari.set_label('$\Delta u$ $[m/s]$')
+ax1.axhline(y = ziBL[0], ls=':', c='darkgrey', label='BL height at ignition')
+ax1.set(xlim=[0,haxis[-1]],ylim=[0,plume.lvl[-1]],aspect='equal',ylabel='height AGL [m]')
+ax1.legend()
+
+plt.subplot(312)
+ax2 = plt.gca()
+plt.title('W')
+im = ax2.imshow(Wp[1,:,:]-Wp[0,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.PiYG_r,vmin=-2, vmax=2)
+cbari =fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+cbari.set_label('$\Delta w$ $[m/s]$')
+ax2.axhline(y = ziBL[0], ls=':', c='darkgrey', label='BL height at ignition')
+ax2.set(xlim=[0,haxis[-1]],ylim=[0,plume.lvl[-1]],aspect='equal',ylabel='height AGL [m]')
+
+plt.subplot(313)
+ax3 = plt.gca()
+plt.title('SMOKE')
+im = ax3.imshow(smokeBL[1,:,:]-smokeBL[0,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.BrBG_r,vmin=-40000, vmax=40000)
+cbari =fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+cbari.set_label('$\Delta smoke$')
+ax3.axhline(y = ziBL[0], ls=':', c='darkgrey', label='BL height at ignition')
+ax3.set(xlim=[0,haxis[-1]],ylim=[0,plume.lvl[-1]],aspect='equal',ylabel='height AGL [m]')
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.savefig(plume.figdir + 'fireline/diffGamma.pdf')
+plt.savefig(plume.figdir + 'fireline/diffGamma.jpg')
+
+plt.close()
+
+
+
+#normalized effects of the zi
+
+fig = plt.figure(figsize=(12, 10))
+plt.suptitle('Zi EFFECT: DEEP (R3) - SHALLOW (R1)')
+
+plt.subplot(311)
+ax1 = plt.gca()
+plt.title('U')
+im = ax1.imshow(Up[2,:,:]-Up[1,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.PiYG_r,vmin=-2, vmax=2)
+cbari =fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+cbari.set_label('$\Delta u$ $[m/s]$')
+ax1.set(xlim=[0,haxis[-1]],ylim=[0,plume.lvl[-1]],aspect='equal',ylabel='height AGL [m]')
+ax1.axhline(y = ziBL[2], ls=':', c='black', label='BL height R3')
+ax1.axhline(y = ziBL[1], ls='--', c='darkgrey', label='BL height R1')
+ax1.legend()
+
+plt.subplot(312)
+ax2 = plt.gca()
+plt.title('W')
+im = ax2.imshow(Wp[2,:,:]-Wp[1,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.PiYG_r,vmin=-2, vmax=2)
+cbari =fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+cbari.set_label('$\Delta w$ $[m/s]$')
+ax2.set(xlim=[0,haxis[-1]],ylim=[0,plume.lvl[-1]],aspect='equal',ylabel='height AGL [m]')
+ax2.axhline(y = ziBL[2], ls=':', c='black', label='BL height R3')
+ax2.axhline(y = ziBL[1], ls='--', c='darkgrey', label='BL height R1')
+
+plt.subplot(313)
+ax3 = plt.gca()
+plt.title('SMOKE')
+im = ax3.imshow(smokeBL[2,:,:]-smokeBL[1,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]], cmap=plt.cm.BrBG_r,vmin=-40000, vmax=40000)
+cbari =fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+cbari.set_label('$\Delta smoke$')
+ax3.set(xlim=[0,haxis[-1]],ylim=[0,plume.lvl[-1]],aspect='equal',ylabel='height AGL [m]')
+ax3.axhline(y = ziBL[2], ls=':', c='black', label='BL height R3')
+ax3.axhline(y = ziBL[1], ls='--', c='darkgrey', label='BL height R1')
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+# plt.show()
+plt.savefig(plume.figdir + 'fireline/diffZi.pdf')
+plt.savefig(plume.figdir + 'fireline/diffZi.jpg')
+
+plt.close()
+
+#----------------------------ROSIE COMPARISON-----------------------------
+from scipy.io import netcdf
+
+avepathWRF = plume.wrfdir + 'interp/wrfave_W4F7R4L1.npy'
+wrfavedict =  np.load(avepathWRF,allow_pickle=True).item()
+
+
+
+
+pathDALES = plume.wrfdir + 'rosie/Rd00441_20min.nc'
+dalesdata = netcdf.netcdf_file(pathDALES, mode ='r')
+
+tWinWRF = 20*15 #seconds to skip for averaging
+numWinDALES = int(tWinWRF / 10)
+
+smokeDALES = np.copy(dalesdata.variables['sv_yint'][:,:,:])
+aveSVdales = np.mean(smokeDALES[numWinDALES:,:,:],0)
+
+ignited = np.array([i for i in wrfavedict['ghfx'] if i > 2])
+
+#------------Profile Comparison-----------
+plt.figure(figsize=(12,4))
+plt.subplot(131)
+plt.suptitle('TIME-AVERAGED CONCENTRATIONS')
+plt.title('1 KM DOWNWIND')
+plt.plot(wrfavedict['pm25'][:,50]/np.max(wrfavedict['pm25'][:,50]),plume.lvl)
+plt.plot(aveSVdales[:,250]/np.max(aveSVdales[:,250]),dalesdata.variables['zt'][:])
+plt.gca().set(xlabel='normalized concentration', ylabel='height AGL [m]')
+
+plt.subplot(132)
+plt.title('2 KM DOWNWIND')
+plt.plot(wrfavedict['pm25'][:,75]/np.max(wrfavedict['pm25'][:,75]),plume.lvl)
+plt.plot(aveSVdales[:,350]/np.max(aveSVdales[:,350]),dalesdata.variables['zt'][:])
+plt.gca().set(xlabel='normalized concentration', ylabel='height AGL [m]')
+plt.subplot(133)
+plt.title('3 KM DOWNWIND')
+plt.plot(wrfavedict['pm25'][:,100]/np.max(wrfavedict['pm25'][:,100]),plume.lvl, label='WRF')
+plt.plot(aveSVdales[:,450]/np.max(aveSVdales[:,450]),dalesdata.variables['zt'][:], label='DALES')
+plt.gca().set(xlabel='normalized concentration', ylabel='height AGL [m]')
+plt.legend()
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+plt.savefig(plume.figdir + 'fireline/ComparisonDALES-WRF_smoke.pdf')
+plt.savefig(plume.figdir + 'fireline/ComparisonDALES-WRF_smoke.jpg')
+
 plt.show()
