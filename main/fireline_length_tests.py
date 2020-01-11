@@ -293,6 +293,7 @@ plt.gca().set(xlabel='normalized concentration', ylabel='height [m]')
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.legend()
 plt.savefig(plume.figdir + 'fireline/DownwindSmokeProfiles.pdf')
+plt.savefig(plume.figdir + 'fireline/DownwindSmokeProfiles.jpg')
 plt.show()
 
 #----------------------------BL TESTS-----------------------------
@@ -364,6 +365,8 @@ ax3.axhline(y = ziBL[0], ls=':', c='darkgrey', label='BL height at ignition')
 ax3.set(xlim=[0,haxis[-1]],ylim=[0,plume.lvl[-1]],aspect='equal',ylabel='height AGL [m]')
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.savefig(plume.figdir + 'fireline/diffGamma.pdf')
+plt.savefig(plume.figdir + 'fireline/diffGamma.jpg')
+
 plt.close()
 
 
@@ -406,4 +409,53 @@ ax3.axhline(y = ziBL[1], ls='--', c='darkgrey', label='BL height R1')
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 # plt.show()
 plt.savefig(plume.figdir + 'fireline/diffZi.pdf')
+plt.savefig(plume.figdir + 'fireline/diffZi.jpg')
+
 plt.close()
+
+#----------------------------ROSIE COMPARISON-----------------------------
+from scipy.io import netcdf
+
+avepathWRF = plume.wrfdir + 'interp/wrfave_W4F7R4L1.npy'
+wrfavedict =  np.load(avepathWRF,allow_pickle=True).item()
+
+
+
+
+pathDALES = plume.wrfdir + 'rosie/Rd00441_20min.nc'
+dalesdata = netcdf.netcdf_file(pathDALES, mode ='r')
+
+tWinWRF = 20*15 #seconds to skip for averaging
+numWinDALES = int(tWinWRF / 10)
+
+smokeDALES = np.copy(dalesdata.variables['sv_yint'][:,:,:])
+aveSVdales = np.mean(smokeDALES[numWinDALES:,:,:],0)
+
+ignited = np.array([i for i in wrfavedict['ghfx'] if i > 2])
+
+#------------Profile Comparison-----------
+plt.figure(figsize=(12,4))
+plt.subplot(131)
+plt.suptitle('TIME-AVERAGED CONCENTRATIONS')
+plt.title('1 KM DOWNWIND')
+plt.plot(wrfavedict['pm25'][:,50]/np.max(wrfavedict['pm25'][:,50]),plume.lvl)
+plt.plot(aveSVdales[:,250]/np.max(aveSVdales[:,250]),dalesdata.variables['zt'][:])
+plt.gca().set(xlabel='normalized concentration', ylabel='height AGL [m]')
+
+plt.subplot(132)
+plt.title('2 KM DOWNWIND')
+plt.plot(wrfavedict['pm25'][:,75]/np.max(wrfavedict['pm25'][:,75]),plume.lvl)
+plt.plot(aveSVdales[:,350]/np.max(aveSVdales[:,350]),dalesdata.variables['zt'][:])
+plt.gca().set(xlabel='normalized concentration', ylabel='height AGL [m]')
+plt.subplot(133)
+plt.title('3 KM DOWNWIND')
+plt.plot(wrfavedict['pm25'][:,100]/np.max(wrfavedict['pm25'][:,100]),plume.lvl, label='WRF')
+plt.plot(aveSVdales[:,450]/np.max(aveSVdales[:,450]),dalesdata.variables['zt'][:], label='DALES')
+plt.gca().set(xlabel='normalized concentration', ylabel='height AGL [m]')
+plt.legend()
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+plt.savefig(plume.figdir + 'fireline/ComparisonDALES-WRF_smoke.pdf')
+plt.savefig(plume.figdir + 'fireline/ComparisonDALES-WRF_smoke.jpg')
+
+plt.show()
