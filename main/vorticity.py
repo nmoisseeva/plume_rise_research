@@ -20,7 +20,7 @@ imp.reload(plume) 	#force load each time
 
 #=================end of input===============
 
-
+#!!!!!!!! THIS CODE MUST BE RUN WITH PYTHON 3.6 OR HIGHER!!!!!!!!!!!!!
 for nCase,Case in enumerate(plume.fireline_runs):
 
     interppath = plume.wrfdir + 'interp/wrfinterp_' + Case + '.npy'
@@ -29,7 +29,7 @@ for nCase,Case in enumerate(plume.fireline_runs):
     interpfile = open(interppath,'rb')
     interpdict = pickle.load(interpfile)   # load here the above pickle
 
-    dimT, dimZ, dimY, dimX = np.shape(interpdict['U'])
+    dimT, dimZ, dimY, dimX = np.shape(interpdict['U'][:,:,25:-25,:])
 
     #dump netcdf file for ParaView
     netcdfout = netcdf.netcdf_file(plume.wrfdir + 'velField_%s.nc' %Case, 'w')
@@ -67,8 +67,8 @@ for nCase,Case in enumerate(plume.fireline_runs):
     grnhfx.units = 'Watt/meters^2'
 
     for nTime, time in enumerate(dimTime):
-        u[nTime,:,:,:] = interpdict['U'][time,:,:,:int(dimX/3)]
-        v[nTime,:,:,:]  = interpdict['V'][time,:,:,:int(dimX/3)]
-        w[nTime,:,:,:] = interpdict['W'][time,:,:,:int(dimX/3)]
-        grnhfx[nTime,:,:] = interpdict['GRNHFX'][time,:,:int(dimX/3)]
+        u[nTime,:,:,:] = interpdict['U'][time,:,25:-25,:int(dimX/3)]
+        v[nTime,:,:,:]  = interpdict['V'][time,:,25:-25,:int(dimX/3)]
+        w[nTime,:,:,:] = interpdict['W'][time,:,25:-25,:int(dimX/3)]
+        grnhfx[nTime,:,:] = interpdict['GRNHFX'][time,25:-25,:int(dimX/3)]
     netcdfout.close()
