@@ -124,17 +124,16 @@ for nCase,Case in enumerate(RunList):
 # #analysis with w*
 # wStar[nCase] = (g*zi[nCase]*(H[nCase])/(Omega[nCase]))**(1/3.)
 #analysis with w*
-# wStar = (g*H*Omega/(Gamma*zi*Ti))**(1/3.)
-wStar = (g*Omega/H)
+wStar = (g*H*Omega/(Gamma*zi*Ti))**(1/3.)
 
 
 
+#
+# wStar_bar = wStar / zCLend
+# Ua_bar = Ua / r
 
-wStar_bar = wStar / zCLend
-Ua_bar = Ua / r
-
-# wStar_bar = wStar / Ua
-# Ua_bar = zCLend / r
+wStar_bar = wStar / Ua
+Ua_bar = zCLend / r
 
 # regR = np.polyfit(Ua_bar,wStar_bar,1,full=True)
 # print('Sum of residuals: %0.2d' %regR[1][0])
