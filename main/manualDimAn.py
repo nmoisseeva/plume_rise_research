@@ -40,18 +40,9 @@ for nCase,Case in enumerate(RunList):
     print('Examining case: %s ' %Case)
 
     #----------get preignition temperature profile-----------------
-    cspath = plume.wrfdir + 'interp/wrfcs_' + Case + '.npy'
-    print('Opening data: %s' %cspath)
-    csdict = np.load(cspath, allow_pickle=True).item()
-
-    #save initial temperature prfile
-    profpathT = plume.wrfdir + 'interp/profT0' + Case + '.npy'
-    profileT = np.mean(csdict['temp'][0,:,:],1)
-    np.save(profpathT,profileT)
-
-    profpathU = plume.wrfdir + 'interp/profU0' + Case + '.npy'
-    profileU = np.mean(csdict['u'][0,:,:],1)
-    np.save(profpathU,profileU)
+    csdict = plume.load_CS_prep_Profiles(Case)
+    T0 = np.load(plume.wrfdir + 'interp/profT0' + Case + '.npy')
+    U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
 
     #----------check for interpolated data----------------------------
     avepath = plume.wrfdir + 'interp/wrfave_' + Case + '.npy'
@@ -72,9 +63,6 @@ for nCase,Case in enumerate(RunList):
     # centerline = ma.masked_where(plume.lvl[PMmaxVidx] == 0, plume.lvl[PMmaxVidx])
     centerline = plume.lvl[PMmaxVidx]
     zCLend[nCase] = np.mean(centerline[centerline > 0][-5:])
-
-    T0 = np.load(plume.wrfdir + 'interp/profT0' + Case + '.npy')
-    U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
 
 
     ignited = np.array([i for i in avedict['ghfx'] if i > 2])

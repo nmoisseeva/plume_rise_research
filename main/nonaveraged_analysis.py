@@ -23,24 +23,12 @@ doAnimations = 1    #flag to do animations:
 
 
 for nCase,Case in enumerate(plume.tag):
-
-    cspath = plume.wrfdir + 'interp/wrfcs_' + Case + '.npy'
-    print('Opening data: %s' %cspath)
-    csdict = np.load(cspath, allow_pickle=True).item()
+    csdict = plume.load_CS_prep_Profiles(Case)
+    T0 = np.load(plume.wrfdir + 'interp/profT0' + Case + '.npy')
+    U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
 
     dimT, dimZ, dimX = np.shape(csdict['temp'])
     dimY = np.shape(csdict['ghfx2D'])[1]
-
-    #save initial temperature prfile
-    profpathT = plume.wrfdir + 'interp/profT0' + Case + '.npy'
-    profileT = np.mean(csdict['temp'][0,:,:],1)
-    np.save(profpathT,profileT)
-
-    #save initial temperature prfile
-    profpathU = plume.wrfdir + 'interp/profU0' + Case + '.npy'
-    profileU = np.mean(csdict['u'][0,:,:],1)
-    np.save(profpathU,profileU)
-
     # fig = plt.figure(figsize=(12,6))
     # for nTime,Time in enumerate(np.arange(0,dimT,15)):
     #     plt.plot(csdict['w'][Time,1,:], label='%d min' %(Time*15/60.))
@@ -56,15 +44,11 @@ for nCase,Case in enumerate(plume.tag):
     # plt.savefig(plume.figdir + 'cs_analysis/surfW_%s.pdf' %Case)
     # print('.....surface W plots saved in: %s' %(plume.figdir + 'cs_analysis/surfW_%s.pdf' %Case))
     # # plt.close()
-    #
-    #
-    #
-    # #plot contours
-    PMcontours = ma.masked_where(csdict['pm25'] <= 30,csdict['pm25'])
 
     if doAnimations:
         maxPM = int(np.max(csdict['pm25']))
         pmLevels = np.geomspace(30,maxPM/10,num=10)
+        PMcontours = ma.masked_where(csdict['pm25'] <= 30,csdict['pm25'])
 
         # #create an animation of horizontal velocity---------------------------------------------
         # fig = plt.figure(figsize=(22,4))
@@ -77,7 +61,7 @@ for nCase,Case in enumerate(plume.tag):
         #
         # # create initial frame
         # # ---u contours and colorbar
-        # im = ax1.imshow((csdict['u'][0,:,:].T - profileU).T, origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.RdBu_r,vmin=-4, vmax=4)
+        # im = ax1.imshow((csdict['u'][0,:,:].T - U0).T, origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.RdBu_r,vmin=-4, vmax=4)
         # cbari = fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
         # cbari.set_label('ralative horizontal velocity $[m s^{-1}]$')
         # # ---non-filled vapor contours and colorbar
@@ -104,7 +88,7 @@ for nCase,Case in enumerate(plume.tag):
         #
         # def update_plot(n,csdict,cntrf,cntr):
         #     ax1.clear()
-        #     im = ax1.imshow((csdict['u'][n,:,:].T - profileU).T,origin='lower',extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.RdBu_r,vmin=-4, vmax=4)
+        #     im = ax1.imshow((csdict['u'][n,:,:].T - U0).T,origin='lower',extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.RdBu_r,vmin=-4, vmax=4)
         #     cntr = ax1.contour(PMcontours[n,:,:], extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.7)
         #     ax1.set_xlabel('horizontal distance [m]')
         #     ax1.set_ylabel('height AGL [m]')
@@ -167,7 +151,7 @@ for nCase,Case in enumerate(plume.tag):
 
         def update_plot(n,csdict,cntrf,cntr):
             ax1.clear()
-            im = ax1.imshow((csdict['u'][n,:,:].T - profileU).T,origin='lower',extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.PRGn_r, vmin=-5, vmax=5)
+            im = ax1.imshow((csdict['u'][n,:,:].T - U0).T,origin='lower',extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.PRGn_r, vmin=-5, vmax=5)
             cntr = ax1.contour(PMcontours[n,:,:], extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.6)
             ax1.set_xlabel('horizontal distance [m]')
             ax1.set_ylabel('height AGL [m]')
