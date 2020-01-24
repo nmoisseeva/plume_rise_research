@@ -59,7 +59,7 @@ for nCase,Case in enumerate(RunList):
 
 
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
-    smoothPM = savgol_filter(dPMdX, 81, 2) # window size 51, polynomial order 3
+    smoothPM = savgol_filter(dPMdX, 81, 3) # window size 51, polynomial order 3
     stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
 
     stablePM = pm[:,1:][:,stablePMmask]
