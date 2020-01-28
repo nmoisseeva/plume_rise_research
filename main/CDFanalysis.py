@@ -20,8 +20,11 @@ imp.reload(plume) 	#force load each time
 
 #=================end of input===============
 
-RunList = [i for i in plume.tag if i not in plume.exclude_runs]
+# RunList = [i for i in plume.tag if i not in plume.exclude_runs]
 # RunList = ['W4F7R1']
+RunList = ['W5F6R3']
+
+
 runCnt = len(RunList)
 
 
@@ -59,14 +62,50 @@ for nCase,Case in enumerate(RunList):
 
 
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
-    smoothPM = savgol_filter(dPMdX, 81, 3) # window size 51, polynomial order 3
-    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
+    smoothPM = savgol_filter(dPMdX, 51, 3) # window size 51, polynomial order 3
+    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
 
     stablePM = pm[:,1:][:,stablePMmask]
     stableProfile = np.mean(stablePM,1)
     pmQ1 = np.percentile(stablePM,25,axis = 1)
     pmQ3 = np.percentile(stablePM,75,axis = 1)
 
+
+
+    #define source (r and H)------------------------
+    #raduis using full 2D average
+    masked_flux = ma.masked_less_equal(csdict['ghfx2D'], 0)
+    cs_flux = np.nanmean(masked_flux,1)                         #get cross section for each timestep
+    fire = []
+    xmax = np.argmax(cs_flux,axis=1)                            #get max for each timestep
+    for nP, pt in enumerate(xmax[plume.ign_over:]):             #excludes steps containing ignition
+        subset = cs_flux[plume.ign_over+nP,pt-plume.wi:pt+plume.wf]     #set averaging window around a maximum
+        fire.append(subset)
+    meanFire = np.nanmean(fire,0)
+    ignited = np.array([i for i in meanFire if i > 0.5])
+    r = len(ignited) * plume.dx
+    H = np.mean(ignited) * 1000 / ( 1.2 * 1005)         #get heat flux
+
+
+    #compare with center average only
+    avepath = plume.wrfdir + 'interp/wrfave_' + Case + '.npy'
+    avedict = np.load(avepath,allow_pickle=True).item()   # load here the above pickle
+    ignitedCtr = np.array([i for i in avedict['ghfx'] if i > 0.5])
+    rCtr = len(ignitedCtr) * plume.dx
+    HCtr = np.mean(ignitedCtr) * 1000 / ( 1.2 * 1005)         #get heat flux
+
+    whaxis = np.arange(len(meanFire))*plume.dx
+    plt.title('SLAB vs. CENTER AVERAGE: %s' %Case)
+    ax = plt.gca()
+    plt.plot(whaxis[:150],meanFire[:150], label='slab average: r = %s, H = %2d' %(r,H))
+    # ax.fill_between(whaxis[:150], 0, 1, where=meanFire[:150]>0.5, color='red', alpha=0.1, transform=ax.get_xaxis_transform(), label='averaging window')
+    plt.plot(whaxis[:150],avedict['ghfx'][:150],color='C1',linestyle='--',label='center average:r = %s, H = %2d' %(rCtr,HCtr))
+    # ax.fill_between(whaxis[:150], 0, 1, where=avedict['ghfx'][:150]>0.5, color='grey', alpha=0.1, transform=ax.get_xaxis_transform(), label='averaging window')
+
+    ax.set(ylabel='heat flux [kW/m2]')
+    plt.legend()
+    plt.savefig(plume.figdir + 'fireDiagnostics/fire%s.pdf' %Case)
+    plt.show()
 
 
     #PLOTTING =========================================================

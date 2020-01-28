@@ -17,6 +17,7 @@ dy = 40.
 cs = 10                         #+/- grids for cross-section
 wi, wf = 25, 375
 fireline = 4000.,6000.          #fireline start and end in meters
+ign_over = 20                   #number of history intervals exluded from start
 
 # dirlist = os.listdir(wrfdir+'interp/') 	#get all files in directory
 dirpath = wrfdir+'interp/wrfave_*'

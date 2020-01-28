@@ -66,8 +66,14 @@ for nCase,Case in enumerate(RunList):
 
 
     ignited = np.array([i for i in avedict['ghfx'] if i > 2])
+    #radius using the average from center portion
     r[nCase] = len(ignited) * plume.dx
     H[nCase] = np.mean(ignited) * 1000 / ( 1.2 * 1005)         #get heat flux
+
+    # #raduis using full 2d average
+    # masked_flux = ma.masked_less(csdict['ghfx2D'], 0.1)
+    # cs_flux = np.nanmean(masked_flux,1)
+    # 
 
 
     #calculate injection height based on temperature anomaly
