@@ -26,7 +26,7 @@ tag = [i[len(dirpath)-1:-4] for i in dirlist]    #W*S*F*R0
 # tag = ['W8S400F7R0']
 
 #exclude list (F1, F8?,F9?)
-exclude_runs = ['W5F4R0','W5F4R1','W5F4R2','W5F4R3' ]
+exclude_runs = ['W5F4R0','W5F4R1','W5F4R2','W5F4R3','W5F4R4' ]
 fireline_runs = ['W4F7R4L1']
 # fireline_runs = ['W4F7R4','W4F7R4L1','W4F7R4L4']
 

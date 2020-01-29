@@ -20,12 +20,13 @@ imp.reload(plume) 	#force load each time
 
 #=================end of input===============
 
-# RunList = [i for i in plume.tag if i not in plume.exclude_runs]
+RunList = [i for i in plume.tag if i not in plume.exclude_runs]
 # RunList = ['W4F7R1']
-RunList = ['W5F6R3']
+# RunList = ['W5F6R3']
 
 
 runCnt = len(RunList)
+g = 9.81
 
 
 #take a vertical cross-section (ensure it's stable)
@@ -33,6 +34,13 @@ runCnt = len(RunList)
 #calculate temperature gradient -
 #map temperature gradient to CDF
 
+#save variables for dimensional analysis
+r = np.empty((runCnt)) * np.nan
+Ua = np.empty((runCnt)) * np.nan
+zi = np.empty((runCnt)) * np.nan
+zCL = np.empty((runCnt)) * np.nan
+Omega = np.empty((runCnt)) * np.nan
+Phi = np.empty((runCnt)) * np.nan
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -46,8 +54,10 @@ for nCase,Case in enumerate(RunList):
     #mask plume with 30ppm---------------------------------
     dimT, dimZ, dimX = np.shape(csdict['temp'])
     pm = ma.masked_where(csdict['pm25'][-1,:,:] <= 30, csdict['pm25'][-1,:,:] )
-    zi = plume.get_zi(T0)
+    zi[nCase] = plume.get_zi(T0)
+    si = 3
 
+    #locate centerline
     ctrZidx = pm.argmax(0)
     ctrXidx = pm.argmax(1)
     pmCtr = np.array([pm[ctrZidx[nX],nX] for nX in range(dimX)])
@@ -62,18 +72,16 @@ for nCase,Case in enumerate(RunList):
 
 
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
-    smoothPM = savgol_filter(dPMdX, 51, 3) # window size 51, polynomial order 3
-    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
-
+    smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
+    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
     stablePM = pm[:,1:][:,stablePMmask]
     stableProfile = np.mean(stablePM,1)
     pmQ1 = np.percentile(stablePM,25,axis = 1)
     pmQ3 = np.percentile(stablePM,75,axis = 1)
 
 
-
     #define source (r and H)------------------------
-    #raduis using full 2D average
+    #raduis using full 2D average - THIS IS THE APPROACH USED FOR DIMENSIONAL ANALYSIS
     masked_flux = ma.masked_less_equal(csdict['ghfx2D'], 0)
     cs_flux = np.nanmean(masked_flux,1)                         #get cross section for each timestep
     fire = []
@@ -83,29 +91,37 @@ for nCase,Case in enumerate(RunList):
         fire.append(subset)
     meanFire = np.nanmean(fire,0)
     ignited = np.array([i for i in meanFire if i > 0.5])
-    r = len(ignited) * plume.dx
     H = np.mean(ignited) * 1000 / ( 1.2 * 1005)         #get heat flux
-
+    r[nCase] = len(ignited) * plume.dx
+    Phi[nCase] = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005)
 
     #compare with center average only
     avepath = plume.wrfdir + 'interp/wrfave_' + Case + '.npy'
     avedict = np.load(avepath,allow_pickle=True).item()   # load here the above pickle
     ignitedCtr = np.array([i for i in avedict['ghfx'] if i > 0.5])
-    rCtr = len(ignitedCtr) * plume.dx
     HCtr = np.mean(ignitedCtr) * 1000 / ( 1.2 * 1005)         #get heat flux
+    rCtr = len(ignitedCtr) * plume.dx
 
+    #plot for reference
     whaxis = np.arange(len(meanFire))*plume.dx
     plt.title('SLAB vs. CENTER AVERAGE: %s' %Case)
     ax = plt.gca()
-    plt.plot(whaxis[:150],meanFire[:150], label='slab average: r = %s, H = %2d' %(r,H))
+    plt.plot(whaxis[:150],meanFire[:150], label='slab average: r = %s, H = %2d' %(r[nCase],H))
     # ax.fill_between(whaxis[:150], 0, 1, where=meanFire[:150]>0.5, color='red', alpha=0.1, transform=ax.get_xaxis_transform(), label='averaging window')
     plt.plot(whaxis[:150],avedict['ghfx'][:150],color='C1',linestyle='--',label='center average:r = %s, H = %2d' %(rCtr,HCtr))
     # ax.fill_between(whaxis[:150], 0, 1, where=avedict['ghfx'][:150]>0.5, color='grey', alpha=0.1, transform=ax.get_xaxis_transform(), label='averaging window')
-
     ax.set(ylabel='heat flux [kW/m2]')
     plt.legend()
     plt.savefig(plume.figdir + 'fireDiagnostics/fire%s.pdf' %Case)
-    plt.show()
+    plt.close()
+    # plt.show()
+
+    #dimensional analysis variables ---------------------------
+    zCL[nCase] = np.mean(centerline[1:][stablePMmask])
+    zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
+    dT = T0[1:]-T0[0:-1]
+    Omega[nCase] = np.sum(dT[si+1:zCLidx]*plume.dz)
+    Ua[nCase] = np.mean(U0[si:zCLidx])
 
 
     #PLOTTING =========================================================
@@ -128,7 +144,7 @@ for nCase,Case in enumerate(RunList):
     # ---non-filled vapor contours and colorbar
     cntr = ax1.contour(PMcontours[-1,:,:],extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.6)
     ax1.plot(haxis,centerline,ls='--', c='darkgrey',label='plume centerline' )
-    ax1.axhline(y = zi, ls=':', c='darkgrey', label='BL height at ignition')
+    ax1.axhline(y = zi[nCase], ls=':', c='darkgrey', label='BL height at ignition')
     ax1.set(ylabel='height AGL [m]')
     ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,plume.lvl[-1]],aspect='equal')
     ax1.legend()
@@ -163,3 +179,43 @@ for nCase,Case in enumerate(RunList):
 
     plt.close()
     print('.....saved in: %s' %(plume.figdir + 'downwindAve/%s.pdf' %Case))
+
+#DO dimenional analysis
+wStar = (g*Phi*zi/(Omega))**(1/3.)
+wStar_bar = wStar / Ua
+Ua_bar = zCL / r
+fig = plt.figure(figsize=(12,6))
+plt.suptitle('DIMENSIONLESS ANALYSIS')
+plt.subplot(1,2,1)
+plt.suptitle('Colored by profile wind')
+plt.scatter(Ua_bar,wStar_bar, c=plume.read_tag('W',RunList),cmap=plt.cm.jet)
+plt.gca().set(xlabel = 'zCL/r', ylabel='Wf*/Ua')
+plt.colorbar()
+plt.subplot(1,2,2)
+plt.suptitle('Colored by profile number')
+plt.scatter(Ua_bar,wStar_bar, c=plume.read_tag('R',RunList),cmap=plt.cm.tab20b)
+plt.gca().set(xlabel = 'zCL/r', ylabel='Wf*/Ua')
+plt.colorbar()
+
+plt.subplots_adjust(top=0.85)
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.show()
+plt.savefig(plume.figdir + 'DimAnalysis_Wf.pdf' )
+plt.close()
+
+#now plot zCl as a function of w*
+fig = plt.figure(figsize=(12,6))
+plt.title('zCL=FCN(W*)')
+plt.subplot(1,2,1)
+ax1=plt.gca()
+plt.scatter(wStar, zCL,  c=plume.read_tag('W',RunList), cmap=plt.cm.jet)
+plt.colorbar(label='Ua wind speed [m/s]')
+ax1.set(xlim=[0,180],ylim=[0,1600],xlabel='w* [m/s]',ylabel='zCL [m]')
+plt.subplot(1,2,2)
+ax2=plt.gca()
+plt.scatter(wStar, zCL,  c=H, cmap=plt.cm.jet)
+plt.colorbar(label='Ua wind speed [m/s]')
+ax2.set(xlim=[0,180],ylim=[0,1600],xlabel='w* [m/s]',ylabel='zCL [m]')
+plt.subplots_adjust(top=0.85)
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.show()

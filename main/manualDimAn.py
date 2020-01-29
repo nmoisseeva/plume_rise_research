@@ -15,6 +15,7 @@ from numpy import ma
 import plume
 imp.reload(plume) 	#force load each time
 
+RfullSlab = True       #calculate heat on full domain vs center slab
 
 #=================end of input===============
 
@@ -28,11 +29,12 @@ Ua = np.empty((runCnt)) * np.nan
 H = np.empty((runCnt)) * np.nan
 zi = np.empty((runCnt)) * np.nan
 Ti = np.empty((runCnt)) * np.nan
-Gamma = np.empty((runCnt)) * np.nan
+Gamma = np.empty((runCnt)) * np.nan             #inversion strength
 zCL = np.empty((runCnt)) * np.nan
 wStar = np.empty((runCnt)) * np.nan
 zCLend = np.empty((runCnt)) * np.nan
-Omega = np.empty((runCnt)) * np.nan
+Omega = np.empty((runCnt)) * np.nan             #cumulative BL temperature based on zCLend
+Phi = np.empty((runCnt)) * np.nan              #cumulative fire heat
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -64,16 +66,23 @@ for nCase,Case in enumerate(RunList):
     centerline = plume.lvl[PMmaxVidx]
     zCLend[nCase] = np.mean(centerline[centerline > 0][-5:])
 
-
-    ignited = np.array([i for i in avedict['ghfx'] if i > 2])
-    #radius using the average from center portion
+    if RfullSlab:
+        #raduis using full 2D average
+        masked_flux = ma.masked_less_equal(csdict['ghfx2D'], 0)
+        cs_flux = np.nanmean(masked_flux,1)                         #get cross section for each timestep
+        fire = []
+        xmax = np.argmax(cs_flux,axis=1)                            #get max for each timestep
+        for nP, pt in enumerate(xmax[plume.ign_over:]):             #excludes steps containing ignition
+            subset = cs_flux[plume.ign_over+nP,pt-plume.wi:pt+plume.wf]     #set averaging window around a maximum
+            fire.append(subset)
+        meanFire = np.nanmean(fire,0)
+        ignited = np.array([i for i in meanFire if i > 2])
+    else:
+        #center average only
+        ignited = np.array([i for i in avedict['ghfx'] if i > 2])
     r[nCase] = len(ignited) * plume.dx
     H[nCase] = np.mean(ignited) * 1000 / ( 1.2 * 1005)         #get heat flux
-
-    # #raduis using full 2d average
-    # masked_flux = ma.masked_less(csdict['ghfx2D'], 0.1)
-    # cs_flux = np.nanmean(masked_flux,1)
-    # 
+    Phi[nCase] = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005)
 
 
     #calculate injection height based on temperature anomaly
@@ -91,12 +100,12 @@ for nCase,Case in enumerate(RunList):
     sliceZ = PMmaxVidx[sliceX]
 
     zCL[nCase] = plume.lvl[sliceZ]
-    if zCL[nCase] < 500 :
-        print('\033[93m' + 'Plume zCL: %d m' %zCL[nCase] + '\033[0m')
-        print(zCLend[nCase])
+    delzCL = zCL[nCase] - zCLend[nCase]
+    if delzCL > 100 :
+        print('\033[93m' + 'zCL - zCLend: %d m' %delzCL + '\033[0m')
     else:
         print('Plume zCL: %d m' %zCL[nCase])
-        print(zCLend[nCase])
+        print('Plume zCLend: %d m' %zCLend[nCase])
 
 
     #BL characteristics -------------------------------------------------
@@ -109,20 +118,16 @@ for nCase,Case in enumerate(RunList):
     print('inversion std: %0.2f' %np.std(dT[zi_idx:zi_idx+20]))
     zi[nCase] = plume.dz * zi_idx                               #BL height
     Ua[nCase] = np.mean(U0[si:10])                               #ambient BL wind
-    Omega[nCase] = np.sum(dT[si+1::sliceZ]*plume.dz)
+    Omega[nCase] = np.sum(dT[si+1:sliceZ]*plume.dz)
 
     if Omega[nCase] < 0 :
         print('\033[93m' + '$\Omega$: %d ' %Omega[nCase] + '\033[0m')
 
-#
-# #analysis with w*
-# wStar[nCase] = (g*zi[nCase]*(H[nCase])/(Omega[nCase]))**(1/3.)
+
 #analysis with w*
-wStar = (g*H*Omega/(Gamma*zi*Ti))**(1/3.)
+wStar = (g*Phi*zi/(Omega))**(1/3.)
 
 
-
-#
 # wStar_bar = wStar / zCLend
 # Ua_bar = Ua / r
 
