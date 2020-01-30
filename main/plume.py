@@ -47,7 +47,10 @@ def read_tag(str_tag, str_array):
         elif str_tag=='R':
             out_array.append(int(numbers[2]))
         elif str_tag=='L':
-            out_array.append(int(numbers[3]))
+            if letters[-1]=='L':
+                out_array.append(int(numbers[3]))
+            else:
+                out_array.append(2)
     out_array = np.array(out_array)
     return out_array
 

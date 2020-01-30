@@ -41,6 +41,8 @@ zi = np.empty((runCnt)) * np.nan
 zCL = np.empty((runCnt)) * np.nan
 Omega = np.empty((runCnt)) * np.nan
 Phi = np.empty((runCnt)) * np.nan
+FI = np.empty((runCnt)) * np.nan
+width = np.empty((runCnt)) * np.nan
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -89,11 +91,18 @@ for nCase,Case in enumerate(RunList):
     for nP, pt in enumerate(xmax[plume.ign_over:]):             #excludes steps containing ignition
         subset = cs_flux[plume.ign_over+nP,pt-plume.wi:pt+plume.wf]     #set averaging window around a maximum
         fire.append(subset)
+    burning = np.sum(np.sum(csdict['ghfx2D'][plume.ign_over:,:,:],1),1) #get total heat flux from entire fire area
+    firedepth_t = np.sum(csdict['ghfx2D'][plume.ign_over:,:,:]>0,2)
+    maskeddepth = ma.masked_less_equal(firedepth_t,0)
+    width[nCase] = np.mean(np.mean(maskeddepth,1))
+
+
     meanFire = np.nanmean(fire,0)
     ignited = np.array([i for i in meanFire if i > 0.5])
     H = np.mean(ignited) * 1000 / ( 1.2 * 1005)         #get heat flux
     r[nCase] = len(ignited) * plume.dx
     Phi[nCase] = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005)
+    FI[nCase] = np.mean(burning)*  1000 / ( 1.2 * 1005)
 
     #compare with center average only
     avepath = plume.wrfdir + 'interp/wrfave_' + Case + '.npy'
@@ -121,6 +130,8 @@ for nCase,Case in enumerate(RunList):
     zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
     dT = T0[1:]-T0[0:-1]
     Omega[nCase] = np.sum(dT[si+1:zCLidx]*plume.dz)
+    if Omega[nCase] < 0 :
+        print('\033[93m' + '$\Omega$: %0.2f ' %Omega[nCase] + '\033[0m')
     Ua[nCase] = np.mean(U0[si:zCLidx])
 
 
@@ -132,7 +143,6 @@ for nCase,Case in enumerate(RunList):
 
     fig = plt.figure(figsize=(22,8))
     gs = fig.add_gridspec(ncols=2, nrows=2,width_ratios=[6,1])
-    print('.....creating vertical crossection of U + PM2.5')
     plt.suptitle('%s' %Case)
 
     ax1=fig.add_subplot(gs[0])
@@ -199,23 +209,26 @@ plt.colorbar()
 
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.show()
+# plt.show()
 plt.savefig(plume.figdir + 'DimAnalysis_Wf.pdf' )
 plt.close()
 
-#now plot zCl as a function of w*
+# #now plot zCl as a function of w*
+# regR = np.polyfit(wStar,zCL,1,full=True)
+# print('Sum of residuals: %0.2d' %regR[1][0])
+
 fig = plt.figure(figsize=(12,6))
 plt.title('zCL=FCN(W*)')
 plt.subplot(1,2,1)
 ax1=plt.gca()
 plt.scatter(wStar, zCL,  c=plume.read_tag('W',RunList), cmap=plt.cm.jet)
 plt.colorbar(label='Ua wind speed [m/s]')
-ax1.set(xlim=[0,180],ylim=[0,1600],xlabel='w* [m/s]',ylabel='zCL [m]')
+ax1.set(xlabel='w* [m/s]',ylabel='zCL [m]')
 plt.subplot(1,2,2)
 ax2=plt.gca()
-plt.scatter(wStar, zCL,  c=H, cmap=plt.cm.jet)
+plt.scatter(wStar, zCL,  c=Phi, cmap=plt.cm.jet)
 plt.colorbar(label='Ua wind speed [m/s]')
-ax2.set(xlim=[0,180],ylim=[0,1600],xlabel='w* [m/s]',ylabel='zCL [m]')
+ax2.set(xlabel='w* [m/s]',ylabel='zCL [m]')
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
