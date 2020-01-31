@@ -47,7 +47,7 @@ def read_tag(str_tag, str_array):
         elif str_tag=='R':
             out_array.append(int(numbers[2]))
         elif str_tag=='L':
-            if letters[-1]=='L':
+            if letters[-2]=='L':        #-2 accounts for empty string at the end of the file
                 out_array.append(int(numbers[3]))
             else:
                 out_array.append(2)

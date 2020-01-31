@@ -8,6 +8,7 @@ import imp
 from numpy import ma
 from matplotlib import ticker
 from scipy.signal import savgol_filter
+from scipy.stats import linregress
 
 
 
@@ -75,7 +76,7 @@ for nCase,Case in enumerate(RunList):
 
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
     smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
-    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
+    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
     stablePM = pm[:,1:][:,stablePMmask]
     stableProfile = np.mean(stablePM,1)
     pmQ1 = np.percentile(stablePM,25,axis = 1)
@@ -190,45 +191,51 @@ for nCase,Case in enumerate(RunList):
     plt.close()
     print('.....saved in: %s' %(plume.figdir + 'downwindAve/%s.pdf' %Case))
 
-#DO dimenional analysis
-wStar = (g*Phi*zi/(Omega))**(1/3.)
-wStar_bar = wStar / Ua
-Ua_bar = zCL / r
-fig = plt.figure(figsize=(12,6))
-plt.suptitle('DIMENSIONLESS ANALYSIS')
-plt.subplot(1,2,1)
-plt.suptitle('Colored by profile wind')
-plt.scatter(Ua_bar,wStar_bar, c=plume.read_tag('W',RunList),cmap=plt.cm.jet)
-plt.gca().set(xlabel = 'zCL/r', ylabel='Wf*/Ua')
-plt.colorbar()
-plt.subplot(1,2,2)
-plt.suptitle('Colored by profile number')
-plt.scatter(Ua_bar,wStar_bar, c=plume.read_tag('R',RunList),cmap=plt.cm.tab20b)
-plt.gca().set(xlabel = 'zCL/r', ylabel='Wf*/Ua')
-plt.colorbar()
-
-plt.subplots_adjust(top=0.85)
-plt.tight_layout(rect=[0, 0, 1, 0.95])
+# #Do dimenional analysis
+# Pi1 = Phi * (g**0.5) / (Omega * (zi**0.5))
+# Pi2 = zCL/zi
+# fig = plt.figure(figsize=(12,6))
+# plt.suptitle('DIMENSIONLESS ANALYSIS')
+# plt.subplot(1,2,1)
+# plt.suptitle('Colored by profile wind')
+# plt.scatter(Pi1,Pi2, c=plume.read_tag('W',RunList),cmap=plt.cm.jet)
+# # plt.gca().set(xlabel = 'zCL/r', ylabel='Wf*/Ua')
+# plt.colorbar()
+# plt.subplot(1,2,2)
+# plt.suptitle('Colored by profile number')
+# plt.scatter(Pi1,Pi2, c=plume.read_tag('R',RunList),cmap=plt.cm.tab20b)
+# ax = plt.gca()
+# for i, txt in enumerate(RunList):
+#     ax.annotate(txt, (Pi1[i], Pi2[i]),fontsize=6)
+# # plt.gca().set(xlabel = 'zCL/r', ylabel='Wf*/Ua')
+# plt.colorbar()
+# plt.subplots_adjust(top=0.85)
+# plt.tight_layout(rect=[0, 0, 1, 0.95])
 # plt.show()
-plt.savefig(plume.figdir + 'DimAnalysis_Wf.pdf' )
-plt.close()
+# # plt.savefig(plume.figdir + 'DimAnalysis.pdf' )
+# plt.close()
 
-# #now plot zCl as a function of w*
-# regR = np.polyfit(wStar,zCL,1,full=True)
-# print('Sum of residuals: %0.2d' %regR[1][0])
+#now plot zCl as a function of w*
+wStar = (g*Phi*zi/(Omega))**(1/3.)
+slope, intercept, r_value, p_value, std_err = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
+print('Sum of residuals: %0.2f' %r_value)
 
 fig = plt.figure(figsize=(12,6))
-plt.title('zCL=FCN(W*)')
+plt.suptitle('zCL=FCN(W*): R = %.2f' %r_value)
 plt.subplot(1,2,1)
 ax1=plt.gca()
 plt.scatter(wStar, zCL,  c=plume.read_tag('W',RunList), cmap=plt.cm.jet)
+plt.plot(wStar, intercept + slope*wStar, c='grey')
 plt.colorbar(label='Ua wind speed [m/s]')
 ax1.set(xlabel='w* [m/s]',ylabel='zCL [m]')
 plt.subplot(1,2,2)
 ax2=plt.gca()
-plt.scatter(wStar, zCL,  c=Phi, cmap=plt.cm.jet)
-plt.colorbar(label='Ua wind speed [m/s]')
+plt.scatter(wStar, zCL,  c=FI, cmap=plt.cm.RdYlGn_r)
+plt.colorbar(label='total 2D burn intensity')
+for i, txt in enumerate(RunList):
+    ax2.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
 ax2.set(xlabel='w* [m/s]',ylabel='zCL [m]')
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.savefig(plume.figdir + 'zCl_wStar.pdf' )
 plt.show()
