@@ -72,6 +72,7 @@ for nCase,Case in enumerate(RunList):
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)
     centerline = ma.masked_where(plume.lvl[ctrZidx] == 0, plume.lvl[ctrZidx])
     tilt = ymax/xmax                #tilt is calculated based on max centerline height
+    smoothCenterline = savgol_filter(centerline, 31, 3) # window size 101, polynomial order 3
 
 
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
@@ -127,7 +128,9 @@ for nCase,Case in enumerate(RunList):
     # plt.show()
 
     #dimensional analysis variables ---------------------------
-    zCL[nCase] = np.mean(centerline[1:][stablePMmask])
+    # zCL[nCase] = np.mean(centerline[1:][stablePMmask])
+    zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])
+
     zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
     dT = T0[1:]-T0[0:-1]
     Omega[nCase] = np.sum(dT[si+1:zCLidx]*plume.dz)
@@ -172,11 +175,15 @@ for nCase,Case in enumerate(RunList):
     cbarif.set_label('heat flux [$kW / m^2$]')
     ax2.set(xlabel='x distance [m]',ylabel='y distance [m]',aspect='equal')
 
+
     ax3=fig.add_subplot(gs[2])
-    plt.plot(haxis, pmCtr, label='concentration along centerline', color='C1')
-    ax3.fill_between(haxis[1:], 0, 1, where=stablePMmask, color='grey', alpha=0.4, transform=ax3.get_xaxis_transform(), label='averaging window')
+    l1, = plt.plot(haxis, pmCtr, label='concentration along centerline', color='C1')
+    l2 = ax3.fill_between(haxis[1:], 0, 1, where=stablePMmask, color='grey', alpha=0.4, transform=ax3.get_xaxis_transform(), label='averaging window')
     ax3.set(xlim=[0,dimX*plume.dx],xlabel='horizontal distance [m]',ylabel='concentration [ug/kg]' )
-    plt.legend()
+    ax32 = ax3.twinx()
+    l3, = plt.plot(haxis,smoothCenterline, label='smoothed centerline height ', color='C2',linestyle=':')
+    ax32.set(xlim=[0,dimX*plume.dx],ylim=[0,2000], ylabel='height [m]' )
+    plt.legend(handles = [l1,l2,l3])
 
     ax4=fig.add_subplot(gs[3])
     plt.plot(stableProfile, plume.lvl,label='vertical PM profile')
