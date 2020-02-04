@@ -21,9 +21,8 @@ imp.reload(plume) 	#force load each time
 
 #=================end of input===============
 
-RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-# RunList = ['W4F7R1']
-# RunList = ['W5F6R3']
+# RunList = [i for i in plume.tag if i not in plume.exclude_runs]
+RunList = ['W5F6R3','W4F7R1','W4F7R4L1','W4F7R4','W4F7R4L4']
 
 
 runCnt = len(RunList)
@@ -44,6 +43,7 @@ Omega = np.empty((runCnt)) * np.nan
 Phi = np.empty((runCnt)) * np.nan
 FI = np.empty((runCnt)) * np.nan
 width = np.empty((runCnt)) * np.nan
+FirelineProfiles, FirelineUprime400m = [], []
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -97,7 +97,6 @@ for nCase,Case in enumerate(RunList):
     firedepth_t = np.sum(csdict['ghfx2D'][plume.ign_over:,:,:]>0,2)
     maskeddepth = ma.masked_less_equal(firedepth_t,0)
     width[nCase] = np.mean(np.mean(maskeddepth,1))
-
 
     meanFire = np.nanmean(fire,0)
     ignited = np.array([i for i in meanFire if i > 0.5])
@@ -198,6 +197,13 @@ for nCase,Case in enumerate(RunList):
     plt.close()
     print('.....saved in: %s' %(plume.figdir + 'downwindAve/%s.pdf' %Case))
 
+    #save some data for non-averaged comparison of fireline lengths
+    if Case in plume.fireline_runs:
+        Uprime = (csdict['u'][-1,:,:].T - U0).T
+        FirelineUprime400m.append(Uprime[10,:])
+        FirelineProfiles.append(stableProfile)
+
+
 # #Do dimenional analysis
 # Pi1 = Phi * (g**0.5) / (Omega * (zi**0.5))
 # Pi2 = zCL/zi
@@ -245,4 +251,37 @@ ax2.set(xlabel='w* [m/s]',ylabel='zCL [m]')
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.savefig(plume.figdir + 'zCl_wStar.pdf' )
+plt.show()
+
+
+#Fireline length ANALYSIS
+#------------Velocity Enhancement-----------
+firelineSmoke = np.mean(FirelineProfiles)
+plt.figure()
+haxis = np.arange(dimX)*plume.dx
+ax = plt.gca()
+plt.title('FIRE-INDUCED WIND DYNAMCIS at 400 m AGL')
+plt.plot(haxis, FirelineUprime400m[0], label='1 km')
+plt.plot(haxis, FirelineUprime400m[1], label='2 km')
+plt.plot(haxis, FirelineUprime400m[2], label='4 km')
+# plt.axhline(y=0,xmin=0,xmax=16000,color='grey')
+plt.xlabel('horizontal distance [m]')
+plt.ylabel('Uprime [m/s]' )
+plt.xlim([0,max(haxis)])
+plt.tight_layout()
+plt.legend()
+# plt.savefig(plume.figdir + 'fireline/Uprime400m.pdf')
+plt.show()
+plt.close()
+
+#------------Profile Comparison-----------
+plt.figure(figsize=(12,4))
+plt.title('DONWDIND CONCENTRATIONS')
+plt.plot(FirelineProfiles[0]/np.max(FirelineProfiles[0]),plume.lvl)
+plt.plot(FirelineProfiles[1]/np.max(FirelineProfiles[1]),plume.lvl)
+plt.plot(FirelineProfiles[2]/np.max(FirelineProfiles[2]),plume.lvl)
+plt.gca().set(xlabel='normalized concentration', ylabel='height [m]')
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.legend()
+# plt.savefig(plume.figdir + 'fireline/DownwindSmokeProfiles.pdf')
 plt.show()
