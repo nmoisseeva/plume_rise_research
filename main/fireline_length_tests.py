@@ -435,8 +435,11 @@ ignited = np.array([i for i in wrfavedict['ghfx'] if i > 2])
 
 #------------Profile Comparison-----------
 plt.figure(figsize=(12,4))
+plt.rcParams.update({'axes.labelsize': 'xx-large', 'xtick.labelsize':'x-large','ytick.labelsize':'x-large'})
+plt.rcParams.update({'axes.titlesize': 'xx-large'})
+
 plt.subplot(131)
-plt.suptitle('TIME-AVERAGED CONCENTRATIONS')
+plt.suptitle('TIME-AVERAGED CONCENTRATIONS',fontsize=18)
 plt.title('1 KM DOWNWIND')
 plt.plot(wrfavedict['pm25'][:,50]/np.max(wrfavedict['pm25'][:,50]),plume.lvl)
 plt.plot(aveSVdales[:,250]/np.max(aveSVdales[:,250]),dalesdata.variables['zt'][:])
@@ -452,7 +455,7 @@ plt.title('3 KM DOWNWIND')
 plt.plot(wrfavedict['pm25'][:,100]/np.max(wrfavedict['pm25'][:,100]),plume.lvl, label='WRF')
 plt.plot(aveSVdales[:,450]/np.max(aveSVdales[:,450]),dalesdata.variables['zt'][:], label='DALES')
 plt.gca().set(xlabel='normalized concentration', ylabel='height AGL [m]')
-plt.legend()
+plt.legend(fontsize=14)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 
 plt.savefig(plume.figdir + 'fireline/ComparisonDALES-WRF_smoke.pdf')
