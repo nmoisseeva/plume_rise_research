@@ -177,7 +177,27 @@ for nCase,Case in enumerate(plume.tag):
         plt.close()
         print('.....saved in: %s' %(plume.figdir + 'anim/w/w%s.mp4' %Case))
 
+        if Case == 'W4F7R4':
+            fig = plt.figure(figsize=(12,4))
 
+            ax1 = plt.gca()
+            # create initial frame
+            im = ax1.imshow(csdict['pm25'][0,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]],vmin = 0, vmax=np.max(csdict['pm25'][-1,:,:])/12.,cmap=plt.cm.cubehelix_r)
+            cbari = fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+            cbari.set_label('concentration [ug/kg]')
+            ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,plume.lvl[-1]],aspect='equal',xlabel='horizontal distance [m]', ylabel='height AGL [m]')
+            plt.tight_layout()
+            def update_plot(n,csdict,cntrf,cntr):
+                ax1.clear()
+                im = ax1.imshow(csdict['pm25'][n,:,:],origin='lower',extent=[0,dimX*plume.dx,0,plume.lvl[-1]],vmin = 0, vmax=np.max(csdict['pm25'][-1,:,:])/12.,cmap=plt.cm.cubehelix_r)
+                ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,plume.lvl[-1]],aspect='equal', xlabel='horizontal distance [m]', ylabel='height AGL [m]')
+                return cntrf, ln, cntr,
+
+            #plot all frames
+            ani=animation.FuncAnimation(fig, update_plot, dimT, fargs=(csdict,im,cntr), interval=3)
+            # plt.show()
+            ani.save(plume.figdir + 'anim/w/smoke%s.mp4' %Case, writer='ffmpeg',fps=10, dpi=250)
+            plt.close()
 
         # #create an animation of temperature anomaly velocity---------------------------------------------
         # print('.....creating vertical crossection of delT + PM2.5 animation')

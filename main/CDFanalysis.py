@@ -21,8 +21,8 @@ imp.reload(plume) 	#force load each time
 
 #=================end of input===============
 
-# RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-RunList = ['W5F6R3','W4F7R1','W4F7R4L1','W4F7R4','W4F7R4L4']
+RunList = [i for i in plume.tag if i not in plume.exclude_runs]
+# RunList = ['W5F6R3','W4F7R1','W4F7R4L1','W4F7R4','W4F7R4L4']
 
 
 runCnt = len(RunList)
@@ -127,7 +127,6 @@ for nCase,Case in enumerate(RunList):
     # plt.show()
 
     #dimensional analysis variables ---------------------------
-    # zCL[nCase] = np.mean(centerline[1:][stablePMmask])
     zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])
 
     zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
@@ -203,6 +202,25 @@ for nCase,Case in enumerate(RunList):
         FirelineUprime400m.append(Uprime[10,:])
         FirelineProfiles.append(stableProfile)
 
+    #making a smoke plot for ENV Interagency presentation
+    if Case == 'W5F6R1':
+        fig = plt.figure(figsize=(14.5,4))
+        ax1 = plt.gca()
+        # ---u contours and colorbar
+        im = ax1.imshow(csdict['pm25'][-1,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]],vmax = np.max(csdict['pm25'][-1,:,:])/20,cmap=plt.cm.cubehelix_r)
+        cbari = fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
+        cbari.set_label('smoke concentration [ug/kg]')
+        # ---non-filled vapor contours and colorbar
+        # cntr = ax1.contour(PMcontours[-1,:,:],extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.6)
+        ax1.plot(haxis,centerline,ls='--', c='darkgrey',label='plume centerline' )
+        ax1.axhline(y = zi[nCase], ls=':', c='darkgrey', label='BL height at ignition')
+        ax1.set(ylabel='height AGL [m]')
+        ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,plume.lvl[-1]],aspect='equal')
+        ax1.legend()
+        plt.tight_layout()
+        plt.show()
+        plt.close()
+
 
 # #Do dimenional analysis
 # Pi1 = Phi * (g**0.5) / (Omega * (zi**0.5))
@@ -243,7 +261,7 @@ plt.colorbar(label='Ua wind speed [m/s]')
 ax1.set(xlabel='w* [m/s]',ylabel='zCL [m]')
 plt.subplot(1,2,2)
 ax2=plt.gca()
-plt.scatter(wStar, zCL,  c=FI, cmap=plt.cm.RdYlGn_r)
+plt.scatter(wStar, zCL,  c=width, cmap=plt.cm.RdYlGn_r)
 plt.colorbar(label='total 2D burn intensity')
 for i, txt in enumerate(RunList):
     ax2.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
