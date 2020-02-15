@@ -19,12 +19,7 @@ imp.reload(plume) 	#force load each time
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-<<<<<<< HEAD
-# RunList = ['W5F6R3','W4F7R1','W4F7R4L1','W4F7R4','W4F7R4L4']
-
-=======
 # RunList = ['W5F7R3']
->>>>>>> origin/master
 
 runCnt = len(RunList)
 g = 9.81
@@ -89,131 +84,6 @@ for nCase,Case in enumerate(RunList):
 
 
     #dimensional analysis variables ---------------------------
-<<<<<<< HEAD
-    zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])
-
-    zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
-    dT = T0[1:]-T0[0:-1]
-    Omega[nCase] = np.sum(dT[si+1:zCLidx]*plume.dz)
-    if Omega[nCase] < 0 :
-        print('\033[93m' + '$\Omega$: %0.2f ' %Omega[nCase] + '\033[0m')
-    Ua[nCase] = np.mean(U0[si:zCLidx])
-
-
-    #PLOTTING =========================================================
-    haxis = np.arange(dimX)*plume.dx
-    maxPM = int(np.max(csdict['pm25']))
-    pmLevels = np.geomspace(30,maxPM/10,num=10)
-    PMcontours = ma.masked_where(csdict['pm25'] <= 30,csdict['pm25'])
-
-    fig = plt.figure(figsize=(22,8))
-    gs = fig.add_gridspec(ncols=2, nrows=2,width_ratios=[6,1])
-    plt.suptitle('%s' %Case)
-
-    ax1=fig.add_subplot(gs[0])
-    axh1=ax1.twinx()
-    # ---u contours and colorbar
-    im = ax1.imshow((csdict['u'][-1,:,:].T - U0).T, origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.RdBu_r,vmin=-4, vmax=4)
-    cbari = fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
-    cbari.set_label('ralative horizontal velocity $[m s^{-1}]$')
-    # ---non-filled vapor contours and colorbar
-    cntr = ax1.contour(PMcontours[-1,:,:],extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.6)
-    ax1.plot(haxis,centerline,ls='--', c='darkgrey',label='plume centerline' )
-    ax1.axhline(y = zi[nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    ax1.set(ylabel='height AGL [m]')
-    ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,plume.lvl[-1]],aspect='equal')
-    ax1.legend()
-    # ---heat flux
-    ln = axh1.plot(np.arange(dimX)*plume.dx, csdict['ghfx'][-1,:], 'r-')
-    axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
-    axh1.set(xlim=[0,dimX*plume.dx],ylim=[0,150])
-    axh1.tick_params(axis='y', colors='red')
-
-
-    ax2=fig.add_subplot(gs[1])
-    fim = ax2.imshow(csdict['ghfx2D'][-1,75:175,0:75],cmap=plt.cm.YlOrRd, extent=[0,3000,3000,7000],vmin=0, vmax = 150)
-    cbarif = fig.colorbar(fim, orientation='horizontal')
-    cbarif.set_label('heat flux [$kW / m^2$]')
-    ax2.set(xlabel='x distance [m]',ylabel='y distance [m]',aspect='equal')
-
-
-    ax3=fig.add_subplot(gs[2])
-    l1, = plt.plot(haxis, pmCtr, label='concentration along centerline', color='C1')
-    l2 = ax3.fill_between(haxis[1:], 0, 1, where=stablePMmask, color='grey', alpha=0.4, transform=ax3.get_xaxis_transform(), label='averaging window')
-    ax3.set(xlim=[0,dimX*plume.dx],xlabel='horizontal distance [m]',ylabel='concentration [ug/kg]' )
-    ax32 = ax3.twinx()
-    l3, = plt.plot(haxis,smoothCenterline, label='smoothed centerline height ', color='C2',linestyle=':')
-    ax32.set(xlim=[0,dimX*plume.dx],ylim=[0,2000], ylabel='height [m]' )
-    plt.legend(handles = [l1,l2,l3])
-
-    ax4=fig.add_subplot(gs[3])
-    plt.plot(stableProfile, plume.lvl,label='vertical PM profile')
-    ax4.set(xlabel='concentration [ug/kg]',ylabel='height [m]')
-    ax4.fill_betweenx(plume.lvl, pmQ1, pmQ3, alpha=0.35,label='IQR')
-    plt.legend()
-
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
-    # plt.show()
-    plt.savefig(plume.figdir + 'downwindAve/%s.pdf' %Case)
-
-    plt.close()
-    print('.....saved in: %s' %(plume.figdir + 'downwindAve/%s.pdf' %Case))
-
-    #save some data for non-averaged comparison of fireline lengths
-    if Case in plume.fireline_runs:
-        Uprime = (csdict['u'][-1,:,:].T - U0).T
-        FirelineUprime400m.append(Uprime[10,:])
-        FirelineProfiles.append(stableProfile)
-
-    #making a smoke plot for ENV Interagency presentation
-    if Case == 'W5F6R1':
-        fig = plt.figure(figsize=(14.5,4))
-        ax1 = plt.gca()
-        # ---u contours and colorbar
-        im = ax1.imshow(csdict['pm25'][-1,:,:], origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]],vmax = np.max(csdict['pm25'][-1,:,:])/20,cmap=plt.cm.cubehelix_r)
-        cbari = fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
-        cbari.set_label('smoke concentration [ug/kg]')
-        # ---non-filled vapor contours and colorbar
-        # cntr = ax1.contour(PMcontours[-1,:,:],extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.6)
-        ax1.plot(haxis,centerline,ls='--', c='darkgrey',label='plume centerline' )
-        ax1.axhline(y = zi[nCase], ls=':', c='darkgrey', label='BL height at ignition')
-        ax1.set(ylabel='height AGL [m]')
-        ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,plume.lvl[-1]],aspect='equal')
-        ax1.legend()
-        plt.tight_layout()
-        plt.show()
-        plt.close()
-
-
-# #Do dimenional analysis
-# Pi1 = Phi * (g**0.5) / (Omega * (zi**0.5))
-# Pi2 = zCL/zi
-# fig = plt.figure(figsize=(12,6))
-# plt.suptitle('DIMENSIONLESS ANALYSIS')
-# plt.subplot(1,2,1)
-# plt.suptitle('Colored by profile wind')
-# plt.scatter(Pi1,Pi2, c=plume.read_tag('W',RunList),cmap=plt.cm.jet)
-# # plt.gca().set(xlabel = 'zCL/r', ylabel='Wf*/Ua')
-# plt.colorbar()
-# plt.subplot(1,2,2)
-# plt.suptitle('Colored by profile number')
-# plt.scatter(Pi1,Pi2, c=plume.read_tag('R',RunList),cmap=plt.cm.tab20b)
-# ax = plt.gca()
-# for i, txt in enumerate(RunList):
-#     ax.annotate(txt, (Pi1[i], Pi2[i]),fontsize=6)
-# # plt.gca().set(xlabel = 'zCL/r', ylabel='Wf*/Ua')
-# plt.colorbar()
-# plt.subplots_adjust(top=0.85)
-# plt.tight_layout(rect=[0, 0, 1, 0.95])
-# plt.show()
-# # plt.savefig(plume.figdir + 'DimAnalysis.pdf' )
-# plt.close()
-
-#now plot zCl as a function of w*
-wStar = (g*Phi*zi/(Omega))**(1/3.)
-slope, intercept, r_value, p_value, std_err = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
-print('Sum of residuals: %0.2f' %r_value)
-=======
     dT = T0[1:]-T0[0:-1]
     cumT = np.cumsum(dT) * weights[:-1] * 40
     Omega[nCase] = np.nansum(cumT)
@@ -285,7 +155,6 @@ print('Sum of residuals: %0.2f' %r_value)
 wStar = (g*Ir*zi/(Omega))**(1/3.)
 # slope, intercept, r_value, p_value, std_err = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 # print('Sum of residuals: %0.2f' %r_value)
->>>>>>> origin/master
 
 fig = plt.figure(figsize=(12,6))
 # plt.suptitle('zCL=FCN(W*): R = %.2f' %r_value)
@@ -297,11 +166,7 @@ plt.scatter(wStar, zCL,  c=plume.read_tag('W',RunList), cmap=plt.cm.jet)
 ax1.set(xlabel='Ir',ylabel='Omega')
 plt.subplot(1,2,2)
 ax2=plt.gca()
-<<<<<<< HEAD
-plt.scatter(wStar, zCL,  c=width, cmap=plt.cm.RdYlGn_r)
-=======
 plt.scatter(wStar, zCL,  c=zi, cmap=plt.cm.RdYlGn_r)
->>>>>>> origin/master
 plt.colorbar(label='total 2D burn intensity')
 # for i, txt in enumerate(RunList):
 #     ax2.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
