@@ -43,6 +43,7 @@ Omega = np.empty((runCnt)) * np.nan
 Phi = np.empty((runCnt)) * np.nan
 FI = np.empty((runCnt)) * np.nan
 width = np.empty((runCnt)) * np.nan
+Ti = np.empty((runCnt)) * np.nan
 FirelineProfiles, FirelineUprime400m = [], []
 
 for nCase,Case in enumerate(RunList):
@@ -132,6 +133,8 @@ for nCase,Case in enumerate(RunList):
 
     zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
     dT = T0[1:]-T0[0:-1]
+    Ti[nCase] = T0[si+1]                                        #characteristic BL temperature
+
     Omega[nCase] = np.sum(dT[si+1:zCLidx]*plume.dz)
     if Omega[nCase] < 0 :
         print('\033[93m' + '$\Omega$: %0.2f ' %Omega[nCase] + '\033[0m')
@@ -228,10 +231,13 @@ for nCase,Case in enumerate(RunList):
 # # plt.savefig(plume.figdir + 'DimAnalysis.pdf' )
 # plt.close()
 
+tilt = Phi/(zi*Ti*Ua)
 #now plot zCl as a function of w*
 wStar = (g*Phi*zi/(Omega))**(1/3.)
 slope, intercept, r_value, p_value, std_err = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 print('Sum of residuals: %0.2f' %r_value)
+
+
 
 fig = plt.figure(figsize=(12,6))
 plt.suptitle('zCL=FCN(W*): R = %.2f' %r_value)
