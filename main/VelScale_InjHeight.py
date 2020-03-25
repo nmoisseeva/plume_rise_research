@@ -24,26 +24,23 @@ imp.reload(plume) 	#force load each time
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
 # RunList = ['W5F6R3','W4F7R1','W4F7R4L1','W4F7R4','W4F7R4L4']
 
-
 runCnt = len(RunList)
 g = 9.81
 
-
-#take a vertical cross-section (ensure it's stable)
 #calculate CDF of cumT (delT*dz)
 #calculate temperature gradient -
 #map temperature gradient to CDF
 
 #save variables for dimensional analysis
-r = np.empty((runCnt)) * np.nan
-Ua = np.empty((runCnt)) * np.nan
-zi = np.empty((runCnt)) * np.nan
-zCL = np.empty((runCnt)) * np.nan
-Omega = np.empty((runCnt)) * np.nan
-Phi = np.empty((runCnt)) * np.nan
-FI = np.empty((runCnt)) * np.nan
+r = np.empty((runCnt)) * np.nan                 #fireline depth
+Ua = np.empty((runCnt)) * np.nan                #ambient wind
+zi = np.empty((runCnt)) * np.nan                #BL height
+zCL = np.empty((runCnt)) * np.nan               #centerline height
+Omega = np.empty((runCnt)) * np.nan             #cumulative vertical temperature
+Phi = np.empty((runCnt)) * np.nan               #cumulative fire heat
+FI = np.empty((runCnt)) * np.nan                #total 2D fire heating
 width = np.empty((runCnt)) * np.nan
-Ti = np.empty((runCnt)) * np.nan
+Ti = np.empty((runCnt)) * np.nan                #characteristic BL temperature
 FirelineProfiles, FirelineUprime400m = [], []
 
 for nCase,Case in enumerate(RunList):
@@ -75,7 +72,6 @@ for nCase,Case in enumerate(RunList):
     tilt = ymax/xmax                #tilt is calculated based on max centerline height
     smoothCenterline = savgol_filter(centerline, 31, 3) # window size 101, polynomial order 3
 
-
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
     smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
     stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
@@ -103,7 +99,7 @@ for nCase,Case in enumerate(RunList):
     ignited = np.array([i for i in meanFire if i > 0.5])
     H = np.mean(ignited) * 1000 / ( 1.2 * 1005)         #get heat flux
     r[nCase] = len(ignited) * plume.dx
-    Phi[nCase] = sum(ignited*plume.dx) * 1000 / ( 1.2 * 1005)
+    Phi[nCase] = np.trapz(ignited, dx = plume.dx) * 1000 / ( 1.2 * 1005)
     FI[nCase] = np.mean(burning)*  1000 / ( 1.2 * 1005)
 
     #compare with center average only
@@ -135,7 +131,8 @@ for nCase,Case in enumerate(RunList):
     dT = T0[1:]-T0[0:-1]
     Ti[nCase] = T0[si+1]                                        #characteristic BL temperature
 
-    Omega[nCase] = np.sum(dT[si+1:zCLidx]*plume.dz)
+    Omega[nCase] = np.trapz(dT[si+1:zCLidx], dx = plume.dz)
+
     if Omega[nCase] < 0 :
         print('\033[93m' + '$\Omega$: %0.2f ' %Omega[nCase] + '\033[0m')
     Ua[nCase] = np.mean(U0[si:zCLidx])
@@ -237,57 +234,55 @@ wStar = (g*Phi*zi/(Omega))**(1/3.)
 slope, intercept, r_value, p_value, std_err = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 print('Sum of residuals: %0.2f' %r_value)
 
-
-
 fig = plt.figure(figsize=(12,6))
-plt.suptitle('zCL=FCN(W*): R = %.2f' %r_value)
+plt.suptitle('zCL=FCN($w_{f*}$): R = %.2f' %r_value)
 plt.subplot(1,2,1)
 ax1=plt.gca()
 plt.scatter(wStar, zCL,  c=plume.read_tag('W',RunList), cmap=plt.cm.jet)
 plt.plot(wStar, intercept + slope*wStar, c='grey')
 plt.colorbar(label='Ua wind speed [m/s]')
-ax1.set(xlabel='w* [m/s]',ylabel='zCL [m]')
+ax1.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
 plt.subplot(1,2,2)
 ax2=plt.gca()
 plt.scatter(wStar, zCL,  c=FI, cmap=plt.cm.RdYlGn_r)
 plt.colorbar(label='total 2D burn intensity')
 for i, txt in enumerate(RunList):
     ax2.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
-ax2.set(xlabel='w* [m/s]',ylabel='zCL [m]')
+ax2.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.savefig(plume.figdir + 'zCl_wStar.pdf' )
 plt.show()
 
-
-#Fireline length ANALYSIS
-#------------Velocity Enhancement-----------
-firelineSmoke = np.mean(FirelineProfiles)
-plt.figure()
-haxis = np.arange(dimX)*plume.dx
-ax = plt.gca()
-plt.title('FIRE-INDUCED WIND DYNAMCIS at 400 m AGL')
-plt.plot(haxis, FirelineUprime400m[0], label='1 km')
-plt.plot(haxis, FirelineUprime400m[1], label='2 km')
-plt.plot(haxis, FirelineUprime400m[2], label='4 km')
-# plt.axhline(y=0,xmin=0,xmax=16000,color='grey')
-plt.xlabel('horizontal distance [m]')
-plt.ylabel('Uprime [m/s]' )
-plt.xlim([0,max(haxis)])
-plt.tight_layout()
-plt.legend()
-# plt.savefig(plume.figdir + 'fireline/Uprime400m.pdf')
-plt.show()
-plt.close()
-
-#------------Profile Comparison-----------
-plt.figure(figsize=(12,4))
-plt.title('DONWDIND CONCENTRATIONS')
-plt.plot(FirelineProfiles[0]/np.max(FirelineProfiles[0]),plume.lvl)
-plt.plot(FirelineProfiles[1]/np.max(FirelineProfiles[1]),plume.lvl)
-plt.plot(FirelineProfiles[2]/np.max(FirelineProfiles[2]),plume.lvl)
-plt.gca().set(xlabel='normalized concentration', ylabel='height [m]')
-plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.legend()
-# plt.savefig(plume.figdir + 'fireline/DownwindSmokeProfiles.pdf')
-plt.show()
+#
+# #Fireline length ANALYSIS
+# #------------Velocity Enhancement-----------
+# firelineSmoke = np.mean(FirelineProfiles)
+# plt.figure()
+# haxis = np.arange(dimX)*plume.dx
+# ax = plt.gca()
+# plt.title('FIRE-INDUCED WIND DYNAMCIS at 400 m AGL')
+# plt.plot(haxis, FirelineUprime400m[0], label='1 km')
+# plt.plot(haxis, FirelineUprime400m[1], label='2 km')
+# plt.plot(haxis, FirelineUprime400m[2], label='4 km')
+# # plt.axhline(y=0,xmin=0,xmax=16000,color='grey')
+# plt.xlabel('horizontal distance [m]')
+# plt.ylabel('Uprime [m/s]' )
+# plt.xlim([0,max(haxis)])
+# plt.tight_layout()
+# plt.legend()
+# # plt.savefig(plume.figdir + 'fireline/Uprime400m.pdf')
+# plt.show()
+# plt.close()
+#
+# #------------Profile Comparison-----------
+# plt.figure(figsize=(12,4))
+# plt.title('DONWDIND CONCENTRATIONS')
+# plt.plot(FirelineProfiles[0]/np.max(FirelineProfiles[0]),plume.lvl)
+# plt.plot(FirelineProfiles[1]/np.max(FirelineProfiles[1]),plume.lvl)
+# plt.plot(FirelineProfiles[2]/np.max(FirelineProfiles[2]),plume.lvl)
+# plt.gca().set(xlabel='normalized concentration', ylabel='height [m]')
+# plt.tight_layout(rect=[0, 0, 1, 0.95])
+# plt.legend()
+# # plt.savefig(plume.figdir + 'fireline/DownwindSmokeProfiles.pdf')
+# plt.show()

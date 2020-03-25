@@ -23,12 +23,16 @@ RunList = [i for i in plume.tag if i not in plume.exclude_runs]
 
 runCnt = len(RunList)
 g = 9.81
+si = 3
 
 #save variables for dimensional analysis
 zi = np.empty((runCnt)) * np.nan            #BL height
 zCL = np.empty((runCnt)) * np.nan           #injection height
 Omega = np.empty((runCnt)) * np.nan         #cumulative BL resistance
 Ir = np.empty((runCnt)) * np.nan            #cumulative fire intensity
+xMax = np.empty((runCnt)) * np.nan          #horiztonal location of certerline peak
+Ua = np.empty((runCnt)) * np.nan                #ambient wind
+
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -36,6 +40,20 @@ for nCase,Case in enumerate(RunList):
     print('Examining case: %s ' %Case)
     csdict = plume.load_CS_prep_Profiles(Case)
     T0 = np.load(plume.wrfdir + 'interp/profT0' + Case + '.npy')
+    U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
+
+    #define heat source------------------------
+    masked_flux = ma.masked_less_equal(csdict['ghfx2D'], 0)
+    cs_flux = np.nanmean(masked_flux,1)                         #get cross section for each timestep
+    fire = []
+    fmax = np.argmax(cs_flux,axis=1)                            #get max for each timestep
+    for nP, pt in enumerate(fmax[plume.ign_over:]):             #excludes steps containing ignition
+        subset = cs_flux[plume.ign_over+nP,pt-plume.wi:pt+plume.wf]     #set averaging window around a maximum
+        fire.append(subset)
+
+    meanFire = np.nanmean(fire,0)
+    ignited = np.array([i for i in meanFire if i > 0.5]) * 1000 / ( 1.2 * 1005)
+    Ir[nCase] = np.trapz(ignited, dx = plume.dx)
 
     #mask plume with cutoff value---------------------------------
     dimT, dimZ, dimX = np.shape(csdict['temp'])
@@ -53,6 +71,8 @@ for nCase,Case in enumerate(RunList):
 
     #define downwind distribution
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)
+    if fmax[-1] > xmax:
+        print('\033[93m' + 'Fire ahead of overshoot!!!' +  '\033[0m')
     centerline = ma.masked_where(plume.lvl[ctrZidx] == 0, plume.lvl[ctrZidx])
     smoothCenterline = savgol_filter(centerline, 31, 3) # window size 101, polynomial order 3
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
@@ -63,30 +83,24 @@ for nCase,Case in enumerate(RunList):
     pmQ1 = np.percentile(stablePM,25,axis = 1)
     pmQ3 = np.percentile(stablePM,75,axis = 1)
     zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])
+    zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
 
+    xMax[nCase] = ymax/xmax
     #get fintal profile weights by calculating proportional area for each level
     subArea = stableProfile * plume.dx
     totalArea = sum(subArea.data)
     weights = subArea/totalArea
 
-    #define heat source------------------------
-    masked_flux = ma.masked_less_equal(csdict['ghfx2D'], 0)
-    cs_flux = np.nanmean(masked_flux,1)                         #get cross section for each timestep
-    fire = []
-    xmax = np.argmax(cs_flux,axis=1)                            #get max for each timestep
-    for nP, pt in enumerate(xmax[plume.ign_over:]):             #excludes steps containing ignition
-        subset = cs_flux[plume.ign_over+nP,pt-plume.wi:pt+plume.wf]     #set averaging window around a maximum
-        fire.append(subset)
-
-    meanFire = np.nanmean(fire,0)
-    ignited = np.array([i for i in meanFire if i > 0.5]) * 1000 / ( 1.2 * 1005)
-    Ir[nCase] = np.trapz(ignited, dx = plume.dx)
 
 
     #dimensional analysis variables ---------------------------
     dT = T0[1:]-T0[0:-1]
-    cumT = np.cumsum(dT) * weights[:-1] * 40
-    Omega[nCase] = np.nansum(cumT)
+    Ua[nCase] = np.mean(U0[si:zCLidx])
+    # cumT = np.trapz(np.cumsum(dT[si+1:])* weights[si+1:-1], dx=plume.dz)
+    cumT = np.trapz(dT[si+1:zCLidx], dx = plume.dz)
+    # Omega[nCase] = np.nansum(cumT)
+    Omega[nCase] = cumT
+
 
     #
     #
@@ -153,6 +167,8 @@ for nCase,Case in enumerate(RunList):
 
 ##now plot zCl as a function of w*
 wStar = (g*Ir*zi/(Omega))**(1/3.)
+Nf = np.sqrt(g*Ir/(Omega * zi * Ua))
+
 # slope, intercept, r_value, p_value, std_err = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 # print('Sum of residuals: %0.2f' %r_value)
 
@@ -162,37 +178,45 @@ plt.subplot(1,2,1)
 ax1=plt.gca()
 plt.scatter(wStar, zCL,  c=plume.read_tag('W',RunList), cmap=plt.cm.jet)
 # plt.plot(wStar, intercept + slope*wStar, c='grey')
-# plt.colorbar(label='Ua wind speed [m/s]')
-ax1.set(xlabel='Ir',ylabel='Omega')
+plt.colorbar(label='Ua wind speed [m/s]')
+ax1.set(xlabel='$w*',ylabel='zCL')
 plt.subplot(1,2,2)
 ax2=plt.gca()
 plt.scatter(wStar, zCL,  c=zi, cmap=plt.cm.RdYlGn_r)
-plt.colorbar(label='total 2D burn intensity')
+plt.colorbar(label='zi')
 # for i, txt in enumerate(RunList):
 #     ax2.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
 # ax2.set(xlabel='w* [m/s]',ylabel='zCL [m]')
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 # plt.savefig(plume.figdir + 'zCl_wStar.pdf' )
-plt.show()
+# plt.show()
+plt.close()
 
 
 fig = plt.figure(figsize=(12,6))
 # plt.suptitle('zCL=FCN(W*): R = %.2f' %r_value)
 plt.subplot(1,2,1)
 ax1=plt.gca()
-plt.scatter(Ir/zi, Omega,  c=plume.read_tag('W',RunList), cmap=plt.cm.jet)
+plt.scatter(Ir, Omega,  c=plume.read_tag('W',RunList), cmap=plt.cm.jet)
 # plt.plot(wStar, intercept + slope*wStar, c='grey')
-# plt.colorbar(label='Ua wind speed [m/s]')
+plt.colorbar(label='Ua wind speed [m/s]')
 ax1.set(xlabel='Ir',ylabel='Omega')
 plt.subplot(1,2,2)
 ax2=plt.gca()
-plt.scatter(Ir/zi, Omega,  c=zi, cmap=plt.cm.RdYlGn_r)
-plt.colorbar(label='total 2D burn intensity')
-# for i, txt in enumerate(RunList):
-#     ax2.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
-# ax2.set(xlabel='w* [m/s]',ylabel='zCL [m]')
+plt.scatter(Ir, Omega,  c=zi, cmap=plt.cm.RdYlGn_r)
+plt.colorbar(label='zi')
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 # plt.savefig(plume.figdir + 'zCl_wStar.pdf' )
+# plt.show()
+plt.close()
+
+fig = plt.figure(figsize=(12,6))
+plt.title('PLUME TILT vs. Nf')
+plt.scatter(xMax, Nf, c=plume.read_tag('W',RunList),cmap=plt.cm.jet)
+for i, txt in enumerate(RunList):
+    plt.annotate(txt, (xMax[i], Nf[i]),fontsize=6)
+plt.colorbar()
+plt.gca().set(xlabel='tilt',ylabel='Nf')
 plt.show()
