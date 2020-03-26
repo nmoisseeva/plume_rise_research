@@ -19,7 +19,7 @@ imp.reload(plume) 	#force load each time
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-# RunList = ['W5F7R3']
+# RunList = ['W4F7R4L4']
 
 runCnt = len(RunList)
 g = 9.81
@@ -63,8 +63,10 @@ for nCase,Case in enumerate(RunList):
 
     #locate centerline
     ctrZidx = pm.argmax(0)
+    ctrZidx[:fmax[-1]] = 0
     ctrXidx = pm.argmax(1)
     pmCtr = np.array([pm[ctrZidx[nX],nX] for nX in range(dimX)])
+
     for nZ in range(dimZ):
         if pmCtr[ctrXidx[nZ]] < pm[nZ,ctrXidx[nZ]]:
             pmCtr[ctrXidx[nZ]] = pm[nZ,ctrXidx[nZ]]
@@ -97,7 +99,8 @@ for nCase,Case in enumerate(RunList):
     dT = T0[1:]-T0[0:-1]
     Ua[nCase] = np.mean(U0[si:zCLidx])
     # cumT = np.trapz(np.cumsum(dT[si+1:])* weights[si+1:-1], dx=plume.dz)
-    cumT = np.trapz(dT[si+1:zCLidx], dx = plume.dz)
+    cumT = np.trapz(dT[si+1:zCLidx], dx = plume.dz)       #this is what we typically use
+
     # Omega[nCase] = np.nansum(cumT)
     Omega[nCase] = cumT
 
@@ -190,7 +193,7 @@ plt.colorbar(label='zi')
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 # plt.savefig(plume.figdir + 'zCl_wStar.pdf' )
-# plt.show()
+plt.show()
 plt.close()
 
 
@@ -214,9 +217,9 @@ plt.close()
 
 fig = plt.figure(figsize=(12,6))
 plt.title('PLUME TILT vs. Nf')
-plt.scatter(xMax, Nf, c=plume.read_tag('W',RunList),cmap=plt.cm.jet)
+plt.scatter(xMax, Nf, c=zi,cmap=plt.cm.jet)
 for i, txt in enumerate(RunList):
     plt.annotate(txt, (xMax[i], Nf[i]),fontsize=6)
 plt.colorbar()
-plt.gca().set(xlabel='tilt',ylabel='Nf')
+plt.gca().set(xlabel='tilt',ylabel='Nf',xlim=[0,1], ylim=[0,1])
 plt.show()
