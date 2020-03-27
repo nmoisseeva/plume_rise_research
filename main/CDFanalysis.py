@@ -215,11 +215,6 @@ plt.tight_layout(rect=[0, 0, 1, 0.95])
 # plt.show()
 plt.close()
 
-fig = plt.figure(figsize=(12,6))
-plt.title('PLUME TILT vs. Nf')
-plt.scatter(xMax, Nf, c=zi,cmap=plt.cm.jet)
-for i, txt in enumerate(RunList):
-    plt.annotate(txt, (xMax[i], Nf[i]),fontsize=6)
-plt.colorbar()
-plt.gca().set(xlabel='tilt',ylabel='Nf',xlim=[0,1], ylim=[0,1])
-plt.show()
+#plot "fire frequency" vs tilt
+slope, intercept, r_value, p_value, std_err = linregress(Nf[np.isfinite(Nf)],xMax[np.isfinite(Nf)])
+# print('Sum of residuals: %0.2f' %r_value)
