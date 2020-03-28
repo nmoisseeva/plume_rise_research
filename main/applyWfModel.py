@@ -24,7 +24,7 @@ RunList = [i for i in plume.tag if i not in plume.exclude_runs]
 runCnt = len(RunList)
 g = 9.81
 si = 3
-polydegree = 6
+polydegree = 20
 
 #split runs into train and test datasets
 TestFlag = np.random.binomial(1,0.2,runCnt)
@@ -104,7 +104,12 @@ for nCase,Case in enumerate(RunList):
     Ua[nCase] = np.mean(U0[si:zCLidx])
 
     #if run belongs to test set do a polyfit of the BL shape and store weights
-    
+    if TestFlag[nCase]:
+        coeffs = np.polyfit(plume.lvl, T0, polydegree)
+        p = np.poly1d(coeffs)
+        plt.plot(T0, plume.lvl, '.', p(plume.lvl),plume.lvl,'--')
+        plt.savefig(plume.figdir + 'injectionModel/profileFit%s.pdf' %Case )
+        plt.close()
 
 #======================train a regression model===================
 
@@ -132,7 +137,7 @@ plt.show()
 #======================apply the model to test set===================
 #polyfit the BL
 #apply model
-for nCase, TestCase in TestFlag:
+for nCase, TestCase in enumerate(TestFlag):
     if TestCase:
         #apply model
         print('test model')
