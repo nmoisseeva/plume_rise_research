@@ -11,11 +11,15 @@ from numpy import ma
 from matplotlib import ticker
 from scipy.signal import savgol_filter
 from scipy.stats import linregress
+from scipy.optimize import fsolve
 
 #====================INPUT===================
 #all common variables are stored separately
 import plume
 imp.reload(plume) 	#force load each time
+
+testPortion = 0.2       #portion of data to reserve for testing the model
+trials = 10             #number of times to rerun the model
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
@@ -24,11 +28,6 @@ RunList = [i for i in plume.tag if i not in plume.exclude_runs]
 runCnt = len(RunList)
 g = 9.81
 si = 3
-polydegree = 20
-
-#split runs into train and test datasets
-TestFlag = np.random.binomial(1,0.2,runCnt)
-testCnt = len(TestFlag)
 
 #saved variables
 r = np.empty((runCnt)) * np.nan                 #fireline depth
@@ -38,10 +37,11 @@ zCL = np.empty((runCnt)) * np.nan               #centerline height
 Omega = np.empty((runCnt)) * np.nan             #cumulative vertical temperature
 Phi = np.empty((runCnt)) * np.nan               #cumulative fire heat
 FI = np.empty((runCnt)) * np.nan                #total 2D fire heating
-polycoefs = np.empty((testCnt,runCnt))          #storage for BL fit weights
+BL = np.empty((runCnt,len(plume.lvl)-1))       #storage for BL
 
 
 #======================repeat main analysis for all runs first===================
+
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
         continue
@@ -97,52 +97,79 @@ for nCase,Case in enumerate(RunList):
     zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
     dT = T0[1:]-T0[0:-1]
     Omega[nCase] = np.trapz(dT[si+1:zCLidx], dx = plume.dz)
+    BL[nCase,:] = dT
 
     #highlight weird plumes that don't reach top of boundary layer
     if Omega[nCase] < 0 :
         print('\033[93m' + '$\Omega$: %0.2f ' %Omega[nCase] + '\033[0m')
     Ua[nCase] = np.mean(U0[si:zCLidx])
 
-    #if run belongs to test set do a polyfit of the BL shape and store weights
-    if TestFlag[nCase]:
-        coeffs = np.polyfit(plume.lvl, T0, polydegree)
-        p = np.poly1d(coeffs)
-        plt.plot(T0, plume.lvl, '.', p(plume.lvl),plume.lvl,'--')
-        plt.savefig(plume.figdir + 'injectionModel/profileFit%s.pdf' %Case )
-        plt.close()
 
-#======================train a regression model===================
+#======================train and test regression model===================
 
 #linear regression using all data
 wStar = (g*Phi*zi/(Omega))**(1/3.)
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 print('Sum of residuals using ALL data: %0.2f' %r_valueALL)
 
-#linear regression using training data
-slope, intercept, r_value, p_value, std_err = linregress(wStar[TestFlag==0][np.isfinite(wStar[TestFlag==0])],zCL[TestFlag==0][np.isfinite(wStar[TestFlag==0])])
-print('Sum of residuals using TRAINING data: %0.2f' %r_value)
+Rstore = np.empty((trials)) * np.nan
+ModelError = []
 
-fig = plt.figure()
-plt.suptitle('REGRESSION MODEL: ALL [R=%0.2f] vs TRAIN DATA [R=%0.2f]' %(r_valueALL, r_value))
-ax=plt.gca()
-plt.scatter(wStar[TestFlag==0], zCL[TestFlag==0], c='C0', label='training data')
-plt.scatter(wStar[TestFlag==1], zCL[TestFlag==1], c='C1', label='test data')
-plt.plot(wStar, interceptALL + slopeALL*wStar, c='grey', label='100% of data')
-plt.plot(wStar, intercept + slope*wStar, c='C1', label='80% of data')
-ax.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
-plt.legend()
-plt.savefig(plume.figdir + 'injectionModel/ALLvsTRAINdata.pdf' )
+for nTrial in range(trials):
+    #split runs into train and test datasets
+    TestFlag = np.random.binomial(1,0.2,runCnt)
+    testCnt = sum(TestFlag)
+
+    #linear regression using training data
+    slope, intercept, r_value, p_value, std_err = linregress(wStar[TestFlag==0][np.isfinite(wStar[TestFlag==0])],zCL[TestFlag==0][np.isfinite(wStar[TestFlag==0])])
+    print('Sum of residuals using TRAINING data: %0.2f' %r_value)
+    Rstore[nTrial] = r_value
+
+    fig = plt.figure()
+    plt.suptitle('REGRESSION MODEL: ALL [R=%0.2f] vs TRAIN DATA [R=%0.2f]' %(r_valueALL, r_value))
+    ax=plt.gca()
+    plt.scatter(wStar[TestFlag==0], zCL[TestFlag==0], c='C0', label='training data')
+    plt.scatter(wStar[TestFlag==1], zCL[TestFlag==1], c='C1', label='test data')
+    plt.plot(wStar, interceptALL + slopeALL*wStar, c='grey', label='all data')
+    plt.plot(wStar, intercept + slope*wStar, c='C1', label='training data')
+    ax.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
+    plt.legend()
+    plt.savefig(plume.figdir + 'injectionModel/trials/ALLvsTRAINdataTrial%s.pdf' %nTrial )
+    plt.show()
+    plt.close()
+
+    '''
+    Solve a system of equations:
+    (1) zCL = m*wStar + b
+    (2) wStar = [g * Phi * zi / Omega]**1/3
+    '''
+
+    #solve numerically
+    zCLmodel = np.empty((testCnt)) * np.nan
+
+    for nTest in range(testCnt):
+        toSolve = lambda z : z - intercept - slope * (g*Phi[TestFlag==1][nTest]*zi[TestFlag==1][nTest]/(np.trapz(BL[TestFlag==1][nTest][si+1:int(z/plume.dz)], dx = plume.dz)))**(1/3.)
+        z_initial_guess = zi[TestFlag==1][nTest]                    #make initial guess BL height
+        z_solution = fsolve(toSolve, z_initial_guess)
+
+        zCLmodel[nTest] = z_solution
+        print('%s solution is zCL = %0.2f' % (np.array(RunList)[TestFlag==1][nTest],z_solution))
+        print('...True value: %0.2f ' %zCL[TestFlag==1][nTest])
+    error = zCLmodel -  zCL[TestFlag==1]
+    ModelError.append(error)
+
+#======================plot model stability===================
+#plot distribution of R values
+plt.figure()
+plt.hist(Rstore, bins=5)
 plt.show()
 
-#======================apply the model to test set===================
-#polyfit the BL
-#apply model
-for nCase, TestCase in enumerate(TestFlag):
-    if TestCase:
-        #apply model
-        print('test model')
-    else:
-        pass
+plt.figure()
+plt.title('TRIAL ERRORS')
+plt.boxplot(ModelError)
+plt.gca().set(xlabel='trial no.', ylabel='error in zCL [m]')
+plt.show()
 
-#======================calculate error stats===================
-#repeat training multiple times?
+plt.figure()
+plt.boxplot(np.concatenate(ModelError))
+plt.show()
