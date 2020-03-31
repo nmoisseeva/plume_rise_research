@@ -22,7 +22,7 @@ imp.reload(plume) 	#force load each time
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-# RunList = ['W5F6R3','W4F7R1','W4F7R4L1','W4F7R4','W4F7R4L4']
+# RunList = ['W5F1R3','W5F8R3','W5F9R3']
 
 runCnt = len(RunList)
 g = 9.81
@@ -42,6 +42,7 @@ FI = np.empty((runCnt)) * np.nan                #total 2D fire heating
 width = np.empty((runCnt)) * np.nan
 Ti = np.empty((runCnt)) * np.nan                #characteristic BL temperature
 FirelineProfiles, FirelineUprime400m = [], []
+FlaggedCases = []                               #for storage of indecies of anomalous runs
 
 for nCase,Case in enumerate(RunList):
     if Case in plume.exclude_runs:
@@ -135,6 +136,10 @@ for nCase,Case in enumerate(RunList):
 
     if Omega[nCase] < 0 :
         print('\033[93m' + '$\Omega$: %0.2f ' %Omega[nCase] + '\033[0m')
+        print('\033[93m' + 'Hard overwrite: Omega = Omega[zi]' + '\033[0m')
+        ziIdx = np.where(plume.lvl==zi[nCase])[0][0]
+        Omega[nCase] = np.trapz(dT[si+1:ziIdx], dx = plume.dz)
+        FlaggedCases.append(nCase)
     Ua[nCase] = np.mean(U0[si:zCLidx])
 
 
@@ -245,9 +250,13 @@ ax1.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
 plt.subplot(1,2,2)
 ax2=plt.gca()
 plt.scatter(wStar, zCL,  c=FI, cmap=plt.cm.RdYlGn_r)
+# plt.scatter(wStar[FlaggedCases],zCL[FlaggedCases],c='purple')
 plt.colorbar(label='total 2D burn intensity')
 for i, txt in enumerate(RunList):
-    ax2.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
+    if i in FlaggedCases:
+        ax2.annotate(txt, (wStar[i], zCL[i]),fontsize=6,color='red')
+    else:
+        ax2.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
 ax2.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])

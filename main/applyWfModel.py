@@ -12,6 +12,7 @@ from matplotlib import ticker
 from scipy.signal import savgol_filter
 from scipy.stats import linregress
 from scipy.optimize import fsolve
+from matplotlib import gridspec
 
 #====================INPUT===================
 #all common variables are stored separately
@@ -37,7 +38,8 @@ zCL = np.empty((runCnt)) * np.nan               #centerline height
 Omega = np.empty((runCnt)) * np.nan             #cumulative vertical temperature
 Phi = np.empty((runCnt)) * np.nan               #cumulative fire heat
 FI = np.empty((runCnt)) * np.nan                #total 2D fire heating
-BL = np.empty((runCnt,len(plume.lvl)-1))       #storage for BL
+BL = np.empty((runCnt,len(plume.lvl)-1))        #storage for BL
+FlaggedCases = []                               #for storage of indecies of anomalous runs
 
 
 #======================repeat main analysis for all runs first===================
@@ -101,7 +103,11 @@ for nCase,Case in enumerate(RunList):
 
     #highlight weird plumes that don't reach top of boundary layer
     if Omega[nCase] < 0 :
-        print('\033[93m' + '$\Omega$: %0.2f ' %Omega[nCase] + '\033[0m')
+        print('\033[93m' + 'Omega: %0.2f ' %Omega[nCase] + '\033[0m')
+        print('\033[93m' + 'Hard overwrite (see VelScale_InjHeight.py): Omega = Omega[zi]' + '\033[0m' )
+        ziIdx = np.where(plume.lvl==zi[nCase])[0][0]
+        Omega[nCase] = np.trapz(dT[si+1:ziIdx], dx = plume.dz)
+        FlaggedCases.append(nCase)
     Ua[nCase] = np.mean(U0[si:zCLidx])
 
 
@@ -159,17 +165,23 @@ for nTrial in range(trials):
     ModelError.append(error)
 
 #======================plot model stability===================
-#plot distribution of R values
-plt.figure()
-plt.hist(Rstore, bins=5)
-plt.show()
-
-plt.figure()
-plt.title('TRIAL ERRORS')
+plt.figure(figsize=(15,4))
+gs = gridspec.GridSpec(1, 3, width_ratios=[3,1,1])
+ax0 = plt.subplot(gs[0])
+plt.title('TRIAL ERROR DISTRIBUTIONS')
 plt.boxplot(ModelError)
-plt.gca().set(xlabel='trial no.', ylabel='error in zCL [m]')
-plt.show()
-
-plt.figure()
+plt.hlines(0,0,10,colors='grey',linestyles='dashed')
+ax0.set(xlabel='trial no.', ylabel='error in zCL [m]')
+ax1 = plt.subplot(gs[1])
+plt.title('TOTAL ERROR DISTRIBUTION')
 plt.boxplot(np.concatenate(ModelError))
+plt.hlines(0,0,10,colors='grey',linestyles='dashed')
+ax1.set(xlabel='all runs', ylabel='error in zCL [m]')
+ax3 = plt.subplot(gs[2])
+plt.title('R-VALUE SENSITIVITY')
+plt.hist(Rstore, bins=5)
+ax3.set(xlabel='R-value',ylabel='count' )
+plt.tight_layout()
+plt.savefig(plume.figdir + 'injectionModel/ModelSensitivity.pdf')
 plt.show()
+plt.close()
