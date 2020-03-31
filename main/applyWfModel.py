@@ -120,6 +120,7 @@ print('Sum of residuals using ALL data: %0.2f' %r_valueALL)
 
 Rstore = np.empty((trials)) * np.nan
 ModelError = []
+TrueTrialZcl = []
 
 for nTrial in range(trials):
     #split runs into train and test datasets
@@ -163,10 +164,15 @@ for nTrial in range(trials):
         print('...True value: %0.2f ' %zCL[TestFlag==1][nTest])
     error = zCLmodel -  zCL[TestFlag==1]
     ModelError.append(error)
+    TrueTrialZcl.append(zCL[TestFlag==1])
 
 #======================plot model stability===================
-plt.figure(figsize=(15,4))
-gs = gridspec.GridSpec(1, 3, width_ratios=[3,1,1])
+
+flatTrueTrialZcl  = np.concatenate(TrueTrialZcl)                #flatten test array
+flatModelError = np.concatenate(ModelError)
+
+plt.figure(figsize=(12,8))
+gs = gridspec.GridSpec(2, 2, width_ratios=[3,1])
 ax0 = plt.subplot(gs[0])
 plt.title('TRIAL ERROR DISTRIBUTIONS')
 plt.boxplot(ModelError)
@@ -174,10 +180,16 @@ plt.hlines(0,0,10,colors='grey',linestyles='dashed')
 ax0.set(xlabel='trial no.', ylabel='error in zCL [m]')
 ax1 = plt.subplot(gs[1])
 plt.title('TOTAL ERROR DISTRIBUTION')
-plt.boxplot(np.concatenate(ModelError))
+plt.boxplot(flatModelError)
 plt.hlines(0,0,10,colors='grey',linestyles='dashed')
 ax1.set(xlabel='all runs', ylabel='error in zCL [m]')
-ax3 = plt.subplot(gs[2])
+ax2 = plt.subplot(gs[2])
+plt.title('PREDICTION INTERVAL')
+m, b, r, p, std = linregress(flatTrueTrialZcl,flatModelError)
+plt.scatter(flatTrueTrialZcl,flatModelError)
+plt.plot(flatTrueTrialZcl, m*flatTrueTrialZcl + b, color='grey')
+ax2.set(xlabel='true plume height [m]', ylabel='model error [m]')
+ax3 = plt.subplot(gs[3])
 plt.title('R-VALUE SENSITIVITY')
 plt.hist(Rstore, bins=5)
 ax3.set(xlabel='R-value',ylabel='count' )
