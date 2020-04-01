@@ -33,6 +33,12 @@ fireline_runs = ['W4F7R4L1','W4F7R4','W4F7R4L4']
 #common analysis variables
 PMcutoff = 30                   #minimum value for plume edge
 
+
+#model evaluation
+rxcadredata = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_test_main'
+
+
+#============================================================================
 #common functions
 #----------------------------------------------------------------------------
 #tag reading function read_tag(variable type, string array)

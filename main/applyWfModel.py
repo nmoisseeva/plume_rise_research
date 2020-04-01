@@ -1,6 +1,7 @@
 # March 2020
 #nmoisseeva@eoas.ubc.ca
-# This code uses partitions LES runs into model and test sets and applies the injection height parameterization
+# This code partitions LES runs into model and test sets and applies the injection height parameterization
+# Plotting shows model sensitivity and error distributions
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -135,10 +136,10 @@ for nTrial in range(trials):
     fig = plt.figure()
     plt.suptitle('REGRESSION MODEL: ALL [R=%0.2f] vs TRAIN DATA [R=%0.2f]' %(r_valueALL, r_value))
     ax=plt.gca()
-    plt.scatter(wStar[TestFlag==0], zCL[TestFlag==0], c='C0', label='training data')
+    plt.scatter(wStar[TestFlag==0], zCL[TestFlag==0], c='C2', label='training data')
     plt.scatter(wStar[TestFlag==1], zCL[TestFlag==1], c='C1', label='test data')
     plt.plot(wStar, interceptALL + slopeALL*wStar, c='grey', label='all data')
-    plt.plot(wStar, intercept + slope*wStar, c='C1', label='training data')
+    plt.plot(wStar, intercept + slope*wStar, c='C2', label='training data regression fit')
     ax.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
     plt.legend()
     plt.savefig(plume.figdir + 'injectionModel/trials/ALLvsTRAINdataTrial%s.pdf' %nTrial )
@@ -188,7 +189,7 @@ plt.title('PREDICTION INTERVAL')
 m, b, r, p, std = linregress(flatTrueTrialZcl,flatModelError)
 plt.scatter(flatTrueTrialZcl,flatModelError)
 plt.plot(flatTrueTrialZcl, m*flatTrueTrialZcl + b, color='grey')
-ax2.set(xlabel='true plume height [m]', ylabel='model error [m]')
+ax2.set(xlabel='plume height [m]', ylabel='model error [m]')
 ax3 = plt.subplot(gs[3])
 plt.title('R-VALUE SENSITIVITY')
 plt.hist(Rstore, bins=5)
