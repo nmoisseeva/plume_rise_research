@@ -36,6 +36,8 @@ PMcutoff = 30                   #minimum value for plume edge
 
 #model evaluation
 rxcadredata = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_test_main'
+rxcadrez = '/Users/nmoisseeva/code/plume/rxcadre/npy/destag_z.npy'
+
 
 
 #============================================================================

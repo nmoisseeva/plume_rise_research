@@ -118,6 +118,7 @@ for nCase,Case in enumerate(RunList):
 wStar = (g*Phi*zi/(Omega))**(1/3.)
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 print('Sum of residuals using ALL data: %0.2f' %r_valueALL)
+print('Linear model equation using ALL data: zCL = %.3f Wf* + %.3f ' %(slopeALL,interceptALL))
 
 Rstore = np.empty((trials)) * np.nan
 ModelError = []

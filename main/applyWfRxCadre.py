@@ -13,75 +13,71 @@ from matplotlib import ticker
 from scipy.optimize import fsolve
 from matplotlib import gridspec
 from scipy.ndimage.interpolation import rotate
+import wrf
 
 
 #====================INPUT===================
 #all common variables are stored separately
 import plume
-imp.reload(plume) 	#force load each time
+imp.reload(plume) 	             #force load each time
+g = 9.81                         #gravity
+mf, bf =  6.812, 412.659         #slope and intercept from LES regression model
 
 #=================end of input===============
 
 print('.....extracting NetCDF data from %s ' %plume.rxcadredata)
 ncdata = netcdf.netcdf_file(plume.rxcadredata, mode ='r')
 
+#get height data
+zstag = (ncdata.variables['PHB'][0,:,:,:] + ncdata.variables['PH'][0,:,:,:])/ g
+zdestag = wrf.destagger(zstag,0)
+z0 = np.mean(zdestag,(1,2))
+
+#load 10am profile
+# sounding_path =
+# print('.....extracting vertical profile data from %s' %sounding_path)
+
 #get heat flux and extract only the necessasry portion of the domain
+temperature = ncdata.variables['T'][0,:,:,:] + 300.
 ghfx = ncdata.variables['GRNHFX'][:,20:70,170:230] 	         #extract fire heat flux
 # xtime = ncdata.variables['XTIME'][:] * 60 			#get time in seconds
+rotated_fire = rotate(ghfx[:,:,:],125, axes=(1, 2), reshape=False, mode='constant') #near surface wind is at 125deg (atm)
 
-rotated_fire = rotate(ghfx[:,:,:],125, axes=(1, 2), reshape=False, mode='constant') and #near surface wind is at 125deg (atm)
-
-#plot snapshot of rotated fire
-plt.imshow(rotated_fire[70,:,:], vmin=0, vmax=15000, cmap=plt.cm.gist_heat_r)
-plt.colorbar()
-plt.show()
 
 #do fire averaging: use ~6min as interval: estimated as time during which fire remains withing 40m grid given ROS=0.1m/s
-masked_flux = ma.masked_less_equal(rotated_fire[70:100,:,:], 0)
+masked_flux = ma.masked_less_equal(rotated_fire[70:80,:,:], 500)
 ave_masked_flux = np.nanmean(masked_flux,0)
-# plt.imshow(ave_masked_flux,vmin=0, vmax=15000, cmap=plt.cm.gist_heat_r)
-cs_flux = np.mean(ave_masked_flux,0)
+meanFire = np.mean(ave_masked_flux,0)
+ignited = np.array([i for i in meanFire if i > 500])       #differs from evalution in RxCADRE where cutoff is 5000 - need to sort this out!!!
+Phi = np.trapz(ignited, dx = 40) / ( 1.2 * 1005)     #hardcoded dx=40, to match RxCADRE run
+
+plt.figure()
+plt.subplot(121)
+plt.imshow(ave_masked_flux,vmin=0, vmax=15000, cmap=plt.cm.gist_heat_r)
+plt.subplot(122)
+plt.plot(ignited)
+plt.show()
+
+#find boundary layer VelScale_InjHeightdef get_zi(T0):
+T0 = np.mean(temperature,(1,2))
+dT = T0[1:]-T0[0:-1]
+dz = z0[1:] - z0[0:-1]
+dT_dz = dT/dz
+gradT = dT_dz[1:] - dT_dz[0:-1]
+si = 6                                                #skipping bottom 100m of the surface inversion
+zi_idx = np.argmax(gradT[si:40]) + si                 #vertical level index of BL top
+zi = z0[zi_idx]
+
+#interpolate to constant height step
+from scipy.interpolate import interp1d
+interpz =np.arange(100,2000,10)                     #excluding bottom 100m and interpolating with 10m step
+interpf= interp1d(z0[1:], dT)
+interpdT = interpf(interpz)
 
 
-
-
-print('..... creating an igntion mask on atm grid (may take several minutes)')
-ign_mask_atm = np.empty_like(ghfx) * np.nan
-for nt in range(len(xtime)):
-	print(nt)
-	current_ign = ghfx[nt,:,:]
-	temp_mask = np.empty_like(current_ign) * np.nan
-	temp_mask[current_ign>5000] = 1 	#residence time defined as at least 5kW/m2 as per Butler2013
-	ign_mask_atm[nt,:,:] = temp_mask
-
-    print('WARNING: Slow routine: rotating the array to be alighned with mean wind')
-
-
-#define source (r and H)------------------------
-#raduis using full 2D average -
-masked_flux = ma.masked_less_equal(csdict['ghfx2D'], 0)
-cs_flux = np.nanmean(masked_flux,1)                         #get cross section for each timestep
-fire = []
-xmax = np.argmax(cs_flux,axis=1)                            #get max for each timestep
-for nP, pt in enumerate(xmax[plume.ign_over:]):             #excludes steps containing ignition
-    subset = cs_flux[plume.ign_over+nP,pt-plume.wi:pt+plume.wf]     #set averaging window around a maximum
-    fire.append(subset)
-burning = np.sum(np.sum(csdict['ghfx2D'][plume.ign_over:,:,:],1),1) #get total heat flux from entire fire area
-
-meanFire = np.nanmean(fire,0)
-ignited = np.array([i for i in meanFire if i > 0.5])
-r[nCase] = len(ignited) * plume.dx
-Phi[nCase] = np.trapz(ignited, dx = plume.dx) * 1000 / ( 1.2 * 1005)
-FI[nCase] = np.mean(burning)*  1000 / ( 1.2 * 1005)
-
-# #rotating the array
-# cw_sum = []
-# for nTime in range(nT):
-#     print(nTime)
-#     CO2rot = rotate(tracerinterp[nTime,:,:,:], 39, axes=(1, 2), reshape=True, mode='constant')
-#     CO2tot = np.sum(CO2rot,2)
-#     cw_sum.append(CO2tot)
-#
-# cw_sum = np.array(cw_sum)
-# fig = plt.figure()
-# ax = plt.gca()
+#use numerical solver
+# toSolve = lambda z : z - bf - mf * (g*Phi*zi/(np.trapz(dT[si+1:int(z/40.)], dx = 40.)))**(1/3.)
+toSolve = lambda z : z - bf - mf * (g*Phi*zi/(np.trapz(interpdT[:int(z/10.)], dx = 10.)))**(1/3.)
+z_initial_guess = zi                                        #make initial guess BL height
+z_solution = fsolve(toSolve, z_initial_guess)
+print(z_solution)
