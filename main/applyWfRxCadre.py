@@ -119,6 +119,10 @@ plt.ylim([0,2000])
 # plt.savefig(rx.fig_dir + 'PlaneHeightProfiles.pdf')
 plt.show()
 
+#-----------------NEED TO MAKE PLOT OF CL USING MODEL DATA HERE!!!!!!!!!!!!!!!
+
+#modelling using raw data
+
 #import input sounding
 sounding = np.genfromtxt(plume.rxsounding, skip_header=1, usecols = [0,1,3,4])
 
@@ -129,15 +133,18 @@ interpf= interp1d(sounding[:,0], sounding[:,1],fill_value='extrapolate')
 interpT = interpf(interpz)
 plt.plot(sounding[:,1],sounding[:,0])
 plt.plot(interpT,interpz)
-plt.show()
-# plt.close()
-si=5
+# plt.show()
+plt.close()
+si=3
 dT = interpT[1:] - interpT[:-1]
 
-#use numerical solver
-toSolve = lambda z : z - bf - mf * (g*Phi*zi/(np.trapz(interpdT[si:int(z/10.)], dx = 10.)))**(1/3.)           #using trapezoidal rule
-# toSolve = lambda z : z - bf - mf * (g*Phi*zi/(sum(dT[si:(np.abs(z0-z)).argmin()]*dz[si:(np.abs(z0-z)).argmin()])))**(1/3.)             #on model levels using sum
+# #raw data Phi
+# Qt = 10.4 #KW/m2
+# tflame = 10 #sec
+# ros = 0.4     #m/s
 
+#use numerical solver
+toSolve = lambda z : z - bf - mf * (g*Phi*zi/(np.trapz(dT[si:int(z/10.)], dx = 10.)))**(1/3.)           #using trapezoidal rule
 z_initial_guess = zi                                        #make initial guess BL height
 z_solution = fsolve(toSolve, z_initial_guess)
 print(z_solution)
