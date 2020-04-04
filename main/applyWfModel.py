@@ -116,9 +116,8 @@ for nCase,Case in enumerate(RunList):
 
 #linear regression using all data
 wStar = (g*Phi*zi/(Omega))**(1/3.)
+
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
-print('Sum of residuals using ALL data: %0.2f' %r_valueALL)
-print('Linear model equation using ALL data: zCL = %.3f Wf* + %.3f ' %(slopeALL,interceptALL))
 
 Rstore = np.empty((trials)) * np.nan
 ModelError = []
@@ -167,6 +166,9 @@ for nTrial in range(trials):
     error = zCLmodel -  zCL[TestFlag==1]
     ModelError.append(error)
     TrueTrialZcl.append(zCL[TestFlag==1])
+
+print('Sum of residuals using ALL data: %0.2f' %r_valueALL)
+print('\033[93m' + 'Linear model equation using ALL data: zCL = %.3f Wf* + %.3f '  %(slopeALL,interceptALL)+ '\033[0m' )
 
 #======================plot model stability===================
 

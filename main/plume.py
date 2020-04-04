@@ -36,9 +36,9 @@ PMcutoff = 30                   #minimum value for plume edge
 
 #model evaluation
 rxcadredata = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_test_main'
-rxcadrez = '/Users/nmoisseeva/code/plume/rxcadre/npy/destag_z.npy'
-
-
+rxdispersion = '/Users/nmoisseeva/data/rxcadre/dispersion/RDS-2014-0015/Data/SmokeDispersion_L2G_20121110.csv'
+rxsfchgt = 62 							#surface height MSL (m)
+rxsounding = '/Users/nmoisseeva/code/plume/main/input_sounding_rxcadre'
 
 #============================================================================
 #common functions
