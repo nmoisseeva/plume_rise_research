@@ -24,8 +24,8 @@ testPortion = 0.2       #portion of data to reserve for testing the model
 trials = 10             #number of times to rerun the model
 #=================end of input===============
 
-RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-# RunList = ['W4F7R4L4']
+# RunList = [i for i in plume.tag if i not in plume.exclude_runs]
+RunList = ['W5F1R0']
 
 runCnt = len(RunList)
 g = 9.81

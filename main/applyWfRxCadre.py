@@ -16,6 +16,9 @@ from scipy.ndimage.interpolation import rotate
 import wrf
 import matplotlib.dates as mdates
 import datetime as dt
+from scipy.interpolate import interp1d
+from scipy.signal import savgol_filter
+
 
 #====================INPUT===================
 #all common variables are stored separately
@@ -35,22 +38,17 @@ zdestag = wrf.destagger(zstag,0)
 z0 = np.mean(zdestag,(1,2))
 z0stag = np.mean(zstag,(1,2))
 
-#load 10am profile
-# sounding_path =
-# print('.....extracting vertical profile data from %s' %sounding_path)
-
 #get heat flux and extract only the necessasry portion of the domain
 temperature = ncdata.variables['T'][0,:,:,:] + 300.
 ghfx = ncdata.variables['GRNHFX'][:,20:70,170:230] 	         #extract fire heat flux
 rotated_fire = rotate(ghfx[:,:,:],125, axes=(1, 2), reshape=False, mode='constant') #near surface wind is at 125deg (atm)
-
 
 #do fire averaging: use ~6min as interval: estimated as time during which fire remains withing 40m grid given ROS=0.1m/s
 masked_flux = ma.masked_less_equal(rotated_fire[60:80,:,:], 500)
 ave_masked_flux = np.nanmean(masked_flux,0)
 meanFire = np.mean(ave_masked_flux,0)
 ignited = np.array([i for i in meanFire if i > 500])       #differs from evalution in RxCADRE where cutoff is 5000 - need to sort this out!!!
-Phi = np.trapz(ignited, dx = 40) / ( 1.2 * 1005)     #hardcoded dx=40, to match RxCADRE run
+Phi = np.trapz(ignited, dx = 40.) / ( 1.2 * 1005)     #hardcoded dx=40, to match RxCADRE run
 
 plt.figure()
 plt.subplot(121)
@@ -118,33 +116,97 @@ plt.ylabel('airplane height [m]')
 plt.ylim([0,2000])
 # plt.savefig(rx.fig_dir + 'PlaneHeightProfiles.pdf')
 plt.show()
+plt.close()
 
-#-----------------NEED TO MAKE PLOT OF CL USING MODEL DATA HERE!!!!!!!!!!!!!!!
 
-#modelling using raw data
 
 #import input sounding
-sounding = np.genfromtxt(plume.rxsounding, skip_header=1, usecols = [0,1,3,4])
+#load 10am profile
+print('.....extracting vertical profile data from %s' %plume.rxsounding)
+sounding = np.genfromtxt(plume.rxsounding, skip_header=1, usecols = [0,1,2,3,4])
+
+#rotate model smoke to mean wind----------
+endingCO2 = np.mean(ncdata.variables['tr17_1'][250:,:,:,:],0)
+singleAngleCO2 = rotate(endingCO2,39, axes=(1, 2), reshape=True, mode='constant')
+cwiCO2 = np.mean(singleAngleCO2, 2)
+dimZ, dimY, dimX = np.shape(singleAngleCO2)
+xx,yy= np.meshgrid(np.arange(0,dimY*40, 40),z0)
+plt.title('CWI CO2 AT SIMULATION END')
+plt.contourf(xx,yy,cwiCO2,levels = 100, vmax = np.max(cwiCO2)/2, cmap=plt.cm.cubehelix_r)
+plt.show()
+
+#locate centerline
+ctrZidx = cwiCO2.argmax(0)
+ctrXidx = cwiCO2.argmax(1)
+co2Ctr = np.array([cwiCO2[ctrZidx[nX],nX] for nX in range(dimY)])
+for nZ in range(dimZ):
+    if co2Ctr[ctrXidx[nZ]] < cwiCO2[nZ,ctrXidx[nZ]]:
+        co2Ctr[ctrXidx[nZ]] = cwiCO2[nZ,ctrXidx[nZ]]
+xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)
+centerline = ma.masked_where(z0[ctrZidx] == 0, z0[ctrZidx])
+smoothCenterline = savgol_filter(centerline, 51, 3) # window size 51, polynomial order 3
+
+stableCO2 = cwiCO2[:,150:250]                       #hardcoded based on smoothCenterline
+stableProfile = np.mean(stableCO2,1)
+
+rxzCL = np.mean(smoothCenterline[150:250])
+rxzCLidx = int(np.mean(ctrZidx[150:250]))
+
+co2Q1 = np.percentile(stableCO2,25,axis = 1)
+co2Q3 = np.percentile(stableCO2,75,axis = 1)
+plt.plot(stableProfile, z0,label='vertical CO2 profile')
+plt.hlines(rxzCL,xmin=0, xmax = dimY*40,linestyle=':', label='injection based on rxcadre')
+plt.gca().fill_betweenx(z0, co2Q1, co2Q3, alpha=0.35,label='IQR')
+plt.legend()
+plt.show()
 
 
-#interpolate to constant height step
-from scipy.interpolate import interp1d
+print('Smoke injection based on modelled RxCADRE: %.2f' %rxzCL)
+#
+#
+#
+#
+# #HARDCODED:
+# rotCS_lcn = [30.56653,-86.75507]    #calculated by rotating 30
+# ROT_cs_dist, ROT_cs_grid_id = gridTree.query(np.array(rotCS_lcn))
+# ROTidxy,ROTidxx = np.unravel_index(ROT_cs_grid_id,np.shape(wrfgeo['XLONG']))
+# ROT_profile_mukg = tracerinterp[258,:,ROTidxy,ROTidxx]
+# ROT_profile = 1e-3 * ROT_profile_mukg * molar_mass['air'] / molar_mass['CO2']    #convert to ppmv, assuming model is in mug/kg
+# #------end hardcoding
+#
+# cs_lon =  np.mean(disp_dict['lcn'][tidx][ics:fcs,1])
+# cs_lat = np.mean(disp_dict['lcn'][tidx][ics:fcs,0])
+# tot_column_mukg = np.sum(ncdict['CO2'][258,:,:,:],0)
+# smokeim = 1e-3 * tot_column_mukg * molar_mass['air']/molar_mass['CO2']   #convert to ppmv
+# im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower',vmin=0,vmax=801)
+# bm.scatter(cs_lon,cs_lat,40,marker='*',color='r',label='average location of corkscrew profile')
+# bm.scatter(rotCS_lcn[1],rotCS_lcn[0],20,marker='o',color='k',label='wind-corrected profile location')
+# plt.colorbar(im, label='total column CO$_2$ (ppmv)')
+# plt.legend()
+# plt.tight_layout()
+# plt.savefig(rx.fig_dir + 'CSLocation.pdf')
+# plt.show()
+# plt.close()
+
+
+#interpolate temperature profile to a constant height step for integration
 interpf= interp1d(sounding[:,0], sounding[:,1],fill_value='extrapolate')
 interpT = interpf(interpz)
 plt.plot(sounding[:,1],sounding[:,0])
 plt.plot(interpT,interpz)
-# plt.show()
+plt.show()
 plt.close()
 si=3
 dT = interpT[1:] - interpT[:-1]
 
 # #raw data Phi
-# Qt = 10.4 #KW/m2
-# tflame = 10 #sec
-# ros = 0.4     #m/s
+intFlux = [367, 254, 146, 108, 270, 90 ] #all values from integrated total flux (in kW s /m2) from HIP1
+rawROS = 0.25
+meanQt = np.mean(intFlux,0)
+Phi = (meanQt / rawROS) * 4
 
-#use numerical solver
+#use numerical solver on raw profile----------
 toSolve = lambda z : z - bf - mf * (g*Phi*zi/(np.trapz(dT[si:int(z/10.)], dx = 10.)))**(1/3.)           #using trapezoidal rule
 z_initial_guess = zi                                        #make initial guess BL height
 z_solution = fsolve(toSolve, z_initial_guess)
-print(z_solution)
+print('Smoke injection based on raw profile and modelled fire: %.2f' %z_solution)
