@@ -134,6 +134,7 @@ for nCase,Case in enumerate(RunList):
 
     Omega[nCase] = np.trapz(dT[si+1:zCLidx], dx = plume.dz)
 
+
     if Omega[nCase] < 0 :
         print('\033[93m' + '$\Omega$: %0.2f ' %Omega[nCase] + '\033[0m')
         print('\033[93m' + 'Hard overwrite: Omega = Omega[zi]' + '\033[0m')
