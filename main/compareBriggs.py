@@ -135,93 +135,13 @@ for nCase,Case in enumerate(RunList):
     else:
         BriggsH[nCase] = condition1
     print(BriggsH[nCase])
-#======================train and test LES regression model===================
 
-#linear regression between wf* and zCL using all data
-wStar = (g*Phi*zi/(Omega))**(1/3.)
-slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
+#======================plot Briggs error===================
 
-
-#set up storage arrays for trial and test data
-Rstore = np.empty((trials)) * np.nan
-ModelError = []
-TrueTrialZcl = []
-
-for nTrial in range(trials):
-    #split runs into train and test datasets
-    TestFlag = np.random.binomial(1,0.2,runCnt)
-    testCnt = sum(TestFlag)
-
-    #linear regression using training data
-    slope, intercept, r_value, p_value, std_err = linregress(wStar[TestFlag==0][np.isfinite(wStar[TestFlag==0])],zCL[TestFlag==0][np.isfinite(wStar[TestFlag==0])])
-    # print('Sum of residuals using TRAINING data: %0.2f' %r_value)
-    Rstore[nTrial] = r_value
-
-    fig = plt.figure()
-    plt.suptitle('REGRESSION MODEL: ALL [R=%0.2f] vs TRAIN DATA [R=%0.2f]' %(r_valueALL, r_value))
-    ax=plt.gca()
-    plt.scatter(wStar[TestFlag==0], zCL[TestFlag==0], c='C2', label='training data')
-    plt.scatter(wStar[TestFlag==1], zCL[TestFlag==1], c='C1', label='test data')
-    plt.plot(wStar, interceptALL + slopeALL*wStar, c='grey', label='all data')
-    plt.plot(wStar, intercept + slope*wStar, c='C2', label='training data regression fit')
-    ax.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
-    plt.legend()
-    plt.savefig(plume.figdir + 'injectionModel/trials/ALLvsTRAINdataTrial%s.pdf' %nTrial )
-    plt.show()
-    plt.close()
-
-    '''
-    Solve a system of equations:
-    (1) zCL = m*wStar + b
-    (2) wStar = [g * Phi * zi / Omega]**1/3
-    '''
-
-    #solve numerically
-    zCLmodel = np.empty((testCnt)) * np.nan
-
-    for nTest in range(testCnt):
-        toSolve = lambda z : z - intercept - slope * (g*Phi[TestFlag==1][nTest]*zi[TestFlag==1][nTest]/(np.trapz(BL[TestFlag==1][nTest][si+1:int(z/plume.dz)], dx = plume.dz)))**(1/3.)
-        z_initial_guess = zi[TestFlag==1][nTest]                    #make initial guess BL height
-        z_solution = fsolve(toSolve, z_initial_guess)
-
-        zCLmodel[nTest] = z_solution
-        # print('%s solution is zCL = %0.2f' % (np.array(RunList)[TestFlag==1][nTest],z_solution))
-        # print('...True value: %0.2f ' %zCL[TestFlag==1][nTest])
-    error = zCLmodel -  zCL[TestFlag==1]
-    ModelError.append(error)
-    TrueTrialZcl.append(zCL[TestFlag==1])
-
-print('Sum of residuals using ALL data: %0.2f' %r_valueALL)
-print('\033[93m' + 'Linear model equation using ALL data: zCL = %.3f Wf* + %.3f '  %(slopeALL,interceptALL)+ '\033[0m' )
-
-#======================plot model stability===================
-
-flatTrueTrialZcl  = np.concatenate(TrueTrialZcl)                #flatten test array
-flatModelError = np.concatenate(ModelError)
-
-plt.figure(figsize=(12,8))
-gs = gridspec.GridSpec(2, 2, width_ratios=[3,1])
-ax0 = plt.subplot(gs[0])
-plt.title('TRIAL ERROR DISTRIBUTIONS')
-plt.boxplot(ModelError)
-plt.hlines(0,0,10,colors='grey',linestyles='dashed')
-ax0.set(xlabel='trial no.', ylabel='error in zCL [m]')
-ax1 = plt.subplot(gs[1])
-plt.title('TOTAL ERROR DISTRIBUTION')
-plt.boxplot(flatModelError)
-plt.hlines(0,0,10,colors='grey',linestyles='dashed')
-ax1.set(xlabel='all runs', ylabel='error in zCL [m]')
-ax2 = plt.subplot(gs[2])
-plt.title('PREDICTION INTERVAL')
-m, b, r, p, std = linregress(flatTrueTrialZcl,flatModelError)
-plt.scatter(flatTrueTrialZcl,flatModelError)
-plt.plot(flatTrueTrialZcl, m*flatTrueTrialZcl + b, color='grey')
-ax2.set(xlabel='plume height [m]', ylabel='model error [m]')
-ax3 = plt.subplot(gs[3])
-plt.title('R-VALUE SENSITIVITY')
-plt.hist(Rstore, bins=5)
-ax3.set(xlabel='R-value',ylabel='count' )
-plt.tight_layout()
-plt.savefig(plume.figdir + 'injectionModel/ModelSensitivity.pdf')
+plt.figure()
+plt.title('LES EVALUATION: FEPS BRIGGS')
+ax = plt.gca()
+plt.scatter(zCL, BriggsH)
+ax.set(xlabel='LES $z_{CL}$ [m]', ylabel='FEPS Briggs $\Delta H_{max}$ [m]')
+plt.savefig(plume.figdir + 'injectionModel/BriggsPerformance.pdf')
 plt.show()
-plt.close()
