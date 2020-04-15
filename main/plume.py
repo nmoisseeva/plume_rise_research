@@ -39,6 +39,9 @@ rxcadredata = '/Users/nmoisseeva/data/plume/rxcadre/wrfout_test_main'
 rxdispersion = '/Users/nmoisseeva/data/rxcadre/dispersion/RDS-2014-0015/Data/SmokeDispersion_L2G_20121110.csv'
 rxsfchgt = 62 							#surface height MSL (m)
 rxsounding = '/Users/nmoisseeva/code/plume/main/input_sounding_rxcadre'
+rxinterpCO2 = '/Users/nmoisseeva/data/plume/main/CO2_interp_1250-1300pm.npy'
+rxlvl = np.arange(0,1700,20)
+
 
 #============================================================================
 #common functions
