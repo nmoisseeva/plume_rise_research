@@ -29,7 +29,6 @@ mf, bf =  6.812, 412.659         #slope and intercept from LES regression model
 zstep = 10.                      #vertical step to interpolate to
 intFlux = [367, 254, 146, 108, 270, 90 ]    #RxCADRE HIP1 integral flux for HIP1 sensors [kW s /m2]
 rawROS = 0.23                    #RxCADRE ROS value for HIP1 (Butler 2016) [m/s]
-
 #=================end of input===============
 
 
