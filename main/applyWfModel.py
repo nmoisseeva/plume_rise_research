@@ -14,6 +14,8 @@ from scipy.signal import savgol_filter
 from scipy.stats import linregress
 from scipy.optimize import fsolve
 from matplotlib import gridspec
+from scipy.interpolate import interp1d
+
 
 #====================INPUT===================
 #import all common project variables
@@ -24,32 +26,34 @@ testPortion = 0.2       #portion of data to reserve for testing the model
 trials = 10             #number of times to rerun the model
 
 g = 9.81                #gravity constant
+zs= 200                 #surface layer height in m
+zstep = 20              #height interpolation step
+
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]         #load a list of cases
 # RunList = ['W5F1R0']
-
 runCnt = len(RunList)                           #count number of cases
+
+#set up interpolated vertical profile with 5m vertical step
+interpZ = np.arange(0, plume.lvl[-1], zstep)
+si = int(zs/zstep)
+
 
 #storage for variables
 zi = np.empty((runCnt)) * np.nan                #BL height (m)
 zCL = np.empty((runCnt)) * np.nan               #smoke injection height (m)
 Phi = np.empty((runCnt)) * np.nan               #cumulative fire heat  (K m^2/s)
-BLdT = np.empty((runCnt,len(plume.lvl)-1))      #storage for temperature change in BL (K)
 Omega = np.empty((runCnt)) * np.nan             #cumulative vertical temperature (Km) - the questionable denominator term
 Omega2 = np.empty((runCnt)) * np.nan            #ALTERNATIVE TERM: simply potential temperature change between surface layer and injection height (K)
-wMax = np.empty((runCnt)) * np.nan
 varTest = np.empty((runCnt)) * np.nan
-varTest2 = np.empty((runCnt)) * np.nan
+sounding = np.empty((runCnt,len(interpZ))) * np.nan         #storage for interpolated soundings
+gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for temperature gradient
+
 
 FlaggedCases = []                               #for storage of indecies of anomalous runs
 
 #======================repeat main analysis for all runs first===================
-#create staggered vertical levels
-stagZ = np.arange(plume.dz/2, plume.lvl[-1], plume.dz)
-dimZstag = len(stagZ)
-
-
 #loop through all LES cases
 for nCase,Case in enumerate(RunList):
     #exclude outlier runs that are undealt with
@@ -61,6 +65,10 @@ for nCase,Case in enumerate(RunList):
     T0 = np.load(plume.wrfdir + 'interp/profT0' + Case + '.npy')    #load initial temperature profile
     U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')    #load intial wind profile
 
+    #create an interpolated profile of temperature
+    interpT= interp1d(plume.lvl, T0,fill_value='extrapolate')
+    T0interp = interpT(interpZ)
+
     #mask plume with cutoff value---------------------------------
     dimT, dimZ, dimX = np.shape(csdict['temp'])     #get shape of data
     zi[nCase] = plume.get_zi(T0)                    #calculate BL height
@@ -71,7 +79,6 @@ for nCase,Case in enumerate(RunList):
     ctrZidx = pm.argmax(0)                          #locate maxima along height
     ctrXidx = pm.argmax(1)                          #locate maxima downwind
     pmCtr = np.array([pm[ctrZidx[nX],nX] for nX in range(dimX)])    #get concentration along the centerline
-    wMax[nCase] = np.max(w.max(1))
 
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)           #get location of maximum centerline height
     centerline = ma.masked_where(plume.lvl[ctrZidx] == 0, plume.lvl[ctrZidx])               #make sure centerline is only calculated inside the plume
@@ -100,22 +107,19 @@ for nCase,Case in enumerate(RunList):
 
     #calculate injection height variables ---------------------------
     zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])    #injection height is where the centerline is stable and concentration doesn't change
-    # zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))            #get index of injection height
-    zCLidx = np.argmin(abs(plume.lvl - zCL[nCase]))
-    zCLidx_stag = np.argmin(abs(stagZ - zCL[nCase]))
-    # dT = T0[1:]-T0[0:-1]                                        #calculate potential temperature change (K)
+    zCLidx = np.argmin(abs(interpZ - zCL[nCase]))
     dT = (T0[1:]-T0[0:-1])/plume.dz                                        #calculate potential temperature change (K)
 
-    BLdT[nCase,:] = dT                                          #store temperature gradient to be used by solver later
-    # Omega[nCase] = np.trapz(dT[si:zCLidx_stag], dx = plume.dz)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
-    Omega[nCase] = np.trapz(dT[si:zCLidx_stag], dx =plume.dz)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
+    sounding[nCase,:] = T0interp
+    dTinterp = (T0interp[1:] - T0interp[0:-1])/zstep
+    gradT0interp[nCase,:] = dTinterp
+    Omega[nCase] = np.trapz(dTinterp[si:zCLidx], dx = zstep)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
 
     #alternative Omega calculation (simply temperature change)
-    Omega2[nCase] = (T0[zCLidx] - T0[si+1])                      # change in potential temperature between surface layer and injection layer (K)
+    Omega2[nCase] = (T0interp[zCLidx] - T0interp[si])                      # change in potential temperature between surface layer and injection layer (K)
 
-    ziIdx = np.argmin(abs(plume.lvl - zi[nCase]))
 
-    varTest[nCase] = np.max(ctrZidx)*plume.dz
+    varTest[nCase] = 1./(zCL[nCase] - zs)
 
     # #highlight weird plumes that don't reach top of boundary layer
     # if Omega[nCase] < 0 :
@@ -126,12 +130,12 @@ for nCase,Case in enumerate(RunList):
     #     FlaggedCases.append(nCase)
 #======================compare model formulations========================
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi*(zi-si*plume.dz)/(Omega))**(1/3.)
+wStar = (g*Phi* (zi-zs) /(Omega))**(1/3.)
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 
 #using formulation suggested by roland
-wStar2 = (g * Phi*(zi-si*plume.dz) / (Omega2))**(1/3.)
+wStar2 = (g * Phi*(zi-zs)/ (Omega2))**(1/3.)
 slope2, intercept2, r_value2, p_value2, std_err2 = linregress(wStar2[np.isfinite(wStar2)],zCL[np.isfinite(wStar2)])
 
 
@@ -144,13 +148,13 @@ plt.legend(fontsize=12)
 ax1.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
 ax1 = plt.subplot(122)
 plt.title('NORMALIZING BY zCL: [R=%0.2f]' %r_value2)
-plt.scatter(wStar2, zCL, label=r'$w_{f*} = \frac{g \cdot z_i \cdot \Phi}{z_{CL} \cdot \Delta\theta}$')
+plt.scatter(wStar2, zCL, c=varTest, label=r'$w_{f*} = \frac{g \cdot z_i \cdot \Phi}{z_{CL} \cdot \Delta\theta}$')
 ax1.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
 plt.legend()
 plt.tight_layout()
-# plt.savefig(plume.figdir + 'injectionModel/CompareFormulations.pdf')
+plt.savefig(plume.figdir + 'injectionModel/CompareFormulations.pdf')
 plt.show()
-# plt.close()
+plt.close()
 
 #======================train and test regression model===================
 
@@ -164,6 +168,7 @@ ModelError = []
 TrueTrialZcl = []
 TrialFuel = []
 TrialVar = []
+TrialName = []
 
 for nTrial in range(trials):
     #split runs into train and test datasets
@@ -204,8 +209,9 @@ for nTrial in range(trials):
         testIdx = np.where(TestFlag==1)[0][nTest]                   #get index of test run in the LES subset
         #substituting equation (2) into (1) above
         toSolve = lambda z : z - intercept - slope * \
-                            (g*Phi[testIdx]*(zi[testIdx] - si*plume.dz)/ \
-                            (np.trapz(BLdT[testIdx][si+1:int(z/plume.dz)], dx = plume.dz)))**(1/3.)
+                            ( (g*Phi[testIdx]*(zi[testIdx] - zs))/ \
+                            (np.trapz(gradT0interp[testIdx][si:int(z/zstep)], dx=zstep) ))**(1/3.)
+                            #(np.trapz(BLdT[testIdx][4:int(z/plume.dz)], dx = plume.dz) ))**(1/3.)
         z_initial_guess = zi[testIdx]                    #make initial guess BL height
         z_solution = fsolve(toSolve, z_initial_guess)               #solve
 
@@ -217,7 +223,8 @@ for nTrial in range(trials):
     TrueTrialZcl.append(zCL[TestFlag==1])                           #store true subset
     category = plume.read_tag('F',np.array(RunList)[TestFlag==1])
     TrialFuel.append(category)
-    TrialVar.append(varTest[TestFlag==1])
+    TrialVar.append(zCL[TestFlag==1]-zs)
+    TrialName.append(np.array(RunList)[TestFlag==1])
 
 print('Sum of residuals using ALL data: %0.2f' %r_valueALL)
 print('\033[93m' + 'Linear model equation using ALL data: zCL = %.3f Wf* + %.3f '  %(slopeALL,interceptALL)+ '\033[0m' )
@@ -228,6 +235,7 @@ flatTrueTrialZcl  = np.concatenate(TrueTrialZcl)                #flatten test ar
 flatModelError = np.concatenate(ModelError)                     #flatten model error
 flatTrialFuel = np.concatenate(TrialFuel)
 flatTrialVar = np.concatenate(TrialVar)
+flatTrialName = np.concatenate(TrialName)
 
 
 #plot model sensitivity
@@ -248,7 +256,8 @@ plt.title('PREDICTION INTERVAL')
 m, b, r, p, std = linregress(flatTrueTrialZcl,flatModelError)
 plt.scatter(flatTrueTrialZcl,flatModelError)
 plt.plot(flatTrueTrialZcl, m*flatTrueTrialZcl + b, color='grey')
-ax2.set(xlabel='plume height [m]', ylabel='model error [m]')
+plt.hlines(0,500,1500,colors='grey',linestyles='dashed')
+ax2.set(xlabel='plume height [m]', ylabel='model error [m]',xlim=[500,1500])
 ax3 = plt.subplot(gs[3])
 plt.title('R-VALUE SENSITIVITY')
 plt.hist(Rstore, bins=5)
@@ -258,6 +267,14 @@ plt.savefig(plume.figdir + 'injectionModel/ModelSensitivity.pdf')
 plt.show()
 plt.close()
 
+plt.figure()
+plt.title('ERROR AS A FUNCTION OF FUEL')
 plt.scatter(flatTrialFuel,flatModelError,c=flatTrialVar)
-plt.colorbar()
+ax = plt.gca()
+# for i, txt in enumerate(flatTrialName):
+#     ax.annotate(txt, (flatTrialFuel[i], flatModelError[i]),fontsize=6)
+ax.set(xlabel='fuel category', ylabel='error [m]')
+plt.colorbar().set_label('$z_{CL} - z_s$ [m]')
+plt.savefig(plume.figdir + 'injectionModel/FuelvsErrorHeight.pdf')
+
 plt.show()
