@@ -286,14 +286,14 @@ plt.close()
 #============================model sensitivity and entrainment============
 
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi* (zi-zs)*zCL /(Omega))**(1/3.)
+wStar = (g*Phi* (zi-zs)/(Omega))**(1/3.)
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 
 
 for nCase,Case in enumerate(RunList):
     toSolveCase = lambda z : z - interceptALL - slopeALL * \
-                            ( (g*Phi[nCase]*(zi[nCase] - zs) *z)/ \
+                            ( (g*Phi[nCase]*(zi[nCase] - zs))/ \
                             (np.trapz(gradT0interp[nCase][si:int(z/zstep)], dx=zstep) ))**(1/3.)
 
     z_initial_guess = zi[nCase]                    #make initial guess BL height
@@ -317,4 +317,4 @@ ax.set(xlabel='fuel category', ylabel='error [m]',ylim=[-100,150])
 plt.colorbar().set_label('$z_{CL}$ [m]')
 plt.savefig(plume.figdir + 'injectionModel/FuelvsErrorHeight_ALL.pdf')
 plt.show()
-plt.close()
+# plt.close()
