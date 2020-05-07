@@ -49,6 +49,7 @@ Omega2 = np.empty((runCnt)) * np.nan            #ALTERNATIVE TERM: simply potent
 varTest = np.empty((runCnt)) * np.nan
 sounding = np.empty((runCnt,len(interpZ))) * np.nan         #storage for interpolated soundings
 gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for temperature gradient
+zCLerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
 
 
 FlaggedCases = []                               #for storage of indecies of anomalous runs
@@ -68,6 +69,7 @@ for nCase,Case in enumerate(RunList):
     #create an interpolated profile of temperature
     interpT= interp1d(plume.lvl, T0,fill_value='extrapolate')
     T0interp = interpT(interpZ)
+
 
     #mask plume with cutoff value---------------------------------
     dimT, dimZ, dimX = np.shape(csdict['temp'])     #get shape of data
@@ -140,26 +142,26 @@ slope2, intercept2, r_value2, p_value2, std_err2 = linregress(wStar2[np.isfinite
 
 
 #make scatterplot comparisons
-plt.figure(figsize=(10,5))
+plt.figure(figsize=(12,5))
 ax1 = plt.subplot(121)
-plt.title('ORIGINAL APPROACH: [R=%0.2f]' %r_valueALL)
-plt.scatter(wStar, zCL, label=r'$w_{f*} = \frac{g \cdot z_i \cdot \Phi}{\int_{0}^{z_{cl}} d\theta  dz}}$')
+plt.title('MATHEMATICAL FORMULATION: [R=%0.2f]' %r_value2)
+plt.scatter(wStar2, zCL, c=plume.read_tag('W',RunList), label=r'$w_{f*} = \frac{g \cdot (z_i-z_s) \cdot \Phi \cdot \epsilon}{(\theta_{z_{CL}} - \theta_{z_s})}$')
+ax1.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
+plt.colorbar().set_label('ambient wind [m/s]')
+plt.legend(fontsize=12)
+ax1 = plt.subplot(122)
+plt.title('NUMERICAL FORMULATION: [R=%0.2f]' %r_valueALL)
+plt.scatter(wStar, zCL, c=Phi, cmap = plt.cm.Spectral_r, label=r'$w_{f*} = \frac{g \cdot (z_i - z_s) \cdot \Phi \cdot \epsilon }{\int_{z_s}^{z_{cl}} d\theta  dz}}$')
+plt.plot(wStar, interceptALL + slopeALL*wStar,c='grey')
+plt.colorbar().set_label('$\Phi$ [Km$^2$/s]')
 plt.legend(fontsize=12)
 ax1.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
-ax1 = plt.subplot(122)
-plt.title('NORMALIZING BY zCL: [R=%0.2f]' %r_value2)
-plt.scatter(wStar2, zCL, c=varTest, label=r'$w_{f*} = \frac{g \cdot z_i \cdot \Phi}{z_{CL} \cdot \Delta\theta}$')
-ax1.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
-plt.legend()
 plt.tight_layout()
 plt.savefig(plume.figdir + 'injectionModel/CompareFormulations.pdf')
 plt.show()
 plt.close()
 
 #======================train and test regression model===================
-
-
-
 
 
 #create storage arrays for R values, modelled zCL, model error and trail subsets of true zCL derived from data
@@ -211,7 +213,6 @@ for nTrial in range(trials):
         toSolve = lambda z : z - intercept - slope * \
                             ( (g*Phi[testIdx]*(zi[testIdx] - zs))/ \
                             (np.trapz(gradT0interp[testIdx][si:int(z/zstep)], dx=zstep) ))**(1/3.)
-                            #(np.trapz(BLdT[testIdx][4:int(z/plume.dz)], dx = plume.dz) ))**(1/3.)
         z_initial_guess = zi[testIdx]                    #make initial guess BL height
         z_solution = fsolve(toSolve, z_initial_guess)               #solve
 
@@ -267,14 +268,53 @@ plt.savefig(plume.figdir + 'injectionModel/ModelSensitivity.pdf')
 plt.show()
 plt.close()
 
+
 plt.figure()
-plt.title('ERROR AS A FUNCTION OF FUEL')
+plt.title('ERROR AS A FUNCTION OF FUEL (TRIALS)')
 plt.scatter(flatTrialFuel,flatModelError,c=flatTrialVar)
+plt.hlines(0,0,14,colors='grey',linestyles='dashed')
 ax = plt.gca()
 # for i, txt in enumerate(flatTrialName):
 #     ax.annotate(txt, (flatTrialFuel[i], flatModelError[i]),fontsize=6)
-ax.set(xlabel='fuel category', ylabel='error [m]')
+ax.set(xlabel='fuel category', ylabel='error [m]',ylim=[-100,150])
 plt.colorbar().set_label('$z_{CL} - z_s$ [m]')
-plt.savefig(plume.figdir + 'injectionModel/FuelvsErrorHeight.pdf')
-
+plt.savefig(plume.figdir + 'injectionModel/FuelvsErrorHeight_TRIALS.pdf')
 plt.show()
+plt.close()
+
+
+#============================model sensitivity and entrainment============
+
+#define wf* (as per original 'wrong' formulation)
+wStar = (g*Phi* (zi-zs)*zCL /(Omega))**(1/3.)
+#do linear regression using all data
+slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
+
+
+for nCase,Case in enumerate(RunList):
+    toSolveCase = lambda z : z - interceptALL - slopeALL * \
+                            ( (g*Phi[nCase]*(zi[nCase] - zs) *z)/ \
+                            (np.trapz(gradT0interp[nCase][si:int(z/zstep)], dx=zstep) ))**(1/3.)
+
+    z_initial_guess = zi[nCase]                    #make initial guess BL height
+    z_solution = fsolve(toSolveCase, z_initial_guess)               #solve
+    zCLerror[nCase] = z_solution - zCL[nCase]                                #store the solution
+
+plt.figure()
+plt.title('ERROR AS A FUNCTION OF zCL (ALL)')
+plt.scatter(zCL,zCLerror,c=plume.read_tag('W',RunList))
+mBIAS, bBIAS, r, p, std = linregress(zCL,zCLerror)
+plt.plot(zCL, m*zCL + b, color='grey')
+# plt.close()
+
+
+
+plt.figure()
+plt.title('ERROR AS A FUNCTION OF FUEL (ALL)')
+plt.scatter(plume.read_tag('F',RunList),zCLerror,c=(zCL))
+plt.hlines(0,0,14,colors='grey',linestyles='dashed')
+ax.set(xlabel='fuel category', ylabel='error [m]',ylim=[-100,150])
+plt.colorbar().set_label('$z_{CL}$ [m]')
+plt.savefig(plume.figdir + 'injectionModel/FuelvsErrorHeight_ALL.pdf')
+plt.show()
+plt.close()

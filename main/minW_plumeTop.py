@@ -447,7 +447,7 @@ plt.close()
 
 #-------------plot initial profiles---------------
 plt.figure()
-plt.title('INITAL ATMOSPHERIC PROFILES')
+plt.title('INITIAL ATMOSPHERIC PROFILES')
 leg_handles = []
 for R in set(Rtag):
     for Case in T0[Rtag==R]:
