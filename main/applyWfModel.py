@@ -50,6 +50,7 @@ varTest = np.empty((runCnt)) * np.nan
 sounding = np.empty((runCnt,len(interpZ))) * np.nan         #storage for interpolated soundings
 gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for temperature gradient
 zCLerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
+wMax = np.empty((runCnt)) * np.nan
 
 
 FlaggedCases = []                               #for storage of indecies of anomalous runs
@@ -96,7 +97,7 @@ for nCase,Case in enumerate(RunList):
     pmQ3 = np.percentile(stablePM,75,axis = 1)
 
     #define heat source ------------------------
-    masked_flux = ma.masked_less_equal(csdict['ghfx2D'],0.5)    #mask empty fire heat flux cells
+    masked_flux = ma.masked_less_equal(csdict['ghfx2D'],1)    #mask empty fire heat flux cells
     cs_flux = np.nanmean(masked_flux,1)                         #get mean cross section for each timestep
     fire = []                                                   #create storage arrage
     fxmax = np.argmax(cs_flux,axis=1)                           #get location of max heat for each timestep
@@ -120,7 +121,9 @@ for nCase,Case in enumerate(RunList):
     #alternative Omega calculation (simply temperature change)
     Omega2[nCase] = (T0interp[zCLidx] - T0interp[si])                      # change in potential temperature between surface layer and injection layer (K)
 
+    zCLidxNONINTERP = np.argmin(abs(plume.lvl - zCL[nCase]))
 
+    wMax[nCase] = (np.mean(w[si:zCLidxNONINTERP],(1,0)))
     varTest[nCase] = 1./(zCL[nCase] - zs)
 
     # #highlight weird plumes that don't reach top of boundary layer
@@ -286,14 +289,18 @@ plt.close()
 #============================model sensitivity and entrainment============
 
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi* (zi-zs)/(Omega))**(1/3.)
+wStar = (g*Phi* (zi-zs)*(0.04*1/zCL)/(Omega))**(1/3.)
+# wStar = (g*Phi* (zi-zs)/(Omega ))**(1/3.)
+
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
-
+print(r_valueALL)
+# plt.scatter(wStar,zCL)
+plt.scatter(wStar,wMax)
 
 for nCase,Case in enumerate(RunList):
     toSolveCase = lambda z : z - interceptALL - slopeALL * \
-                            ( (g*Phi[nCase]*(zi[nCase] - zs))/ \
+                            ( (g*Phi[nCase]*(zi[nCase] - zs)*0.000008)/ \
                             (np.trapz(gradT0interp[nCase][si:int(z/zstep)], dx=zstep) ))**(1/3.)
 
     z_initial_guess = zi[nCase]                    #make initial guess BL height
@@ -303,7 +310,7 @@ for nCase,Case in enumerate(RunList):
 plt.figure()
 plt.title('ERROR AS A FUNCTION OF zCL (ALL)')
 plt.scatter(zCL,zCLerror,c=plume.read_tag('W',RunList))
-mBIAS, bBIAS, r, p, std = linregress(zCL,zCLerror)
+# mBIAS, bBIAS, r, p, std = linregress(zCL,zCLerror)
 plt.plot(zCL, m*zCL + b, color='grey')
 # plt.close()
 

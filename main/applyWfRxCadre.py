@@ -89,7 +89,7 @@ rotated_fire = rotate(ghfx[:,:,:],125, axes=(1, 2), reshape=False, mode='constan
 masked_flux = ma.masked_less_equal(rotated_fire[60:80,:,:], 500)
 ave_masked_flux = np.nanmean(masked_flux,0)
 meanFire = np.mean(ave_masked_flux,0)
-ignited = np.array([i for i in meanFire if i > 500])        #differs from evalution in RxCADRE where cutoff is 5000 based on Butler 2016
+ignited = np.array([i for i in meanFire if i > 5000])        #differs from evalution in RxCADRE where cutoff is 5000 based on Butler 2016
 PhiLES = np.trapz(ignited, dx = 40.) / ( 1.2 * 1005)           #hardcoded dx=40, to match RxCADRE run
 
 plt.figure(figsize=(12,8))
