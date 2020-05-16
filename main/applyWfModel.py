@@ -50,8 +50,7 @@ varTest = np.empty((runCnt)) * np.nan
 sounding = np.empty((runCnt,len(interpZ))) * np.nan         #storage for interpolated soundings
 gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for temperature gradient
 zCLerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
-wMax = np.empty((runCnt)) * np.nan
-
+fireEnd = np.empty((runCnt)) * np.nan
 
 FlaggedCases = []                               #for storage of indecies of anomalous runs
 
@@ -104,8 +103,20 @@ for nCase,Case in enumerate(RunList):
     for nP, pt in enumerate(fxmax[plume.ign_over:]):            #excludes steps containing ignition
         subset = cs_flux[plume.ign_over+nP,pt-plume.wi:pt+plume.wf]     #set averaging window around a maximum
         fire.append(subset)
+
+
     meanFire = np.nanmean(fire,0)                               #calculate mean fire cross section
     ignited = np.array([i for i in meanFire if i > 0.5])        #consider only cells that have heat flux about 500 W/m2
+
+    # #comparison with last frame (to make sure averaging is a good idea)
+    # plt.figure()
+    # plt.title(RunList[nCase])
+    # plt.plot(meanFire, label='mean')
+    # plt.plot(subset,label='last')
+    # plt.legend()
+    # plt.savefig(plume.figdir + 'temp/fireline%s.pdf' %Case)
+    # plt.close()
+
     Phi[nCase] = np.trapz(ignited, dx = plume.dx) * 1000 / ( 1.2 * 1005)    #calculate Phi by integrating kinematic heat flux along x (Km2/s)
 
     #calculate injection height variables ---------------------------
@@ -123,9 +134,7 @@ for nCase,Case in enumerate(RunList):
 
     zCLidxNONINTERP = np.argmin(abs(plume.lvl - zCL[nCase]))
 
-    wMax[nCase] = (np.mean(w[si:zCLidxNONINTERP],(1,0)))
-    varTest[nCase] = 1./(zCL[nCase] - zs)
-
+    varTest[nCase] = (fxmax[-1]+1)*plume.dx - 1000
     # #highlight weird plumes that don't reach top of boundary layer
     # if Omega[nCase] < 0 :
     #     print('\033[93m' + 'Omega: %0.2f ' %Omega[nCase] + '\033[0m')
@@ -289,18 +298,21 @@ plt.close()
 #============================model sensitivity and entrainment============
 
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi* (zi-zs)*(0.04*1/zCL)/(Omega))**(1/3.)
+wStar = (g*Phi* (zi-zs)/(Omega))**(1/3.)
 # wStar = (g*Phi* (zi-zs)/(Omega ))**(1/3.)
 
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 print(r_valueALL)
-# plt.scatter(wStar,zCL)
-plt.scatter(wStar,wMax)
+plt.scatter(wStar,zCL,c=zCLerror)
+plt.colorbar()
+ax = plt.gca()
+for i, txt in enumerate(RunList):
+    ax.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
 
 for nCase,Case in enumerate(RunList):
     toSolveCase = lambda z : z - interceptALL - slopeALL * \
-                            ( (g*Phi[nCase]*(zi[nCase] - zs)*0.000008)/ \
+                            ( (g*Phi[nCase]*(zi[nCase] - zs))/ \
                             (np.trapz(gradT0interp[nCase][si:int(z/zstep)], dx=zstep) ))**(1/3.)
 
     z_initial_guess = zi[nCase]                    #make initial guess BL height
@@ -309,16 +321,20 @@ for nCase,Case in enumerate(RunList):
 
 plt.figure()
 plt.title('ERROR AS A FUNCTION OF zCL (ALL)')
-plt.scatter(zCL,zCLerror,c=plume.read_tag('W',RunList))
+plt.scatter(zCL,zCLerror,c=varTest)
 # mBIAS, bBIAS, r, p, std = linregress(zCL,zCLerror)
+ax = plt.gca()
+for i, txt in enumerate(RunList):
+    ax.annotate(txt, (zCL[i], zCLerror[i]),fontsize=6)
 plt.plot(zCL, m*zCL + b, color='grey')
+plt.show()
 # plt.close()
 
 
 
 plt.figure()
 plt.title('ERROR AS A FUNCTION OF FUEL (ALL)')
-plt.scatter(plume.read_tag('F',RunList),zCLerror,c=(zCL))
+plt.scatter(plume.read_tag('F',RunList),zCLerror,c=zCL)
 plt.hlines(0,0,14,colors='grey',linestyles='dashed')
 ax.set(xlabel='fuel category', ylabel='error [m]',ylim=[-100,150])
 plt.colorbar().set_label('$z_{CL}$ [m]')
