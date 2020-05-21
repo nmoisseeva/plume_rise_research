@@ -20,7 +20,7 @@ fireline = 4000.,6000.          #fireline start and end in meters
 ign_over = 20                   #number of history intervals exluded from start
 
 #which runs to work with
-dirpath = wrfdir+'interp/wrfave_*'
+dirpath = wrfdir+'interp/wrfcs_*'
 dirlist = glob.glob(dirpath)                        #get all  interp files in directory
 tag = [i[len(dirpath)-1:-4] for i in dirlist]       #W*F*R0
 # tag = ['W8S400F7R0']
