@@ -92,6 +92,7 @@ for nCase,Case in enumerate(RunList):
     stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
     stablePM = pm[:,1:][:,stablePMmask]
     stableProfile = np.mean(stablePM,1)
+
     pmQ1 = np.percentile(stablePM,25,axis = 1)
     pmQ3 = np.percentile(stablePM,75,axis = 1)
 
@@ -336,7 +337,7 @@ plt.figure()
 plt.title('ERROR AS A FUNCTION OF FUEL (ALL)')
 plt.scatter(plume.read_tag('F',RunList),zCLerror,c=zCL)
 plt.hlines(0,0,14,colors='grey',linestyles='dashed')
-ax.set(xlabel='fuel category', ylabel='error [m]',ylim=[-100,150])
+ax.set(xlabel='fuel category', ylabel='error [m]')
 plt.colorbar().set_label('$z_{CL}$ [m]')
 plt.savefig(plume.figdir + 'injectionModel/FuelvsErrorHeight_ALL.pdf')
 plt.show()

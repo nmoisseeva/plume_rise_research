@@ -32,7 +32,7 @@ exclude_runs = ['W5F4R0','W5F8R3','W5F9R3','W5F1R3','W5F13R0']
 fireline_runs = ['W4F7R4L1','W4F7R4','W4F7R4L4']
 
 #common analysis variables
-PMcutoff = 30                   #minimum value for plume edge
+PMcutoff = 20                   #minimum value for plume edge
 
 
 #model evaluation

@@ -22,7 +22,7 @@ imp.reload(plume) 	#force load each time
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-# RunList = ['W5F1R3','W5F8R3','W5F9R3']
+# RunList = ['W5F1R0','W3F7R0','W3F6R6T','W3F12R6T','W9F3R6T']
 
 runCnt = len(RunList)
 g = 9.81
@@ -57,7 +57,7 @@ for nCase,Case in enumerate(RunList):
     dimT, dimZ, dimX = np.shape(csdict['temp'])
     pm = ma.masked_where(csdict['pm25'][-1,:,:] <= plume.PMcutoff, csdict['pm25'][-1,:,:] )
     zi[nCase] = plume.get_zi(T0)
-    si = 3
+    si = 7
 
     #locate centerline
     ctrZidx = pm.argmax(0)
@@ -70,13 +70,37 @@ for nCase,Case in enumerate(RunList):
 
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)
     centerline = ma.masked_where(plume.lvl[ctrZidx] == 0, plume.lvl[ctrZidx])
+    # centerline.mask[0:np.nanargmax(ctrZidx)] = True
     tilt = ymax/xmax                #tilt is calculated based on max centerline height
-    smoothCenterline = savgol_filter(centerline, 31, 3) # window size 101, polynomial order 3
+    # smoothCenterline = savgol_filter(centerline, 31, 3) # window size 101, polynomial order 3
+    # dCTRdX = smoothCenterline[1:] - smoothCenterline[:-1]
+    # # dCTRdX.mask[0:np.nanargmax(ctrZidx)]=True
+    # smoothCTR = savgol_filter(dCTRdX, 31, 3)
+    # dPMdX = pmCtr[1:]-pmCtr[0:-1]
+    # smoothPM = savgol_filter(dPMdX, 31, 3) # window size 101, polynomial order 3
+    # stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and \
+    #                         nX > np.nanargmax(smoothPM) and \
+    #                         smoothCTR[nX-15] < 1 and \
+    #                         nX > np.nanargmax(centerline) \
+    #                         else False for nX in range(dimX-1) ]
+    # stablePM = pm[:,1:][:,stablePMmask]
 
+
+    # heights=centerline.data[centerline.data>0]
+    # most_common = max(set(heights), key=list(heights).count)
+    # chunks = ma.masked_where(centerline != most_common, centerline)
+    # raw_edges = ma.flatnotmasked_edges(chunks)
+    # chunks.mask[(raw_edges)] = True
+    # edges = ma.flatnotmasked_edges(chunks)
+    # stablePM = pm[:,edges[0]:edges[1]]
+    smoothCenterline = savgol_filter(centerline, 31, 3)             # smooth centerline height (window size 31, polynomial order 3)
+
+    #calculate concentration changes along the centerline
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
     smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
     stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
     stablePM = pm[:,1:][:,stablePMmask]
+
     stableProfile = np.mean(stablePM,1)
     pmQ1 = np.percentile(stablePM,25,axis = 1)
     pmQ3 = np.percentile(stablePM,75,axis = 1)
@@ -84,7 +108,7 @@ for nCase,Case in enumerate(RunList):
 
     #define source (r and H)------------------------
     #raduis using full 2D average - THIS IS THE APPROACH USED FOR DIMENSIONAL ANALYSIS
-    masked_flux = ma.masked_less_equal(csdict['ghfx2D'], 0)
+    masked_flux = ma.masked_less_equal(csdict['ghfx2D'], 1)
     cs_flux = np.nanmean(masked_flux,1)                         #get cross section for each timestep
     fire = []
     xmax = np.argmax(cs_flux,axis=1)                            #get max for each timestep
@@ -127,8 +151,11 @@ for nCase,Case in enumerate(RunList):
     #dimensional analysis variables ---------------------------
     # zCL[nCase] = np.mean(centerline[1:][stablePMmask])
     zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])
+    # zCL[nCase] = most_common
 
-    zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
+
+    # zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
+    zCLidx = np.argmin(abs(plume.lvl - zCL[nCase]))
     dT = T0[1:]-T0[0:-1]
     Ti[nCase] = T0[si+1]                                        #characteristic BL temperature
 
@@ -184,10 +211,14 @@ for nCase,Case in enumerate(RunList):
     ax3=fig.add_subplot(gs[2])
     l1, = plt.plot(haxis, pmCtr, label='concentration along centerline', color='C1')
     l2 = ax3.fill_between(haxis[1:], 0, 1, where=stablePMmask, color='grey', alpha=0.4, transform=ax3.get_xaxis_transform(), label='averaging window')
+    # l2 = ax3.fill_between(haxis[:], 0, 1, where=(chunks.mask==False), color='grey', alpha=0.4, transform=ax3.get_xaxis_transform(), label='averaging window')
+
     ax3.set(xlim=[0,dimX*plume.dx],xlabel='horizontal distance [m]',ylabel='concentration [ug/kg]' )
     ax32 = ax3.twinx()
-    l3, = plt.plot(haxis,smoothCenterline, label='smoothed centerline height ', color='C2',linestyle=':')
-    ax32.set(xlim=[0,dimX*plume.dx],ylim=[0,2000], ylabel='height [m]' )
+    # l3, = plt.plot(haxis,smoothCenterline, label='smoothed centerline height ', color='C2',linestyle=':')
+    l3, = plt.plot(haxis,centerline, label='smoothed centerline height ', color='C2',linestyle=':')
+
+    ax32.set(xlim=[0,dimX*plume.dx],ylim=[0,2500], ylabel='height [m]' )
     plt.legend(handles = [l1,l2,l3])
 
     ax4=fig.add_subplot(gs[3])
@@ -262,7 +293,8 @@ ax2.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.savefig(plume.figdir + 'zCl_wStar.pdf' )
-plt.show()
+# plt.show()
+plt.close()
 
 #
 # #Fireline length ANALYSIS
