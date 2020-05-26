@@ -26,13 +26,12 @@ testPortion = 0.2       #portion of data to reserve for testing the model
 trials = 10             #number of times to rerun the model
 
 g = 9.81                #gravity constant
-zs= 200                 #surface layer height in m
+zs= 500                 #surface layer height in m
 zstep = 20              #height interpolation step
 
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]         #load a list of cases
-# RunList = ['W5F1R0']
 runCnt = len(RunList)                           #count number of cases
 
 #set up interpolated vertical profile with 5m vertical step
@@ -89,7 +88,12 @@ for nCase,Case in enumerate(RunList):
     #calculate concentration changes along the centerline
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
     smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
-    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
+    # stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
+    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and \
+                            abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 10 and \
+                            nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
+                            nX > np.nanargmax(smoothPM) else \
+                            False for nX in range(dimX-1) ]
     stablePM = pm[:,1:][:,stablePMmask]
     stableProfile = np.mean(stablePM,1)
 

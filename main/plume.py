@@ -19,13 +19,17 @@ wi, wf = 25, 375
 fireline = 4000.,6000.          #fireline start and end in meters
 ign_over = 20                   #number of history intervals exluded from start
 
+#parameterization settings
+zs= 500                 #surface layer height in m
+zstep = 20              #height interpolation step
+
 #which runs to work with
 dirpath = wrfdir+'interp/wrfcs_*'
 dirlist = glob.glob(dirpath)                        #get all  interp files in directory
 tag = [i[len(dirpath)-1:-4] for i in dirlist]       #W*F*R0
 # tag = ['W8S400F7R0']
-# exclude_runs = ['W5F4R0','W5F4R1','W5F4R2','W5F4R3','W5F4R4' ]
-exclude_runs = ['W5F4R0','W5F8R3','W5F9R3','W5F1R3','W5F13R0']
+# exclude_runs = ['W5F4R0','W5F8R3','W5F9R3','W5F1R3','W5F13R0']
+exclude_runs = ['W5F4R0','W5F8R3','W5F9R3','W5F1R3','W5F13R0','W5F4R6T']
 
 
 # exclude_runs = []

@@ -1,4 +1,5 @@
 # January 2020
+#This script determine zCL based on CWI smoke, plots horizontal wind, fire shape and averaging window for last frame
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,7 +23,7 @@ imp.reload(plume) 	#force load each time
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-# RunList = ['W5F1R0','W3F7R0','W3F6R6T','W3F12R6T','W9F3R6T']
+RunList = ['W5F4R6T']
 
 runCnt = len(RunList)
 g = 9.81
@@ -98,7 +99,11 @@ for nCase,Case in enumerate(RunList):
     #calculate concentration changes along the centerline
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
     smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
-    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
+    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and \
+                            abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 10 and \
+                            nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
+                            nX > np.nanargmax(smoothPM) else \
+                            False for nX in range(dimX-1) ]
     stablePM = pm[:,1:][:,stablePMmask]
 
     stableProfile = np.mean(stablePM,1)
@@ -215,11 +220,11 @@ for nCase,Case in enumerate(RunList):
 
     ax3.set(xlim=[0,dimX*plume.dx],xlabel='horizontal distance [m]',ylabel='concentration [ug/kg]' )
     ax32 = ax3.twinx()
-    # l3, = plt.plot(haxis,smoothCenterline, label='smoothed centerline height ', color='C2',linestyle=':')
-    l3, = plt.plot(haxis,centerline, label='smoothed centerline height ', color='C2',linestyle=':')
+    l3, = plt.plot(haxis,smoothCenterline, label='smoothed centerline height ', color='C2',linestyle=':')
+    l4, = plt.plot(haxis,centerline, label='centerline height ', color='C4',linestyle=':')
 
     ax32.set(xlim=[0,dimX*plume.dx],ylim=[0,2500], ylabel='height [m]' )
-    plt.legend(handles = [l1,l2,l3])
+    plt.legend(handles = [l1,l2,l3,l4])
 
     ax4=fig.add_subplot(gs[3])
     plt.plot(stableProfile, plume.lvl,label='vertical PM profile')
