@@ -23,7 +23,7 @@ imp.reload(plume) 	#force load each time
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-# RunList = ['W9F7R0']
+# RunList = ['W9F7R2']
 
 runCnt = len(RunList)
 g = 9.81
@@ -116,56 +116,60 @@ for nCase,Case in enumerate(RunList):
 
 
     #PLOTTING =========================================================
-    haxis = np.arange(dimX)*plume.dx
+    cropX = int(dimX*0.75)
+    axMax = cropX * plume.dx
+    haxis = np.arange(cropX)*plume.dx
     PMppm = pm/1000.                                        #smoke concentration in ppm
     maxPM = int(np.max(PMppm))
-    # pmLevels = np.geomspace(0,maxPM/10,num=10)
-    # PMcontours = ma.masked_where(csdict['pm25'] <= plume.PMcutoff,csdict['pm25'])
 
-    fig = plt.figure(figsize=(22,8))
-    gs = fig.add_gridspec(ncols=2, nrows=2,width_ratios=[6,1])
+    fig = plt.figure(figsize=(11,5))
+    gs = fig.add_gridspec(ncols=2, nrows=2,width_ratios=[4,1])
     plt.suptitle('%s' %Case)
 
     ax1=fig.add_subplot(gs[0])
     axh1=ax1.twinx()
     # ---cwi smoke  and colorbar
-    im = ax1.imshow(PMppm, origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.cubehelix_r,vmin=0, vmax=maxPM/10)
+    im = ax1.imshow(PMppm[:,:cropX], origin='lower', extent=[0,axMax,0,plume.lvl[-1]],cmap=plt.cm.cubehelix_r,vmin=0, vmax=maxPM/10)
     cbari = fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
     cbari.set_label('CWI smoke $[ppm]$')
-    ax1.plot(haxis,centerline,ls='--', c='darkgrey',label='plume centerline' )
+    ax1.plot(haxis,centerline[:cropX],ls='--', c='dimgrey',label='plume centerline' )
     ax1.axhline(y = zi[nCase], ls=':', c='darkgrey', label='BL height at ignition')
     ax1.set(ylabel='height AGL [m]')
-    ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,plume.lvl[-1]],aspect='equal')
+    ax1.set(xlim=[0,axMax],ylim=[0,plume.lvl[-1]],aspect='equal')
     ax1.legend()
     # ---heat flux
-    ln = axh1.plot(np.arange(dimX)*plume.dx, csdict['ghfx'][-1,:], 'r-')
+    ln = axh1.plot(haxis, csdict['ghfx'][-1,:cropX], 'r-')
     axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
-    axh1.set(xlim=[0,dimX*plume.dx],ylim=[0,150])
+    axh1.set(xlim=[0,axMax],ylim=[0,150])
     axh1.tick_params(axis='y', colors='red')
+    ax1.text(0.02, 0.9, '(a)', horizontalalignment='center', verticalalignment='center', transform=ax1.transAxes, weight='bold')
 
 
     ax2=fig.add_subplot(gs[1])
     fim = ax2.imshow(csdict['ghfx2D'][-1,75:175,0:75],cmap=plt.cm.YlOrRd, extent=[0,3000,3000,7000],vmin=0, vmax = 150)
-    cbarif = fig.colorbar(fim, orientation='horizontal')
+    cbarif = fig.colorbar(fim, orientation='vertical')
     cbarif.set_label('heat flux [$kW / m^2$]')
     ax2.set(xlabel='x distance [m]',ylabel='y distance [m]',aspect='equal')
+    ax2.text(0.1, 0.93, '(b)', horizontalalignment='center', verticalalignment='center', transform=ax2.transAxes, weight='bold')
 
 
     ax3=fig.add_subplot(gs[2])
-    l1, = plt.plot(haxis, pmCtr/1000, label='concentration gradient along centerline', color='C1')
-    l2 = ax3.fill_between(haxis[1:], 0, 1, where=stablePMmask, color='grey', alpha=0.4, transform=ax3.get_xaxis_transform(), label='averaging window')
-    ax3.set(xlim=[0,dimX*plume.dx],xlabel='horizontal distance [m]',ylabel='concentration gradient [ppm]' )
+    l1, = plt.plot(haxis, pmCtr[:cropX]/1000, label='concentration gradient', color='C1')
+    l2 = ax3.fill_between(haxis, 0, 1, where=stablePMmask[:cropX], color='grey', alpha=0.4, transform=ax3.get_xaxis_transform(), label='averaging window')
+    ax3.set(xlim=[0,axMax],xlabel='horizontal distance [m]',ylabel='concentration gradient [ppm]' )
     ax32 = ax3.twinx()
-    l3, = plt.plot(haxis,smoothCenterline, label='smoothed centerline height ', color='C2',linestyle=':')
-    l4, = plt.plot(haxis,centerline, label='centerline height ', color='C4',linestyle=':')
-    ax32.set(xlim=[0,dimX*plume.dx],ylim=[0,2500], ylabel='height [m]' )
+    l3, = plt.plot(haxis,smoothCenterline[:cropX], label='smoothed centerline height ', color='C2',linewidth=1)
+    l4, = plt.plot(haxis,centerline[:cropX], label='centerline height', color='C4',linestyle=':')
+    ax32.set(xlim=[0,axMax],ylim=[0,2500], ylabel='height [m]' )
     plt.legend(handles = [l1,l2,l3,l4])
+    ax3.text(0.02, 0.93, '(c)', horizontalalignment='center', verticalalignment='center', transform=ax3.transAxes, weight='bold')
 
     ax4=fig.add_subplot(gs[3])
-    plt.plot(stableProfile/1000, plume.lvl,label='vertical PM profile')
+    plt.plot(stableProfile/1000, plume.lvl,label=' PM profile')
     ax4.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
     ax4.fill_betweenx(plume.lvl, pmQ1/1000, pmQ3/1000, alpha=0.35,label='IQR')
-    ax4.axhline(y = zCL[nCase], ls='--', c='black', label='injection height z$_{CL}$')
+    ax4.axhline(y = zCL[nCase], ls='--', c='black', label='z$_{CL}$')
+    ax4.text(0.1, 0.93, '(d)', horizontalalignment='center', verticalalignment='center', transform=ax4.transAxes, weight='bold')
 
     plt.legend()
 
