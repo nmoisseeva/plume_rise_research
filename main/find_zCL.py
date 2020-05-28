@@ -22,7 +22,7 @@ import plume
 imp.reload(plume) 	#force load each time
 #=================end of input===============
 
-RunList = [i for i in plume.tag if i not in plume.exclude_runs]
+RunList =   [i for i in plume.tag if i not in plume.exclude_runs]
 # RunList = ['W9F7R2']
 
 runCnt = len(RunList)

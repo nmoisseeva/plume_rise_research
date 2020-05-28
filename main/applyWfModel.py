@@ -50,6 +50,7 @@ sounding = np.empty((runCnt,len(interpZ))) * np.nan         #storage for interpo
 gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for temperature gradient
 zCLerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
 fireEnd = np.empty((runCnt)) * np.nan
+zSTD = np.empty((runCnt)) * np.nan
 
 FlaggedCases = []                               #for storage of indecies of anomalous runs
 
@@ -128,6 +129,7 @@ for nCase,Case in enumerate(RunList):
     zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])    #injection height is where the centerline is stable and concentration doesn't change
     zCLidx = np.argmin(abs(interpZ - zCL[nCase]))
     dT = (T0[1:]-T0[0:-1])/plume.dz                                        #calculate potential temperature change (K)
+    zSTD[nCase] = np.std(smoothCenterline[1:][stablePMmask])
 
     sounding[nCase,:] = T0interp
     dTinterp = (T0interp[1:] - T0interp[0:-1])/zstep
@@ -181,71 +183,72 @@ plt.close()
 #======================train and test regression model===================
 
 
-#create storage arrays for R values, modelled zCL, model error and trail subsets of true zCL derived from data
-Rstore = np.empty((trials)) * np.nan
-ModelError = []
-TrueTrialZcl = []
-TrialFuel = []
-TrialVar = []
-TrialName = []
+    #create storage arrays for R values, modelled zCL, model error and trail subsets of true zCL derived from data
+    Rstore = np.empty((trials)) * np.nan
+    ModelError = []
+    TrueTrialZcl = []
+    TrialFuel = []
+    TrialVar = []
+    TrialName = []
 
-for nTrial in range(trials):
-    #split runs into train and test datasets
-    TestFlag = np.random.binomial(1,testPortion,runCnt)                 #pick a random set of approximately 20% of data
-    testCnt = sum(TestFlag)         #count how many runs ended up as test dataset
+    for nTrial in range(trials):
+        #split runs into train and test datasets
+        TestFlag = np.random.binomial(1,testPortion,runCnt)                 #pick a random set of approximately 20% of data
+        testCnt = sum(TestFlag)         #count how many runs ended up as test dataset
 
-    #linear regression using training data subset only
-    slope, intercept, r_value, p_value, std_err = linregress(wStar[TestFlag==0][np.isfinite(wStar[TestFlag==0])],zCL[TestFlag==0][np.isfinite(wStar[TestFlag==0])])
-    print('Sum of residuals using TRAINING data: %0.2f' %r_value)
-    Rstore[nTrial] = r_value        #store trial value
+        #linear regression using training data subset only
+        slope, intercept, r_value, p_value, std_err = linregress(wStar[TestFlag==0][np.isfinite(wStar[TestFlag==0])],zCL[TestFlag==0][np.isfinite(wStar[TestFlag==0])])
+        print('Sum of residuals using TRAINING data: %0.2f' %r_value)
+        Rstore[nTrial] = r_value        #store trial value
 
-    #plot individual trial results
-    fig = plt.figure()
-    plt.suptitle('REGRESSION MODEL: ALL [R=%0.2f] vs TRAIN DATA [R=%0.2f]' %(r_valueALL, r_value))
-    ax=plt.gca()
-    plt.scatter(wStar[TestFlag==0], zCL[TestFlag==0], c='C2', label='training data')
-    plt.scatter(wStar[TestFlag==1], zCL[TestFlag==1], c='C1', label='test data')
-    plt.plot(wStar, interceptALL + slopeALL*wStar, c='grey', label='all data')
-    plt.plot(wStar, intercept + slope*wStar, c='C2', label='training data regression fit')
-    ax.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
-    plt.legend()
-    plt.savefig(plume.figdir + 'injectionModel/trials/ALLvsTRAINdataTrial%s.pdf' %nTrial )
-    plt.show()
-    plt.close()
+        #plot individual trial results
+        fig = plt.figure()
+        plt.suptitle('REGRESSION MODEL: ALL [R=%0.2f] vs TRAIN DATA [R=%0.2f]' %(r_valueALL, r_value))
+        ax=plt.gca()
+        plt.scatter(wStar[TestFlag==0], zCL[TestFlag==0], c='C2', label='training data')
+        plt.scatter(wStar[TestFlag==1], zCL[TestFlag==1], c='C1', label='test data')
+        plt.plot(wStar, interceptALL + slopeALL*wStar, c='grey', label='all data')
+        plt.plot(wStar, intercept + slope*wStar, c='C2', label='training data regression fit')
+        ax.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
+        plt.legend()
+        plt.savefig(plume.figdir + 'injectionModel/trials/ALLvsTRAINdataTrial%s.pdf' %nTrial )
+        plt.show()
+        plt.close()
 
-    '''
-    NOW APPLY THE MODEL
-    Solve a system of equations:
-    (1) zCL = m*wStar + b
-    (2) wStar = [g * Phi * zi / Omega]**1/3
-    Use values m and b calcuated for the training dataset only and apply them to the test dataset
-    '''
+        '''
+        NOW APPLY THE MODEL
+        Solve a system of equations:
+        (1) zCL = m*wStar + b
+        (2) wStar = [g * Phi * zi / Omega]**1/3
+        Use values m and b calcuated for the training dataset only and apply them to the test dataset
+        '''
 
-    #solve numerically for each run belonging to the Test subgroup
-    zCLmodel = np.empty((testCnt)) * np.nan
+        #solve numerically for each run belonging to the Test subgroup
+        zCLmodel = np.empty((testCnt)) * np.nan
 
-    for nTest in range(testCnt):
-        testIdx = np.where(TestFlag==1)[0][nTest]                   #get index of test run in the LES subset
-        #substituting equation (2) into (1) above
-        toSolve = lambda z : z - intercept - slope * \
-                            ( (g*Phi[testIdx]*(zi[testIdx] - zs))/ \
-                            (np.trapz(gradT0interp[testIdx][si:int(z/zstep)], dx=zstep) ))**(1/3.)
-        z_initial_guess = zi[testIdx]                    #make initial guess BL height
-        z_solution = fsolve(toSolve, z_initial_guess)               #solve
+        for nTest in range(testCnt):
+            testIdx = np.where(TestFlag==1)[0][nTest]                   #get index of test run in the LES subset
+            #substituting equation (2) into (1) above
+            toSolve = lambda z : z - intercept - slope * \
+                                ( (g*Phi[testIdx]*(zi[testIdx] - zs))/ \
+                                (np.trapz(gradT0interp[testIdx][si:int(z/zstep)], dx=zstep) ))**(1/3.)
 
-        zCLmodel[nTest] = z_solution                                #store the solution
-        print('%s solution is zCL = %0.2f' % (np.array(RunList)[testIdx],z_solution))
-        print('...True value: %0.2f ' %zCL[testIdx])
-    error = zCLmodel -  zCL[TestFlag==1]                            #calculate error between model and 'truth'
-    ModelError.append(error)                                        #store model error
-    TrueTrialZcl.append(zCL[TestFlag==1])                           #store true subset
-    category = plume.read_tag('F',np.array(RunList)[TestFlag==1])
-    TrialFuel.append(category)
-    TrialVar.append(zCL[TestFlag==1]-zs)
-    TrialName.append(np.array(RunList)[TestFlag==1])
+            z_initial_guess = zi[testIdx]                    #make initial guess BL height
+            z_solution = fsolve(toSolve, z_initial_guess)               #solve
 
-print('Sum of residuals using ALL data: %0.2f' %r_valueALL)
-print('\033[93m' + 'Linear model equation using ALL data: zCL = %.3f Wf* + %.3f '  %(slopeALL,interceptALL)+ '\033[0m' )
+            zCLmodel[nTest] = z_solution                                #store the solution
+            print('%s solution is zCL = %0.2f' % (np.array(RunList)[testIdx],z_solution))
+            print('...True value: %0.2f ' %zCL[testIdx])
+        error = zCLmodel -  zCL[TestFlag==1]                            #calculate error between model and 'truth'
+        ModelError.append(error)                                        #store model error
+        TrueTrialZcl.append(zCL[TestFlag==1])                           #store true subset
+        category = plume.read_tag('F',np.array(RunList)[TestFlag==1])
+        TrialFuel.append(category)
+        TrialVar.append(zCL[TestFlag==1]-zs)
+        TrialName.append(np.array(RunList)[TestFlag==1])
+
+    print('Sum of residuals using ALL data: %0.2f' %r_valueALL)
+    print('\033[93m' + 'Linear model equation using ALL data: zCL = %.3f Wf* + %.3f '  %(slopeALL,interceptALL)+ '\033[0m' )
 
 #======================plot model stability===================
 
@@ -309,11 +312,14 @@ wStar = (g*Phi* (zi-zs)/(Omega))**(1/3.)
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 print(r_valueALL)
-plt.scatter(wStar,zCL,c=zCLerror)
+plt.scatter(wStar,zCL,c=zSTD, cmap=plt.cm.rainbow )
 plt.colorbar()
 ax = plt.gca()
 for i, txt in enumerate(RunList):
     ax.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
+plt.show()
+
+
 
 for nCase,Case in enumerate(RunList):
     toSolveCase = lambda z : z - interceptALL - slopeALL * \
