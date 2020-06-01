@@ -29,8 +29,8 @@ dirlist = glob.glob(dirpath)                        #get all  interp files in di
 tag = [i[len(dirpath)-1:-4] for i in dirlist]       #W*F*R0
 # tag = ['W8S400F7R0']
 # exclude_runs = ['W5F4R0','W5F8R3','W5F9R3','W5F1R3','W5F13R0']
-exclude_runs = ['W5F4R0','W5F8R3','W5F9R3','W5F1R3','W5F13R0','W5F4R6T']
-
+exclude_runs = ['W5F4R0','W5F8R3','W5F9R3','W5F1R3','W5F13R0','W5F4R6T','W5F1R6T','W5F8R6T','W5F9R6T','W5F11R6T','W5F13R6T']
+#W5F4R6T and W5F13R6T just need to be reinterpolated
 
 # exclude_runs = []
 fireline_runs = ['W4F7R4L1','W4F7R4','W4F7R4L4']
