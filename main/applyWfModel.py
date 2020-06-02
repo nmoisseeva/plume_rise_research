@@ -35,7 +35,7 @@ RunList = [i for i in plume.tag if i not in plume.exclude_runs]         #load a 
 runCnt = len(RunList)                           #count number of cases
 
 #set up interpolated vertical profile with 5m vertical step
-interpZ = np.arange(0, plume.lvl[-1], zstep)
+interpZ = np.arange(0, plume.lvltall[-1], zstep)
 si = int(zs/zstep)
 
 
@@ -67,7 +67,10 @@ for nCase,Case in enumerate(RunList):
     U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')    #load intial wind profile
 
     #create an interpolated profile of temperature
-    interpT= interp1d(plume.lvl, T0,fill_value='extrapolate')
+    if Case[-2:]=='6T':
+        interpT = interp1d(plume.lvltall, T0,fill_value='extrapolate')
+    else:
+        interpT= interp1d(plume.lvl, T0,fill_value='extrapolate')
     T0interp = interpT(interpZ)
 
 
@@ -83,18 +86,39 @@ for nCase,Case in enumerate(RunList):
     pmCtr = np.array([pm[ctrZidx[nX],nX] for nX in range(dimX)])    #get concentration along the centerline
 
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)           #get location of maximum centerline height
-    centerline = ma.masked_where(plume.lvl[ctrZidx] == 0, plume.lvl[ctrZidx])               #make sure centerline is only calculated inside the plume
-    smoothCenterline = savgol_filter(centerline, 31, 3)             # smooth centerline height (window size 31, polynomial order 3)
+    centerline = ma.masked_where(plume.lvltall[ctrZidx] == 0, plume.lvltall[ctrZidx])               #make sure centerline is only calculated inside the plume
+    smoothCenterline = savgol_filter(centerline, 71, 3)             # smooth centerline height (window size 31, polynomial order 3)
 
     #calculate concentration changes along the centerline
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
     smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
-    # stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
-    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and \
-                            abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 10 and \
+    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and \
+                            abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 5 and \
                             nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
-                            nX > np.nanargmax(smoothPM) else \
+                            nX > np.nanargmax(smoothPM) and\
+                            nX > np.nanargmax(centerline) +10 and\
+                            nX > np.nanargmax(smoothCenterline)+10 else \
                             False for nX in range(dimX-1) ]
+    if sum(stablePMmask) == 0:
+        stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and \
+                                abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 5 and \
+                                nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
+                                nX > np.nanargmax(centerline) +10 and\
+                                nX > np.nanargmax(smoothPM) else\
+                                # nX > np.nanargmax(smoothCenterline) else \
+                                False for nX in range(dimX-1) ]
+    if sum(stablePMmask) == 0:
+        stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and \
+                                abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 5 and \
+                                nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
+                                nX > np.nanargmax(smoothPM) else\
+                                # nX > np.nanargmax(smoothCenterline) else \
+                                False for nX in range(dimX-1) ]
+
+    if Case=='W5F4R6T':
+        x = np.array(stablePMmask)
+        x[:int(6000/plume.dx)] = False
+        stablePMmask = list(x)
     stablePM = pm[:,1:][:,stablePMmask]
     stableProfile = np.mean(stablePM,1)
 
@@ -131,15 +155,24 @@ for nCase,Case in enumerate(RunList):
     dT = (T0[1:]-T0[0:-1])/plume.dz                                        #calculate potential temperature change (K)
     zSTD[nCase] = np.std(smoothCenterline[1:][stablePMmask])
 
+    # siBL = np.argmin(abs(interpZ - zi[nCase]*3/4))
     sounding[nCase,:] = T0interp
     dTinterp = (T0interp[1:] - T0interp[0:-1])/zstep
     gradT0interp[nCase,:] = dTinterp
     Omega[nCase] = np.trapz(dTinterp[si:zCLidx], dx = zstep)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
+    # Omega[nCase] = np.trapz(dTinterp[siBL:zCLidx], dx = zstep)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
+
+
+    # if zCL[nCase]<zi[nCase]:
+    #     print('INJECTION IS BELOW THE BL HEIGHT!!!!!!!!!!!!!!!')
+    #     Omega[nCase] = np.trapz(dTinterp[si:np.argmin(abs(interpZ - zi[nCase]))], dx = plume.zstep)
+
 
     #alternative Omega calculation (simply temperature change)
     Omega2[nCase] = (T0interp[zCLidx] - T0interp[si])                      # change in potential temperature between surface layer and injection layer (K)
+    # Omega2[nCase] = (T0interp[zCLidx] - T0interp[siBL])                      # change in potential temperature between surface layer and injection layer (K)
 
-    zCLidxNONINTERP = np.argmin(abs(plume.lvl - zCL[nCase]))
+    zCLidxNONINTERP = np.argmin(abs(plume.lvltall - zCL[nCase]))
 
     varTest[nCase] = (fxmax[-1]+1)*plume.dx - 1000
     # #highlight weird plumes that don't reach top of boundary layer
@@ -152,11 +185,15 @@ for nCase,Case in enumerate(RunList):
 #======================compare model formulations========================
 #define wf* (as per original 'wrong' formulation)
 wStar = (g*Phi* (zi-zs) /(Omega))**(1/3.)
+
+
+
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 
 #using formulation suggested by roland
 wStar2 = (g * Phi*(zi-zs)/ (Omega2))**(1/3.)
+
 slope2, intercept2, r_value2, p_value2, std_err2 = linregress(wStar2[np.isfinite(wStar2)],zCL[np.isfinite(wStar2)])
 
 
@@ -317,6 +354,8 @@ plt.colorbar()
 ax = plt.gca()
 for i, txt in enumerate(RunList):
     ax.annotate(txt, (wStar[i], zCL[i]),fontsize=6)
+plt.savefig(plume.figdir + 'injectionModel/InjectionModelSTD.pdf')
+
 plt.show()
 
 

@@ -23,13 +23,12 @@ imp.reload(plume) 	#force load each time
 #=================end of input===============
 
 RunList =   [i for i in plume.tag if i not in plume.exclude_runs]
-# RunList = ['W9F7R2']
-
+# RunList = ['W5F2R6T','W5F3R6T','W5F4R6T','W5F5R6T','W5F6R6T','W5F7R6T','W5F10R6T','W5F12R6T','W5F13R6T', 'W3F7R6T','W4F7R6T','W6F7R6T','W7F7R6T','W8F7R6T','W9F7R6T','W10F7R6T','W11F7R6T','W12F7R6T']
 runCnt = len(RunList)
 g = 9.81
 
 #set up interpolated vertical profile with 5m vertical step
-interpZ = np.arange(0, plume.lvl[-1], plume.zstep)
+interpZ = np.arange(0, plume.lvltall[-1], plume.zstep)
 si = int(plume.zs/plume.zstep)
 
 #storage for variables
@@ -54,7 +53,11 @@ for nCase,Case in enumerate(RunList):
     U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')    #load intial wind profile
 
     #create an interpolated profile of temperature
-    interpT= interp1d(plume.lvl, T0,fill_value='extrapolate')
+    if Case[-2:]=='6T':
+        levels = plume.lvltall
+    else:
+        levels=plume.lvl
+    interpT= interp1d(levels,T0,fill_value='extrapolate')
     T0interp = interpT(interpZ)
 
     #mask plume with cutoff value---------------------------------
@@ -69,19 +72,42 @@ for nCase,Case in enumerate(RunList):
 
 
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)           #get location of maximum centerline height
-    centerline = ma.masked_where(plume.lvl[ctrZidx] == 0, plume.lvl[ctrZidx])               #make sure centerline is only calculated inside the plume
+    centerline = ma.masked_where(plume.lvltall[ctrZidx] == 0, plume.lvltall[ctrZidx])               #make sure centerline is only calculated inside the plume
     centerline.mask[:int(1000/plume.dx)] = True
-    smoothCenterline = savgol_filter(centerline, 31, 3)             # smooth centerline height (window size 31, polynomial order 3)
+    smoothCenterline = savgol_filter(centerline, 51, 3)             # smooth centerline height (window size 31, polynomial order 3)
+    # smoothCenterline[~centerline.mask] = 0        # smooth centerline height (window size 31, polynomial order 3)
+
 
     #calculate concentration changes along the centerline
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
     smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
     # stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
-    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and \
-                            abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 10 and \
+    stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and \
+                            abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 5 and \
                             nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
-                            nX > np.nanargmax(smoothPM) else \
+                            nX > np.nanargmax(smoothPM) and\
+                            nX > np.nanargmax(centerline) +10 and\
+                            nX > np.nanargmax(smoothCenterline)+10 else \
                             False for nX in range(dimX-1) ]
+    if sum(stablePMmask) == 0:
+        stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and \
+                                abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 5 and \
+                                nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
+                                nX > np.nanargmax(centerline) +10 and\
+                                nX > np.nanargmax(smoothPM) else\
+                                # nX > np.nanargmax(smoothCenterline) else \
+                                False for nX in range(dimX-1) ]
+    if sum(stablePMmask) == 0:
+        stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and \
+                                abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 5 and \
+                                nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
+                                nX > np.nanargmax(smoothPM) else\
+                                # nX > np.nanargmax(smoothCenterline) else \
+                                False for nX in range(dimX-1) ]
+    if Case=='W5F4R6T':
+        x = np.array(stablePMmask)
+        x[:int(6000/plume.dx)] = False
+        stablePMmask = list(x)
     stablePM = pm[:,1:][:,stablePMmask]
     stableProfile = np.mean(stablePM,1)
 
@@ -106,6 +132,7 @@ for nCase,Case in enumerate(RunList):
     #calculate injection height variables ---------------------------
     zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])    #injection height is where the centerline is stable and concentration doesn't change
     zCLidx = np.argmin(abs(interpZ - zCL[nCase]))
+
     dT = (T0[1:]-T0[0:-1])/plume.dz                                        #calculate potential temperature change (K)
 
     sounding[nCase,:] = T0interp
@@ -129,13 +156,13 @@ for nCase,Case in enumerate(RunList):
     ax1=fig.add_subplot(gs[0])
     axh1=ax1.twinx()
     # ---cwi smoke  and colorbar
-    im = ax1.imshow(PMppm[:,:cropX], origin='lower', extent=[0,axMax,0,plume.lvl[-1]],cmap=plt.cm.cubehelix_r,vmin=0, vmax=maxPM/10)
+    im = ax1.imshow(PMppm[:,:cropX], origin='lower', extent=[0,axMax,0,levels[-1]],cmap=plt.cm.cubehelix_r,vmin=0, vmax=maxPM/10)
     cbari = fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
     cbari.set_label('CWI smoke $[ppm]$')
     ax1.plot(haxis,centerline[:cropX],ls='--', c='dimgrey',label='plume centerline' )
     ax1.axhline(y = zi[nCase], ls=':', c='darkgrey', label='BL height at ignition')
     ax1.set(ylabel='height AGL [m]')
-    ax1.set(xlim=[0,axMax],ylim=[0,plume.lvl[-1]],aspect='equal')
+    ax1.set(xlim=[0,axMax],ylim=[0,levels[-1]],aspect='equal')
     ax1.legend()
     # ---heat flux
     ln = axh1.plot(haxis, csdict['ghfx'][-1,:cropX], 'r-')
@@ -160,14 +187,14 @@ for nCase,Case in enumerate(RunList):
     ax32 = ax3.twinx()
     l3, = plt.plot(haxis,smoothCenterline[:cropX], label='smoothed centerline height ', color='C2',linewidth=1)
     l4, = plt.plot(haxis,centerline[:cropX], label='centerline height', color='C4',linestyle=':')
-    ax32.set(xlim=[0,axMax],ylim=[0,2500], ylabel='height [m]' )
+    ax32.set(xlim=[0,axMax],ylim=[0,3200], ylabel='height [m]' )
     plt.legend(handles = [l1,l2,l3,l4])
     ax3.text(0.02, 0.93, '(c)', horizontalalignment='center', verticalalignment='center', transform=ax3.transAxes, weight='bold')
 
     ax4=fig.add_subplot(gs[3])
-    plt.plot(stableProfile/1000, plume.lvl,label=' PM profile')
+    plt.plot(stableProfile/1000, levels,label=' PM profile')
     ax4.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
-    ax4.fill_betweenx(plume.lvl, pmQ1/1000, pmQ3/1000, alpha=0.35,label='IQR')
+    ax4.fill_betweenx(levels, pmQ1/1000, pmQ3/1000, alpha=0.35,label='IQR')
     ax4.axhline(y = zCL[nCase], ls='--', c='black', label='z$_{CL}$')
     ax4.text(0.1, 0.93, '(d)', horizontalalignment='center', verticalalignment='center', transform=ax4.transAxes, weight='bold')
 
