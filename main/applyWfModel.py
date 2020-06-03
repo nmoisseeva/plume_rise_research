@@ -51,6 +51,7 @@ gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for tempera
 zCLerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
 fireEnd = np.empty((runCnt)) * np.nan
 zSTD = np.empty((runCnt)) * np.nan
+Wcum = np.empty((runCnt)) * np.nan
 
 FlaggedCases = []                               #for storage of indecies of anomalous runs
 
@@ -77,8 +78,10 @@ for nCase,Case in enumerate(RunList):
     #mask plume with cutoff value---------------------------------
     dimT, dimZ, dimX = np.shape(csdict['temp'])     #get shape of data
     zi[nCase] = plume.get_zi(T0)                    #calculate BL height
+    if Case[-2:]=='6T':
+        zi[nCase] = 2211
     pm = ma.masked_where(csdict['pm25'][-1,:,:] <= plume.PMcutoff, csdict['pm25'][-1,:,:] ) #mask all non-plume cells
-    w = csdict['w'][-1,:,:]
+
 
     #locate centerline
     ctrZidx = pm.argmax(0)                          #locate maxima along height
@@ -88,6 +91,7 @@ for nCase,Case in enumerate(RunList):
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)           #get location of maximum centerline height
     centerline = ma.masked_where(plume.lvltall[ctrZidx] == 0, plume.lvltall[ctrZidx])               #make sure centerline is only calculated inside the plume
     smoothCenterline = savgol_filter(centerline, 71, 3)             # smooth centerline height (window size 31, polynomial order 3)
+
 
     #calculate concentration changes along the centerline
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
@@ -155,22 +159,23 @@ for nCase,Case in enumerate(RunList):
     dT = (T0[1:]-T0[0:-1])/plume.dz                                        #calculate potential temperature change (K)
     zSTD[nCase] = np.std(smoothCenterline[1:][stablePMmask])
 
-    # siBL = np.argmin(abs(interpZ - zi[nCase]*3/4))
+    siBL = np.argmin(abs(interpZ - zi[nCase]*2/3))
     sounding[nCase,:] = T0interp
     dTinterp = (T0interp[1:] - T0interp[0:-1])/zstep
     gradT0interp[nCase,:] = dTinterp
-    Omega[nCase] = np.trapz(dTinterp[si:zCLidx], dx = zstep)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
-    # Omega[nCase] = np.trapz(dTinterp[siBL:zCLidx], dx = zstep)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
+    # Omega[nCase] = np.trapz(dTinterp[si:zCLidx], dx = zstep)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
+    Omega[nCase] = np.trapz(dTinterp[siBL:zCLidx], dx = zstep)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
 
-
+    w = csdict['w'][-1,:,:]
+    Wcum[nCase] = np.sum(np.max(w,1)[:ymax+5])
     # if zCL[nCase]<zi[nCase]:
     #     print('INJECTION IS BELOW THE BL HEIGHT!!!!!!!!!!!!!!!')
     #     Omega[nCase] = np.trapz(dTinterp[si:np.argmin(abs(interpZ - zi[nCase]))], dx = plume.zstep)
 
 
     #alternative Omega calculation (simply temperature change)
-    Omega2[nCase] = (T0interp[zCLidx] - T0interp[si])                      # change in potential temperature between surface layer and injection layer (K)
-    # Omega2[nCase] = (T0interp[zCLidx] - T0interp[siBL])                      # change in potential temperature between surface layer and injection layer (K)
+    # Omega2[nCase] = (T0interp[zCLidx] - T0interp[si])                      # change in potential temperature between surface layer and injection layer (K)
+    Omega2[nCase] = (T0interp[zCLidx] - np.mean(T0interp[siBL-2:siBL+2]))                      # change in potential temperature between surface layer and injection layer (K)
 
     zCLidxNONINTERP = np.argmin(abs(plume.lvltall - zCL[nCase]))
 
@@ -184,15 +189,21 @@ for nCase,Case in enumerate(RunList):
     #     FlaggedCases.append(nCase)
 #======================compare model formulations========================
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi* (zi-zs) /(Omega))**(1/3.)
+# wStar = (g*Phi*(zi-zs)/(Omega))**(1/3.)
 
+wStar = (g*Phi*(zi-zs)/(Omega))**(1/3.)
 
+ddorf = (g*0.2*zi/sounding[:,25])**(1/3.)
+
+plt.scatter(wStar,Wcum)
+plt.plot(np.arange(1000),np.arange(1000))
+plt.show()
 
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 
 #using formulation suggested by roland
-wStar2 = (g * Phi*(zi-zs)/ (Omega2))**(1/3.)
+wStar2 = (g * Phi * (zi-zs)/ (Omega2))**(1/3.)
 
 slope2, intercept2, r_value2, p_value2, std_err2 = linregress(wStar2[np.isfinite(wStar2)],zCL[np.isfinite(wStar2)])
 
