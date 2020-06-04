@@ -68,7 +68,7 @@ for nCase,Case in enumerate(RunList):
     U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')    #load intial wind profile
 
     #create an interpolated profile of temperature
-    if Case[-2:]=='6T':
+    if Case[-1:]=='T':
         interpT = interp1d(plume.lvltall, T0,fill_value='extrapolate')
     else:
         interpT= interp1d(plume.lvl, T0,fill_value='extrapolate')
@@ -78,8 +78,7 @@ for nCase,Case in enumerate(RunList):
     #mask plume with cutoff value---------------------------------
     dimT, dimZ, dimX = np.shape(csdict['temp'])     #get shape of data
     zi[nCase] = plume.get_zi(T0)                    #calculate BL height
-    if Case[-2:]=='6T':
-        zi[nCase] = 2211
+
     pm = ma.masked_where(csdict['pm25'][-1,:,:] <= plume.PMcutoff, csdict['pm25'][-1,:,:] ) #mask all non-plume cells
 
 
@@ -191,13 +190,14 @@ for nCase,Case in enumerate(RunList):
 #define wf* (as per original 'wrong' formulation)
 # wStar = (g*Phi*(zi-zs)/(Omega))**(1/3.)
 
-wStar = (g*Phi*(zi-zs)/(Omega))**(1/3.)
+wStar = (g*Phi*(zi-500)/(Omega))**(1/3.)
 
 ddorf = (g*0.2*zi/sounding[:,25])**(1/3.)
 
 plt.scatter(wStar,Wcum)
 plt.plot(np.arange(1000),np.arange(1000))
 plt.show()
+# plt.close()
 
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
@@ -368,6 +368,7 @@ for i, txt in enumerate(RunList):
 plt.savefig(plume.figdir + 'injectionModel/InjectionModelSTD.pdf')
 
 plt.show()
+plt.close()
 
 
 
