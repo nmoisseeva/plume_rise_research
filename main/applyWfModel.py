@@ -360,7 +360,7 @@ plt.close()
 #============================model sensitivity and entrainment============
 
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi* (zi-)/(Omega))**(1/3.)
+wStar = (g*Phi* (zi-zs)/(Omega))**(1/3.)
 # wStar = (g*Phi* (zi-zs)/(Omega ))**(1/3.)
 
 #do linear regression using all data
@@ -375,22 +375,22 @@ plt.savefig(plume.figdir + 'injectionModel/InjectionModelSTD.pdf')
 
 plt.show()
 # plt.close()
-
-#========sensitivity test for zs values==========================
-plt.figure()
-ax1 = plt.gca()
-ax2 = plt.twinx()
-ziCutoff = 800
-for Zr in range(100,ziCutoff,10):
-    wStartest[zi>ziCutoff] = (g*Phi[zi>ziCutoff]* (zi[zi>ziCutoff]-Zr)/(Omega[zi>ziCutoff]))**(1/3.)
-    c1, Zr_out, r,p,std = linregress(wStartest[zi>ziCutoff],zCL[zi>ziCutoff])
-    print(r)
-    ax1.scatter(Zr,Zr_out,c='C1')
-    ax2.scatter(Zr,r,c='C2')
-ax1.set(xlabel='Zr_in [m]',aspect='equal',xlim = [100,ziCutoff],ylim=[100,ziCutoff])
-ax1.set_ylabel('Zr_out [m]', color='C1')
-ax2.set_ylabel('R value',color='C2')
-plt.show()
+#
+# #========sensitivity test for zs values==========================
+# plt.figure()
+# ax1 = plt.gca()
+# ax2 = plt.twinx()
+# ziCutoff = 800
+# for Zr in range(100,ziCutoff,10):
+#     wStartest[zi>ziCutoff] = (g*Phi[zi>ziCutoff]* (zi[zi>ziCutoff]-Zr)/(Omega[zi>ziCutoff]))**(1/3.)
+#     c1, Zr_out, r,p,std = linregress(wStartest[zi>ziCutoff],zCL[zi>ziCutoff])
+#     print(r)
+#     ax1.scatter(Zr,Zr_out,c='C1')
+#     ax2.scatter(Zr,r,c='C2')
+# ax1.set(xlabel='Zr_in [m]',aspect='equal',xlim = [100,ziCutoff],ylim=[100,ziCutoff])
+# ax1.set_ylabel('Zr_out [m]', color='C1')
+# ax2.set_ylabel('R value',color='C2')
+# plt.show()
 #===================================================================
 
 
