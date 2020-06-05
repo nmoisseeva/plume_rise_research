@@ -99,7 +99,8 @@ for nCase,Case in enumerate(RunList):
                             abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 5 and \
                             nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
                             nX > np.nanargmax(smoothPM) and\
-                            nX > np.nanargmax(centerline) +10 and\
+                            nX > np.nanargmax(centerline) +10 and
+                            centerline[nX] < plume.lvltall[-1]-200 and \
                             nX > np.nanargmax(smoothCenterline)+10 else \
                             False for nX in range(dimX-1) ]
     if sum(stablePMmask) == 0:
