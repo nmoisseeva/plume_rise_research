@@ -68,7 +68,7 @@ for nCase,Case in enumerate(RunList):
     U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')    #load intial wind profile
 
     #create an interpolated profile of temperature
-    if Case[-1:]=='T':
+    if Case[-1:]=='T' or Case[-1:]=='E':
         interpT = interp1d(plume.lvltall, T0,fill_value='extrapolate')
     else:
         interpT= interp1d(plume.lvl, T0,fill_value='extrapolate')
@@ -201,6 +201,12 @@ plt.show()
 
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
+
+
+plt.scatter((zCL-zs)/slopeALL,Wcum)
+plt.plot(np.arange(1000),np.arange(1000))
+plt.show()
+# plt.close()
 
 #using formulation suggested by roland
 wStar2 = (g * Phi * (zi-zs)/ (Omega2))**(1/3.)
@@ -354,7 +360,7 @@ plt.close()
 #============================model sensitivity and entrainment============
 
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi* (zi-zs)/(Omega))**(1/3.)
+wStar = (g*Phi* (zi-)/(Omega))**(1/3.)
 # wStar = (g*Phi* (zi-zs)/(Omega ))**(1/3.)
 
 #do linear regression using all data
@@ -368,8 +374,24 @@ for i, txt in enumerate(RunList):
 plt.savefig(plume.figdir + 'injectionModel/InjectionModelSTD.pdf')
 
 plt.show()
-plt.close()
+# plt.close()
 
+#========sensitivity test for zs values==========================
+plt.figure()
+ax1 = plt.gca()
+ax2 = plt.twinx()
+ziCutoff = 800
+for Zr in range(100,ziCutoff,10):
+    wStartest[zi>ziCutoff] = (g*Phi[zi>ziCutoff]* (zi[zi>ziCutoff]-Zr)/(Omega[zi>ziCutoff]))**(1/3.)
+    c1, Zr_out, r,p,std = linregress(wStartest[zi>ziCutoff],zCL[zi>ziCutoff])
+    print(r)
+    ax1.scatter(Zr,Zr_out,c='C1')
+    ax2.scatter(Zr,r,c='C2')
+ax1.set(xlabel='Zr_in [m]',aspect='equal',xlim = [100,ziCutoff],ylim=[100,ziCutoff])
+ax1.set_ylabel('Zr_out [m]', color='C1')
+ax2.set_ylabel('R value',color='C2')
+plt.show()
+#===================================================================
 
 
 for nCase,Case in enumerate(RunList):

@@ -24,6 +24,8 @@ imp.reload(plume) 	#force load each time
 
 RunList =   [i for i in plume.tag if i not in plume.exclude_runs]
 # RunList = ['W5F2R6T','W5F3R6T','W5F4R6T','W5F5R6T','W5F6R6T','W5F7R6T','W5F10R6T','W5F12R6T','W5F13R6T', 'W3F7R6T','W4F7R6T','W6F7R6T','W7F7R6T','W8F7R6T','W9F7R6T','W10F7R6T','W11F7R6T','W12F7R6T']
+# RunList = ['W5F7R0','W5F7R1','W5F7R2','W5F7R3','W5F7R4','W5F7R5T','W5F7R6T']
+RunList = ['W5F13R6TE']
 
 runCnt = len(RunList)
 g = 9.81
@@ -54,7 +56,7 @@ for nCase,Case in enumerate(RunList):
     U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')    #load intial wind profile
 
     #create an interpolated profile of temperature
-    if Case[-1:]=='T':
+    if Case[-1:]=='T' or Case[-1:]=='E':
         levels = plume.lvltall
     else:
         levels=plume.lvl
@@ -209,3 +211,14 @@ for nCase,Case in enumerate(RunList):
     print('.....saved in: %s' %(plume.figdir + 'CWIzCL/zcl%s.pdf' %Case))
 
 # np.savetxt('profiles.csv',sounding.T,fmt='%.2f',delimiter=',', header = str(plume.read_tag('R',RunList)))
+# plt.figure(figsize=(12,12))
+# for nCase,Case in enumerate(RunList):
+#     plt.subplot(3,3,nCase+1)
+#     plt.plot(sounding[nCase,:],interpZ)
+#     plt.axhline(y=zi[nCase], ls='--',label='zi=%d' %zi[nCase])
+#     plt.title('%s: PHI=%.2f' %(Case,Phi[nCase]))
+#     plt.gca().set(xlabel='Theta [K]',ylabel='z [m]',ylim =[0,2500])
+#     plt.legend()
+# plt.tight_layout()
+# # plt.show()
+# plt.savefig(plume.figdir + 'CWIzCL/ziTEST.pdf')
