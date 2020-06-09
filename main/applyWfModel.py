@@ -89,12 +89,18 @@ for nCase,Case in enumerate(RunList):
 
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)           #get location of maximum centerline height
     centerline = ma.masked_where(plume.lvltall[ctrZidx] == 0, plume.lvltall[ctrZidx])               #make sure centerline is only calculated inside the plume
-    smoothCenterline = savgol_filter(centerline, 71, 3)             # smooth centerline height (window size 31, polynomial order 3)
+    # smoothCenterline = savgol_filter(centerline, 71, 3)             # smooth centerline height (window size 31, polynomial order 3)
+    filter_window = max(int(plume.read_tag('W',[Case])*10+1),51)
+
+    smoothCenterline = savgol_filter(centerline, filter_window, 3)             # smooth centerline height (window size 31, polynomial order 3)
 
 
     #calculate concentration changes along the centerline
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
-    smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
+    # smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
+
+    smoothPM = savgol_filter(dPMdX, filter_window, 3) # window size 101, polynomial order 3
+
     stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and \
                             abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 5 and \
                             nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
@@ -193,20 +199,19 @@ for nCase,Case in enumerate(RunList):
 
 wStar = (g*Phi*(zi-500)/(Omega))**(1/3.)
 
-ddorf = (g*0.2*zi/sounding[:,25])**(1/3.)
 
-plt.scatter(wStar,Wcum)
-plt.plot(np.arange(1000),np.arange(1000))
-plt.show()
+# plt.scatter(wStar,Wcum)
+# plt.plot(np.arange(1000),np.arange(1000))
+# plt.show()
 # plt.close()
 
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 
 
-plt.scatter((zCL-zs)/slopeALL,Wcum)
-plt.plot(np.arange(1000),np.arange(1000))
-plt.show()
+# plt.scatter((zCL-zs)/slopeALL,Wcum)
+# plt.plot(np.arange(1000),np.arange(1000))
+# plt.show()
 # plt.close()
 
 #using formulation suggested by roland
@@ -361,8 +366,13 @@ plt.close()
 #============================model sensitivity and entrainment============
 
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi* (zi-zs)/(Omega))**(1/3.)
+wStar = (g*Phi* (zi - 500)/(Omega))**(1/3.)
 # wStar = (g*Phi* (zi-zs)/(Omega ))**(1/3.)
+
+
+
+
+
 
 #do linear regression using all data
 slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
@@ -378,20 +388,55 @@ plt.show()
 # plt.close()
 #
 # #========sensitivity test for zs values==========================
-# plt.figure()
-# ax1 = plt.gca()
-# ax2 = plt.twinx()
-# ziCutoff = 800
-# for Zr in range(100,ziCutoff,10):
-#     wStartest[zi>ziCutoff] = (g*Phi[zi>ziCutoff]* (zi[zi>ziCutoff]-Zr)/(Omega[zi>ziCutoff]))**(1/3.)
-#     c1, Zr_out, r,p,std = linregress(wStartest[zi>ziCutoff],zCL[zi>ziCutoff])
-#     print(r)
-#     ax1.scatter(Zr,Zr_out,c='C1')
-#     ax2.scatter(Zr,r,c='C2')
-# ax1.set(xlabel='Zr_in [m]',aspect='equal',xlim = [100,ziCutoff],ylim=[100,ziCutoff])
-# ax1.set_ylabel('Zr_out [m]', color='C1')
-# ax2.set_ylabel('R value',color='C2')
-# plt.show()
+plt.figure()
+ax1 = plt.gca()
+ax2 = plt.twinx()
+ziCutoff = 900
+for Zr in range(0,ziCutoff,10):
+    wStartest = (g*Phi[zi>ziCutoff]* (zi[zi>ziCutoff]-Zr)/(Omega[zi>ziCutoff]))**(1/3.)
+    c1, Zr_out, r,p,std = linregress(wStartest,zCL[zi>ziCutoff])
+    print(r)
+    ax1.scatter(Zr,Zr_out,c='C1')
+    ax2.scatter(Zr,r,c='C2')
+l1 = ax1.scatter(Zr,Zr_out,c='C1', label='Zr from fit')
+l2 = ax2.scatter(Zr,r,c='C2', label='R of the fit')
+ax1.set(xlabel='Zr_in [m]',aspect='equal',xlim = [100,ziCutoff],ylim=[100,ziCutoff])
+ax1.set_ylabel('Zr_out [m]', color='C1')
+ax2.set_ylabel('R value',color='C2')
+plt.title('Zi CUTOFF: %s' %ziCutoff)
+plt.legend(handles=[l1,l2])
+plt.show()
+
+
+storeGamma = np.empty(len(RunList))* np.nan
+for nCase, Case in enumerate(RunList):
+    ziidx = np.nanargmin(abs(interpZ - zi[nCase]))
+    BLidx = int(ziidx*2/3)
+    fittopidx = np.nanargmin(abs(interpZ - 3200))
+    baselinedTheta = sounding[nCase,ziidx:fittopidx] - sounding[nCase,BLidx]
+    GammaFit = linregress(interpZ[ziidx:fittopidx],baselinedTheta)
+    storeGamma[nCase] = GammaFit[1]+zi[nCase]
+    print(zi[nCase],storeGamma[nCase])
+plt.hist(zi-storeGamma,bins=20 )
+plt.gca().set(xlabel='$z_i - z_e$ [m]',ylabel='frequency')
+plt.title('Gamma fit: zi to 3200')
+wStarZe = (g*(zi-221)* Phi/Omega)**(1/3.)
+plt.scatter(wStarZe, zCL)
+ZrFit = linregress(wStarZe,zCL)
+print(ZrFit)
+
+
+customZr = np.empty(len(RunList))* np.nan
+customWf = np.empty(len(RunList))* np.nan
+for nCase, Case in enumerate(RunList):
+    BLidx = int(ziidx*2/3)
+    Wr = (g*0.2*zi[nCase]/sounding[nCase,BLidx])**(1/3.)
+    customZr[nCase] = Wr*BLidx
+    customWf[nCase] = (g*Phi[nCase]* (zi[nCase] - customZr[nCase])/(Omega[nCase]))**(1/3.)
+plt.scatter(customWf, zCL)
+WrFit = linregress(customWf,zCL)
+plt.show()
+print(WrFit[2])
 #===================================================================
 
 

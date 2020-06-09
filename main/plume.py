@@ -30,11 +30,7 @@ dirlist = glob.glob(dirpath)                        #get all  interp files in di
 tag = [i[len(dirpath)-1:-4] for i in dirlist]       #W*F*R0
 # tag = ['W8S400F7R0']
 # exclude_runs = ['W5F4R0','W5F8R3','W5F9R3','W5F1R3','W5F13R0','W5F1R6T','W5F8R6T','W5F9R6T','W5F11R6T']
-exclude_runs = ['W5F4R0','W5F8R3','W5F9R3','W5F1R3','W5F13R0',\
-                        'W5F1R6T','W5F8R6T','W5F9R6T','W5F11R6T',\
-                        'W5F1R5T','W5F8R5T','W5F9R5T','W5F10R5T','W5F11R5T',\
-                        'W5F4R6T','W5F4R5T','W5F6R6T','W5F6R5T','W5F13R6T','W5F13R5T', \
-                        'W4F7R6T','W4F7R5T','W3F7R6T','W3F7R5T']                         #replaced with *TE runs 30 min long
+exclude_runs = ['W5F4R0','W5F8R3','W5F9R3','W5F1R3','W5F13R0']
 
 
 # exclude_runs = []
