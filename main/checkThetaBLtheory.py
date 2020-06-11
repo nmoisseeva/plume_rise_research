@@ -181,13 +181,13 @@ plt.show()
 # plt.close()
 
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi*(zi-200)*(3./2)/(Omega))**(1/3.)
+wStar = (g*Phi*(zCL-500)*(3./2)/(Omega))**(1/3.)
 
 wZicalc = (g*Phi*zi*(3./2)/(thetaZi*r))**(1/3.)
 
 plt.figure()
-plt.scatter(wZi,wZicalc)
-plt.gca().set(aspect='equal')
+plt.scatter(wStar,zCL)
+# plt.gca().set(aspect='equal')
 
 
 # plt.figure()
