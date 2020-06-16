@@ -40,15 +40,26 @@ si = int(zs/zstep)
 zi = np.empty((runCnt)) * np.nan                #BL height (m)
 zCL = np.empty((runCnt)) * np.nan               #smoke injection height (m)
 Phi = np.empty((runCnt)) * np.nan               #cumulative fire heat  (K m^2/s)
+Phi2 = np.empty((runCnt)) * np.nan
 Omega = np.empty((runCnt)) * np.nan             #cumulative vertical temperature (Km) - the questionable denominator term
 sounding = np.empty((runCnt,len(interpZ))) * np.nan         #storage for interpolated soundings
 gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for temperature gradient
 wZi = np.empty((runCnt)) * np.nan
 wCum = np.empty((runCnt)) * np.nan
 wCum2 = np.empty((runCnt)) * np.nan
+wCum3 = np.empty((runCnt)) * np.nan
+wCum4 = np.empty((runCnt)) * np.nan
+wCum5 = np.empty((runCnt)) * np.nan
+
+
 thetaFZi = np.empty((runCnt)) * np.nan
 thetaZi = np.empty((runCnt)) * np.nan
-r = np.empty((runCnt)) * np.nan
+depth = np.empty((runCnt)) * np.nan
+Omega2 = np.empty((runCnt)) * np.nan             #cumulative vertical temperature (Km) - the questionable denominator term
+Omega100 = np.empty((runCnt)) * np.nan
+Omega200 = np.empty((runCnt)) * np.nan
+Omega300 = np.empty((runCnt)) * np.nan
+Omega400 = np.empty((runCnt)) * np.nan
 
 #======================repeat main analysis for all runs first===================
 #loop through all LES cases
@@ -134,7 +145,8 @@ for nCase,Case in enumerate(RunList):
     meanFire = np.nanmean(fire,0)                               #calculate mean fire cross section
     ignited = np.array([i for i in meanFire if i > 0.5])        #consider only cells that have heat flux about 500 W/m2
     Phi[nCase] = np.trapz(ignited, dx = plume.dx) * 1000 / ( 1.2 * 1005)    #calculate Phi by integrating kinematic heat flux along x (Km2/s)
-    r[nCase] = len(ignited) * plume.dx
+    Phi2[nCase] = np.sum(ignited) * 1000 / ( 1.2 * 1005)
+    depth[nCase] = len(ignited) * plume.dx
     #calculate injection height variables ---------------------------
     zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])    #injection height is where the centerline is stable and concentration doesn't change
     zCLidx = np.argmin(abs(interpZ - zCL[nCase]))
@@ -148,29 +160,76 @@ for nCase,Case in enumerate(RunList):
     dTinterp = (T0interp[1:] - T0interp[0:-1])/zstep
     gradT0interp[nCase,:] = dTinterp
     Omega[nCase] = np.trapz(dTinterp[siBL:zCLidx], dx = zstep)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
+    Omega2[nCase] = np.trapz(dTinterp[int(2/3.*ziidx):zCLidx],dx=zstep)
+    Omega100[nCase] = np.trapz(dTinterp[int(100/zstep):zCLidx], dx = zstep)
+    Omega200[nCase] = np.trapz(dTinterp[int(200/zstep):zCLidx], dx = zstep)
+    Omega300[nCase] = np.trapz(dTinterp[int(300/zstep):zCLidx], dx = zstep)
+    Omega400[nCase] = np.trapz(dTinterp[int(400/zstep):zCLidx], dx = zstep)
+
 
     w = csdict['w'][-1,:,:]
     Wctr = np.array([w[nZ, ctrXidx[nZ]] for nZ in range(dimZ)])    #get concentration along the centerline
+    Wmax = np.max(w,1)
     # Wcum[nCase] = np.sum(np.max(w,1)[:ymax+5])
     if Case[-1:]=='T' or Case[-1:]=='E':
         interpWctr = interp1d(plume.lvltall, Wctr,fill_value='extrapolate')
+        interpWmax = interp1d(plume.lvltall, Wmax,fill_value='extrapolate')
     else:
         interpWctr= interp1d(plume.lvl, Wctr,fill_value='extrapolate')
+        interpWmax= interp1d(plume.lvl, Wmax,fill_value='extrapolate')
     Wctrinterp = interpWctr(interpZ)
+    Wmaxinterp = interpWmax(interpZ)
     wZi[nCase] = np.sum(Wctrinterp[ziidx])
-    wCum[nCase] = np.sum(np.max(w,1)[25:zCLidx])
+    wCum[nCase] = np.sum(Wmaxinterp[25:zCLidx])
     wCum2[nCase] = np.sum(Wctrinterp[25:zCLidx])
+    wCum3[nCase] = np.trapz(Wmaxinterp[25:zCLidx], dx=40.)
+    wCum4[nCase] = np.trapz(Wctrinterp[25:zCLidx], dx=40.)
+
     #do theta testing
     temperature = csdict['temp'][-1,:,:]
     Tctr = np.array([temperature[nZ, ctrXidx[nZ]] for nZ in range(dimZ)])    #get concentration along the centerline
-
+    Tmax = np.max(temperature,1)
     if Case[-1:]=='T' or Case[-1:]=='E':
         interpTctr = interp1d(plume.lvltall, Tctr,fill_value='extrapolate')
+        interpTmax = interp1d(plume.lvltall, Tmax,fill_value='extrapolate')
     else:
         interpTctr= interp1d(plume.lvl, Tctr,fill_value='extrapolate')
+        interpTmax= interp1d(plume.lvl, Tmax,fill_value='extrapolate')
     Tctrinterp = interpTctr(interpZ)
+    Tmaxinterp = interpTctr(interpZ)
     thetaFZi[nCase] = Tctrinterp[ziidx]
     thetaZi[nCase] = sounding[nCase,ziidx]
+
+
+    #vertical concentration slice at donwind locations of wmax and qmax
+    plt.figure(figsize=(10,4))
+    plt.suptitle('%s' %Case)
+    plt.subplot(121)
+    ax1 = plt.gca()
+    plt.title('PROFILES OF VERTICAL VELOCITY')
+    plt.plot(Wctrinterp,interpZ,'.-',label='$w_{PMmax}$')
+    plt.plot(Wmaxinterp,interpZ,'k.-',label='$w_{max}$')
+    plt.axhline(y = zi[nCase], ls=':', c='darkgrey', label='zi')
+    plt.axhline(y = zCL[nCase],ls='--', c='red',label='z$_{CL}$')
+    ax1.set(xlabel = 'velocity [m/s]', ylabel='height [m]',ylim = [0,3200] )
+    plt.legend()
+
+    plt.subplot(122)
+    plt.title('PLUME vs AMBIENT TEMPERATURE')
+    ax2 = plt.gca()
+    plt.plot(sounding[nCase,:], interpZ, label='pre-ignition profile',c='lightblue')
+    plt.plot(Tctrinterp,interpZ,c = 'orange',label='in-plume T$_{PMmax}$',alpha = 0.5)
+    plt.plot(Tmaxinterp,interpZ,c = 'maroon',label='in-plume T$_{max}$')
+    plt.axhline(y = zi[nCase], ls=':', c='darkgrey', label='zi')
+    plt.axhline(y = zCL[nCase],ls='--', c='red',label='z$_{CL}$')
+    ax2.set(xlabel = 'temperature [K]', ylabel='height [m]' ,xlim = [285,330],ylim = [0,3200])
+    plt.legend()
+    plt.tight_layout()
+    # plt.show()
+    plt.savefig(plume.figdir + 'profiles/profiles_%s.pdf' %Case)
+    plt.close()
+
+
 #======================compare model formulations========================
 # plt.hist(thetaFZi-thetaZi,bins=20,alpha=0.5)
 # plt.hist(Omega,bins=20,alpha=0.5)
@@ -181,13 +240,50 @@ plt.show()
 # plt.close()
 
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi*(zCL-500)*(3./2)/(Omega))**(1/3.)
+wStar = (g*Phi*(zCL-500)*(3/2.)/(Omega))**(1/3.)
+wStar2 =(g*Phi2*(zCL-500)*(3/2.)/(Omega500))**(1/3.)
 
-wZicalc = (g*Phi*zi*(3./2)/(thetaZi*r))**(1/3.)
 
-plt.figure()
-plt.scatter(wStar,zCL)
+#do linear regression using all data
+wStarFit = linregress(wStar,zCL)
+wStarFit2 = linregress(wStar2,zCL)
+print(wStarFit)
+print(wStarFit2)
+#
+plt.scatter(wCum4*depth,wStar2*(zCL-500),c=zi)
+plt.gca().set(aspect='equal')
+#
+# plt.figure()
+# # plt.scatter(wStar,zCL)
+# plt.scatter(wStar2,zCL,c = plume.read_tag('W',RunList)/ depth)
+# plt.plot(wStar2,wStarFit2[0]*wStar2 + wStarFit2[1])
+# # plt.gca().set(aspect='equal')
+# plt.show()
+#
+# plt.scatter(wStar,(wCum2*depth)/(zCL-500))
 # plt.gca().set(aspect='equal')
+# plt.show()
+
+
+
+# Omega500 = np.copy(Omega)
+# plt.figure()
+# ax1 = plt.gca()
+# ax2 = plt.twinx()
+# for Zr in np.arange(100,501,100):
+#     wStartest = (((3/2.)*g*Phi* (zCL-Zr))/(vars()['Omega%s' %Zr]))**(1/3.)
+#     c1, Zr_out, r,p,std = linregress(wStartest,zCL)
+#     print(r)
+#     ax1.scatter(Zr,Zr_out,c='C1')
+#     ax2.scatter(Zr,r,c='C2')
+# l1 = ax1.scatter(Zr,Zr_out,c='C1', label='Zr from fit')
+# l2 = ax2.scatter(Zr,r,c='C2', label='R of the fit')
+# ax1.set(xlabel='Zr_in [m]',aspect='equal')
+# ax1.set_ylabel('Zr_out [m]', color='C1')
+# ax2.set_ylabel('R value',color='C2')
+# plt.title('Zi CUTOFF: %s' %500)
+# plt.legend(handles=[l1,l2])
+# plt.show()
 
 
 # plt.figure()
@@ -200,40 +296,30 @@ plt.scatter(wStar,zCL)
 # plt.show()
 # plt.close()
 
-#do linear regression using all data
-slopeALL, interceptALL, r_valueALL, p_valueALL, std_errALL = linregress(wStar[np.isfinite(wStar)],zCL[np.isfinite(wStar)])
 
 
-wStar_zi = (g*Phi*(zi-200)*(3./2)/(Omega))**(1/3.)
-wStar_zCL = (g*Phi*(zCL-200)*(3./2)/(Omega))**(1/3.)
-#do linear regression using all data
-fitZi = linregress(wStar_zi,zCL)
-fitZcl = linregress(wStar_zCL,zCL)
-
-
-#make scatterplot comparisons
-plt.figure(figsize=(12,5))
-plt.subplot(121)
-ax1 = plt.gca()
-plt.title('Wf* using zi: [R=%0.2f]' %fitZi[2])
-plt.scatter(wStar_zi, zCL, c=Phi, cmap = plt.cm.Spectral_r, label=r'$w_{f*} = \frac{g \cdot (z_i - z_s) \cdot \Phi \cdot \epsilon }{(\theta_{CL} - \theta_{BL})}}}$')
-plt.plot(wStar_zi, fitZi[1] + fitZi[0]*wStar_zi,c='grey')
-plt.colorbar().set_label('$\Phi$ [Km$^2$/s]')
-plt.legend(fontsize=12)
-ax1.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
-plt.subplot(122)
-ax2 = plt.gca()
-plt.title('Wf* using zCL: [R=%0.2f]' %fitZi[2])
-plt.scatter(wStar_zCL, zCL, c=Phi, cmap = plt.cm.Spectral_r, label=r'$w_{f*} = \frac{g \cdot (z_{CL} - z_s) \cdot \Phi \cdot \epsilon }{(\theta_{CL} - \theta_{BL})}}$')
-plt.plot(wStar_zCL, fitZcl[1] + fitZcl[0]*wStar_zCL,c='grey')
-plt.colorbar().set_label('$\Phi$ [Km$^2$/s]')
-plt.legend(fontsize=12)
-ax2.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
-plt.tight_layout()
-plt.savefig(plume.figdir + 'injectionModel/thetaBLinjection.pdf')
-plt.show()
-# plt.close()
-
-# plt.figure()
-
-#======================train and test regression model===================
+# #make scatterplot comparisons
+# plt.figure(figsize=(12,5))
+# plt.subplot(121)
+# ax1 = plt.gca()
+# plt.title('Wf* using zi: [R=%0.2f]' %fitZi[2])
+# plt.scatter(wStar_zi, zCL, c=Phi, cmap = plt.cm.Spectral_r, label=r'$w_{f*} = \frac{g \cdot (z_i - z_s) \cdot \Phi \cdot \epsilon }{(\theta_{CL} - \theta_{BL})}}}$')
+# plt.plot(wStar_zi, fitZi[1] + fitZi[0]*wStar_zi,c='grey')
+# plt.colorbar().set_label('$\Phi$ [Km$^2$/s]')
+# plt.legend(fontsize=12)
+# ax1.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
+# plt.subplot(122)
+# ax2 = plt.gca()
+# plt.title('Wf* using zCL: [R=%0.2f]' %fitZi[2])
+# plt.scatter(wStar_zCL, zCL, c=Phi, cmap = plt.cm.Spectral_r, label=r'$w_{f*} = \frac{g \cdot (z_{CL} - z_s) \cdot \Phi \cdot \epsilon }{(\theta_{CL} - \theta_{BL})}}$')
+# plt.plot(wStar_zCL, fitZcl[1] + fitZcl[0]*wStar_zCL,c='grey')
+# plt.colorbar().set_label('$\Phi$ [Km$^2$/s]')
+# plt.legend(fontsize=12)
+# ax2.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
+# plt.tight_layout()
+# plt.savefig(plume.figdir + 'injectionModel/thetaBLinjection.pdf')
+# plt.show()
+# # plt.close()
+#
+# # plt.figure()
+#
