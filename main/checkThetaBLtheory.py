@@ -42,6 +42,9 @@ zCL = np.empty((runCnt)) * np.nan               #smoke injection height (m)
 Phi = np.empty((runCnt)) * np.nan               #cumulative fire heat  (K m^2/s)
 Phi2 = np.empty((runCnt)) * np.nan
 Omega = np.empty((runCnt)) * np.nan             #cumulative vertical temperature (Km) - the questionable denominator term
+Omega2 = np.empty((runCnt)) * np.nan
+
+
 sounding = np.empty((runCnt,len(interpZ))) * np.nan         #storage for interpolated soundings
 gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for temperature gradient
 wZi = np.empty((runCnt)) * np.nan
@@ -51,15 +54,11 @@ wCum3 = np.empty((runCnt)) * np.nan
 wCum4 = np.empty((runCnt)) * np.nan
 wCum5 = np.empty((runCnt)) * np.nan
 
-
-thetaFZi = np.empty((runCnt)) * np.nan
-thetaZi = np.empty((runCnt)) * np.nan
 depth = np.empty((runCnt)) * np.nan
-Omega2 = np.empty((runCnt)) * np.nan             #cumulative vertical temperature (Km) - the questionable denominator term
-Omega100 = np.empty((runCnt)) * np.nan
-Omega200 = np.empty((runCnt)) * np.nan
-Omega300 = np.empty((runCnt)) * np.nan
-Omega400 = np.empty((runCnt)) * np.nan
+
+thetaCL = np.empty((runCnt)) * np.nan
+thetaS = np.empty((runCnt)) * np.nan
+thetaZI = np.empty((runCnt)) * np.nan
 
 #======================repeat main analysis for all runs first===================
 #loop through all LES cases
@@ -159,12 +158,8 @@ for nCase,Case in enumerate(RunList):
     sounding[nCase,:] = T0interp
     dTinterp = (T0interp[1:] - T0interp[0:-1])/zstep
     gradT0interp[nCase,:] = dTinterp
-    Omega[nCase] = np.trapz(dTinterp[siBL:zCLidx], dx = zstep)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
-    Omega2[nCase] = np.trapz(dTinterp[int(2/3.*ziidx):zCLidx],dx=zstep)
-    Omega100[nCase] = np.trapz(dTinterp[int(100/zstep):zCLidx], dx = zstep)
-    Omega200[nCase] = np.trapz(dTinterp[int(200/zstep):zCLidx], dx = zstep)
-    Omega300[nCase] = np.trapz(dTinterp[int(300/zstep):zCLidx], dx = zstep)
-    Omega400[nCase] = np.trapz(dTinterp[int(400/zstep):zCLidx], dx = zstep)
+    Omega[nCase] = np.trapz(dTinterp[si:zCLidx], dx = zstep)     #calculate the denominator term by integrating temperature change with height, excluding surface layer (Km)
+    Omega2[nCase] = np.trapz(dTinterp[siBL:zCLidx],dx=zstep)
 
 
     w = csdict['w'][-1,:,:]
@@ -197,9 +192,9 @@ for nCase,Case in enumerate(RunList):
         interpTmax= interp1d(plume.lvl, Tmax,fill_value='extrapolate')
     Tctrinterp = interpTctr(interpZ)
     Tmaxinterp = interpTctr(interpZ)
-    thetaFZi[nCase] = Tctrinterp[ziidx]
-    thetaZi[nCase] = sounding[nCase,ziidx]
-
+    thetaCL[nCase] = sounding[nCase,zCLidx]
+    thetaS[nCase] = sounding[nCase,25]
+    thetaZI[nCase] = sounding[nCase,siBL]
 
     #vertical concentration slice at donwind locations of wmax and qmax
     plt.figure(figsize=(10,4))
@@ -231,27 +226,47 @@ for nCase,Case in enumerate(RunList):
 
 
 #======================compare model formulations========================
-# plt.hist(thetaFZi-thetaZi,bins=20,alpha=0.5)
-# plt.hist(Omega,bins=20,alpha=0.5)
-# plt.show()
-plt.figure()
-plt.hist(wCum-wCum2,bins=20)
-plt.show()
-# plt.close()
+tau500 = 1/ np.sqrt(g*Omega/(thetaS * (zCL-500)))
+A500 = np.log(thetaCL/thetaS)**(1/3.)
 
+tauZI = 1/ np.sqrt(g*Omega2/(thetaZI * (zCL-zi*(2/3.))))
+AZI = 1/np.log(thetaCL/thetaZI)**(1/3.)
 #define wf* (as per original 'wrong' formulation)
-wStar = (g*Phi*(zCL-500)*(3/2.)/(Omega))**(1/3.)
-wStar2 =(g*Phi2*(zCL-500)*(3/2.)/(Omega500))**(1/3.)
+wStar = (1/40.)**(1/3.) *(g*Phi2*(zCL-500)*(3/2.)/(Omega))**(1/3.)              #our standard definition as sum(H)
+wStar2 =  A500* (1/40.)**(1/3.) * (g*Phi2*(zCL-500)*(3/2.)/(Omega))**(1/3.)     #proper form (eqn 20)
+wStar3 = (1/40.)**(1/3.) *(g*Phi2*(zCL-500)*(3/2.)/(thetaS))**(1/3.)            #proper form (eqn 18)
+wStar4 = AZI*tauZI*(1/40.)*(g*Phi2*(zCL-zi*(2/3.))*(3/2.)/(Omega2))**(1/3.)     #attempt at zi_dependent threshold
+wStar5 = A500*tau500*(1/40.)*((g*Phi2*(zCL-500))*(3/2.)/(Omega))**(1/3.)        #eqn 18 * 1/N
+wStar6 = tau500*((1/40.)**(1/3.))*(g*Phi2*(zCL-500)*(3/2.)/(thetaS))**(1/3.)    #eqn 20 * 1/N
+wStar7 = tau500*(g*Phi*(zCL-500)*(3/2.)/(thetaS))**(1/3.)    #eqn 20 * 1/N
 
 
 #do linear regression using all data
 wStarFit = linregress(wStar,zCL)
 wStarFit2 = linregress(wStar2,zCL)
+wStarFit3 = linregress(wStar3,zCL)
+wStarFit4 = linregress(wStar4,zCL)
+wStarFit5 = linregress(wStar5,zCL)
+wStarFit6 = linregress(wStar6,zCL)
+wStarFit7 = linregress(wStar7,zCL)
+
+
 print(wStarFit)
 print(wStarFit2)
+print(wStarFit3)
+print(wStarFit4)
+print(wStarFit5)
+print(wStarFit6)
+print(wStarFit7)
+
+
+plt.scatter(wStar7, zCL,c=zi)
+plt.plot(wStar6,wStar6+500)
+plt.show()
+
+plt.scatter(wStar, zCL)
+plt.show()
 #
-plt.scatter(wCum4*depth,wStar2*(zCL-500),c=zi)
-plt.gca().set(aspect='equal')
 #
 # plt.figure()
 # # plt.scatter(wStar,zCL)
