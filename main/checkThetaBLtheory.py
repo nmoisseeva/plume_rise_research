@@ -235,17 +235,19 @@ AZI = 1/np.log(thetaCL/thetaZI)**(1/3.)
 wStar = (1/40.)**(1/3.) *(g*Phi2*(zCL-500)*(3/2.)/(Omega))**(1/3.)              #our standard definition as sum(H)
 wStar2 =  A500* (1/40.)**(1/3.) * (g*Phi2*(zCL-500)*(3/2.)/(Omega))**(1/3.)     #proper form (eqn 20)
 wStar3 = (1/40.)**(1/3.) *(g*Phi2*(zCL-500)*(3/2.)/(thetaS))**(1/3.)            #proper form (eqn 18)
-wStar4 = AZI*tauZI*(1/40.)*(g*Phi2*(zCL-zi*(2/3.))*(3/2.)/(Omega2))**(1/3.)     #attempt at zi_dependent threshold
+
+wStar4 = tauZI*(g*Phi*(zCL-zi*(2/3.))*(3/2.)/(thetaZI * zi))**(1/3.)       #attempt at zi_dependent threshold
+
 wStar5 = A500*tau500*(1/40.)*((g*Phi2*(zCL-500))*(3/2.)/(Omega))**(1/3.)        #eqn 18 * 1/N
 wStar6 = tau500*((1/40.)**(1/3.))*(g*Phi2*(zCL-500)*(3/2.)/(thetaS))**(1/3.)    #eqn 20 * 1/N
-wStar7 = tau500*(g*Phi*(zCL-500)*(3/2.)/(thetaS))**(1/3.)    #eqn 20 * 1/N
+wStar7 = tau500*(g*Phi*(zCL-500)*(3/2.)/(thetaS * zi))**(1/3.)    #eqn 20 * 1/N
 
 
 #do linear regression using all data
 wStarFit = linregress(wStar,zCL)
 wStarFit2 = linregress(wStar2,zCL)
 wStarFit3 = linregress(wStar3,zCL)
-wStarFit4 = linregress(wStar4,zCL)
+wStarFit4 = linregress(wStar4+zi*(2/3),zCL)
 wStarFit5 = linregress(wStar5,zCL)
 wStarFit6 = linregress(wStar6,zCL)
 wStarFit7 = linregress(wStar7,zCL)
@@ -259,10 +261,18 @@ print(wStarFit5)
 print(wStarFit6)
 print(wStarFit7)
 
-
-plt.scatter(wStar7, zCL,c=zi)
+plt.figure()
+plt.scatter(wStar6, zCL,c=plume.read_tag('W',RunList))
 plt.plot(wStar6,wStar6+500)
 plt.show()
+
+plt.figure()
+plt.scatter(wStar7, zCL,c=plume.read_tag('W',RunList))
+plt.plot(wStar7,wStar7+500)
+plt.show()
+
+plt.figure()
+plt.scatter(wStar4+zi*(2/3),zCL)
 
 plt.scatter(wStar, zCL)
 plt.show()
