@@ -47,7 +47,7 @@ Omega2 = np.empty((runCnt)) * np.nan
 
 sounding = np.empty((runCnt,len(interpZ))) * np.nan         #storage for interpolated soundings
 gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for temperature gradient
-wZi = np.empty((runCnt)) * np.nan
+wM = np.empty((runCnt)) * np.nan
 wCum = np.empty((runCnt)) * np.nan
 wCum2 = np.empty((runCnt)) * np.nan
 wCum3 = np.empty((runCnt)) * np.nan
@@ -174,7 +174,7 @@ for nCase,Case in enumerate(RunList):
         interpWmax= interp1d(plume.lvl, Wmax,fill_value='extrapolate')
     Wctrinterp = interpWctr(interpZ)
     Wmaxinterp = interpWmax(interpZ)
-    wZi[nCase] = np.sum(Wctrinterp[ziidx])
+    wM[nCase] = max(Wmax)
     wCum[nCase] = np.sum(Wmaxinterp[25:zCLidx])
     wCum2[nCase] = np.sum(Wctrinterp[25:zCLidx])
     wCum3[nCase] = np.trapz(Wmaxinterp[25:zCLidx], dx=40.)
@@ -230,7 +230,7 @@ tau500 = 1/ np.sqrt(g*Omega/(thetaS * (zCL-500)))
 A500 = np.log(thetaCL/thetaS)**(1/3.)
 
 tauZI = 1/ np.sqrt(g*Omega2/(thetaZI * (zCL-zi*(2/3.))))
-AZI = 1/np.log(thetaCL/thetaZI)**(1/3.)
+AZI = np.log(thetaCL/thetaZI)**(1/3.)
 #define wf* (as per original 'wrong' formulation)
 wStar = (1/40.)**(1/3.) *(g*Phi2*(zCL-500)*(3/2.)/(Omega))**(1/3.)              #our standard definition as sum(H)
 wStar2 =  A500* (1/40.)**(1/3.) * (g*Phi2*(zCL-500)*(3/2.)/(Omega))**(1/3.)     #proper form (eqn 20)
@@ -253,6 +253,13 @@ wStarFit6 = linregress(wStar6,zCL)
 wStarFit7 = linregress(wStar7,zCL)
 
 
+wStar8 =  tauZI*(g*Phi*(zCL-zi*(2/3.))/(thetaZI*zi))**(1/3.)       #attempt at zi_dependent threshold
+wStarFit8 = linregress(wStar8+zi*(2/3),zCL)
+print(wStarFit8)
+
+
+
+
 print(wStarFit)
 print(wStarFit2)
 print(wStarFit3)
@@ -260,19 +267,29 @@ print(wStarFit4)
 print(wStarFit5)
 print(wStarFit6)
 print(wStarFit7)
+print(wStarFit8)
+
+# plt.figure()
+# plt.scatter(wStar6, zCL,c=plume.read_tag('W',RunList))
+# plt.plot(wStar6,wStar6+500)
+# plt.show()
+#
+# plt.figure()
+# plt.scatter(wStar7, zCL,c=plume.read_tag('W',RunList))
+# plt.plot(wStar7,wStar7+500)
+# plt.show()
 
 plt.figure()
-plt.scatter(wStar6, zCL,c=plume.read_tag('W',RunList))
-plt.plot(wStar6,wStar6+500)
+plt.title('R = %.2f' %wStarFit4[2])
+ax = plt.gca()
+plt.scatter(wStar4+zi*(2/3),zCL,c=Phi,cmap =plt.cm.plasma)
+ax.set(ylabel = r'$z_{CL}$', xlabel = r'$\tau_* w_{f*} + \frac{2}{3}z_i$')
+for i, txt in enumerate(RunList):
+    ax.annotate(txt, (wStar4[i]+zi[i]*(2/3), zCL[i]),fontsize=6)
+plt.colorbar(label='fireline intensity [Km2/s]')
+plt.plot(wStar4+zi*(2/3),wStar4+zi*(2/3))
+# plt.savefig(plume.figdir + 'injectionModel/NewBLTheory.pdf')
 plt.show()
-
-plt.figure()
-plt.scatter(wStar7, zCL,c=plume.read_tag('W',RunList))
-plt.plot(wStar7,wStar7+500)
-plt.show()
-
-plt.figure()
-plt.scatter(wStar4+zi*(2/3),zCL)
 
 plt.scatter(wStar, zCL)
 plt.show()
@@ -348,3 +365,130 @@ plt.show()
 #
 # # plt.figure()
 #
+
+
+plt.figure()
+plt.title('PRE-IGNITION ATMOSPHERIC PROFILES')
+leg_handles = []
+Rtag = np.array([i for i in plume.read_tag('R',RunList)])  #list of initialization rounds (different soundings)
+for R in set(Rtag):
+    for Case in sounding[Rtag==R]:
+        lR = plt.plot(Case, interpZ, color='C%s' %R, linewidth=1, label='R%s' %R)
+    leg_handles.extend(lR)
+plt.gca().set(xlabel='potential temperature [K]',ylabel='height [m]',xlim=[280,330],ylim=[0,2800])
+plt.legend(handles=leg_handles)
+plt.savefig(plume.figdir + 'T0profiles.pdf')
+plt.show()
+
+
+#================dimensionless fit=========================
+Gamma = np.empty(len(RunList))* np.nan
+thetaE =  np.empty(len(RunList))* np.nan
+zE = np.empty(len(RunList))* np.nan
+for nCase, Case in enumerate(RunList):
+    ziidx = np.nanargmin(abs(interpZ - zi[nCase]))
+    BLidx = int(ziidx*2/3)
+    fittopidx = np.nanargmin(abs(interpZ - 2700))
+    baselinedTheta = sounding[nCase,ziidx:fittopidx] - sounding[nCase,BLidx]
+    GammaFit = linregress(interpZ[ziidx:fittopidx],baselinedTheta)
+    Gamma[nCase] = GammaFit[0]
+    thetaE[nCase] = sounding[nCase,BLidx]
+    zE[nCase] = -GammaFit[1]/GammaFit[0]
+zStar = (zCL - zE)/zi
+HStar = ((thetaE/(g*Gamma**3))**(1/4.)) * np.sqrt((3/2.)*Phi/zi**3)
+
+
+dimlessFit = linregress(HStar,zStar)
+plt.figure()
+plt.title('DIMENSIONLESS GROUPS: R = %.2f' %dimlessFit[2])
+plt.scatter(HStar,zStar,c=Phi,cmap=plt.cm.plasma)
+ax = plt.gca()
+for i, txt in enumerate(RunList):
+    ax.annotate(txt, (HStar[i], zStar[i]),fontsize=6)
+plt.gca().set(xlabel = r'$\overline{H}$', ylabel=r'$\overline{z}$')
+plt.colorbar(label='fireline intensity [Km2/s]')
+plt.savefig(plume.figdir + 'injectionModel/DimensionlessGroups.pdf')
+plt.show()
+
+
+#===========iterative solution===============
+
+
+
+zCLerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
+zCLcalc = np.empty((runCnt)) * np.nan          #parameterization error [m]
+
+from scipy.optimize import root
+for nCase,Case in enumerate(RunList):
+    BLfrac = 0.666
+    BLidx = np.nanargmin(abs(interpZ - (BLfrac)*zi[nCase]))
+
+    #
+    toSolveCase = lambda z : z - (wStarFit4[0]* (BLfrac*zi[nCase]) + wStarFit4[1]) - \
+                    wStarFit4[0] * 1/ np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaZI[nCase])/(thetaZI[nCase] * (z-zi[nCase]*(2/3.))))  * \
+                    (g*Phi[nCase]*(z-zi[nCase]*(2/3.))*(3/2.)/(thetaZI[nCase] * zi[nCase]))**(1/3.)
+    #
+    #
+    # #NOT bias-corrected - will crash, unless multiplied by a factor slightly less then 1
+    # toSolveCase = lambda z : z - (BLfrac*zi[nCase])  - \
+    #                 0.98* 1/ np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaZI[nCase])/(thetaZI[nCase] * (z-zi[nCase]*(2/3.))))  * \
+    #                 (g*Phi[nCase]*(z-zi[nCase]*(2/3.))*(3/2.)/(thetaZI[nCase] * zi[nCase]))**(1/3.)
+
+    z_initial_guess = zi[nCase]                   #make initial guess BL height
+    z_solution = fsolve(toSolveCase, z_initial_guess,factor=0.1)             #solve
+
+    # zCLcalc[nCase] = (thetaZI[nCase]/g) * (((3/2.)* Phi[nCase]/zi[nCase])**2) * (thetaCL[nCase]-thetaZI[nCase])**(-3) + (2/3.)*zi[nCase]
+    # z_solution = root(toSolveCase,z_initial_guess,method='hybr')
+    # print(z_solution.x)
+    zCLerror[nCase] = z_solution - zCL[nCase]                                #store the solution
+#
+
+# plt.scatter(zCL,zCLcalc)
+
+
+plt.figure(figsize=(12,4))
+gs = gridspec.GridSpec(1, 2, width_ratios=[3,1])
+ax0 = plt.subplot(gs[0])
+plt.title('ERROR AS A FUNCTION OF zCL (ALL)')
+plt.scatter(zCL,zCLerror)
+plt.hlines(0,500,3000,colors='grey',linestyles='dashed')
+for i, txt in enumerate(RunList):
+    ax0.annotate(txt, (zCL[i], zCLerror[i]),fontsize=6)
+ax0.set(xlabel=r'$z_{CL}$ [m]', ylabel='error [m]',ylim =[-300,300])
+
+ax1 = plt.subplot(gs[1])
+plt.title('ERROR STATISTICS')
+plt.boxplot(zCLerror)
+plt.hlines(0,0.5,1.5,colors='grey',linestyles='dashed')
+ax1.set(xlabel=r'$z_{CL}$ [m]',ylabel='error [m]')
+plt.tight_layout()
+plt.savefig(plume.figdir + 'injectionModel/IterativeSolution_BiasCorrected.pdf')
+plt.show()
+
+# plt.close()
+
+#===========gamma solution===============
+for nCase,Case in enumerate(RunList):
+    z_solution = wStarFit4[0]*((thetaE[nCase]/g)**(1/4.)) * (((3/2.)*Phi[nCase]/zi[nCase])**(0.5)) * (1/Gamma[nCase])**(3/4.) + wStarFit4[0]*zE[nCase] + wStarFit4[1]
+    zCLerror[nCase] = z_solution - zCL[nCase]                                #store the solution
+
+plt.figure(figsize=(10,5))
+gs = gridspec.GridSpec(1, 2, width_ratios=[3,1])
+ax0 = plt.subplot(gs[0])
+plt.title('ERROR AS A FUNCTION OF zCL (ALL)')
+plt.scatter(zCL,zCLerror)
+plt.hlines(0,500,3000,colors='grey',linestyles='dashed')
+for i, txt in enumerate(RunList):
+    ax0.annotate(txt, (zCL[i], zCLerror[i]),fontsize=6)
+ax0.set(xlabel=r'$z_{CL}$ [m]', ylabel='error [m]',ylim =[-300,300])
+
+ax1 = plt.subplot(gs[1])
+plt.title('ERROR STATISTICS')
+plt.boxplot(zCLerror)
+plt.hlines(0,0.5,1.5,colors='grey',linestyles='dashed')
+ax1.set(xlabel=r'$z_{CL}$ [m]',ylabel='error [m]')
+plt.tight_layout()
+plt.savefig(plume.figdir + 'injectionModel/GammaSolution_BiasCorrected.pdf')
+
+plt.show()
+# plt.close()
