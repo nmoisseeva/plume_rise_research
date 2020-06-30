@@ -253,7 +253,7 @@ wStarFit6 = linregress(wStar6,zCL)
 wStarFit7 = linregress(wStar7,zCL)
 
 
-wStar8 =  tauZI*(g*Phi*(zCL-zi*(2/3.))/(thetaZI*zi))**(1/3.)       #attempt at zi_dependent threshold
+wStar8 =  (3/4) *tauZI*(g*Phi*(zCL-zi*(2/3.))*(3/2.)/(thetaZI*zi))**(1/3.)       #attempt at zi_dependent threshold
 wStarFit8 = linregress(wStar8+zi*(2/3),zCL)
 print(wStarFit8)
 
@@ -280,19 +280,22 @@ print(wStarFit8)
 # plt.show()
 
 plt.figure()
-plt.title('R = %.2f' %wStarFit4[2])
+plt.title('MODELLED SMOKE INJECTION HEIGHTS')
 ax = plt.gca()
-plt.scatter(wStar4+zi*(2/3),zCL,c=Phi,cmap =plt.cm.plasma)
-ax.set(ylabel = r'$z_{CL}$', xlabel = r'$\tau_* w_{f*} + \frac{2}{3}z_i$')
-for i, txt in enumerate(RunList):
-    ax.annotate(txt, (wStar4[i]+zi[i]*(2/3), zCL[i]),fontsize=6)
-plt.colorbar(label='fireline intensity [Km2/s]')
-plt.plot(wStar4+zi*(2/3),wStar4+zi*(2/3))
-# plt.savefig(plume.figdir + 'injectionModel/NewBLTheory.pdf')
+plt.scatter(wStar8+zi*(2/3),zCL,c=Phi,cmap =plt.cm.plasma)
+ax.set(ylabel = r'$z_{CL}$ [m]', xlabel = r'$\frac{3}{4}\tau_* w_{f*} + \frac{2}{3}z_i$ [m]',xlim = [400,3200], ylim = [400,3200])
+# for i, txt in enumerate(RunList):
+#     ax.annotate(txt, (wStar4[i]+zi[i]*(2/3), zCL[i]),fontsize=6)
+plt.colorbar(label=r'fireline intensity [K m$^2$/s]')
+plt.plot(np.sort(wStar8+zi*(2/3)),wStarFit8[0]* np.sort(wStar8+zi*(2/3)) + wStarFit8[1], color='black', label='linear regression fit')
+plt.plot(np.sort(wStar8+zi*(2/3)),np.sort(wStar8+zi*(2/3)), linestyle = 'dashed', color='grey', label='unity line')
+plt.legend()
+plt.savefig(plume.figdir + 'injectionModel/NewInjectionTheory.pdf')
+
 plt.show()
 
-plt.scatter(wStar, zCL)
-plt.show()
+# plt.scatter(wStar, zCL)
+# plt.show()
 #
 #
 # plt.figure()
@@ -395,18 +398,18 @@ for nCase, Case in enumerate(RunList):
     thetaE[nCase] = sounding[nCase,BLidx]
     zE[nCase] = -GammaFit[1]/GammaFit[0]
 zStar = (zCL - zE)/zi
-HStar = ((thetaE/(g*Gamma**3))**(1/4.)) * np.sqrt((3/2.)*Phi/zi**3)
+HStar = (3/4.)**(3/2.)*((thetaE/(g*Gamma**3))**(1/4.)) * np.sqrt((3/2.)*Phi/zi**3)
 
 
 dimlessFit = linregress(HStar,zStar)
 plt.figure()
-plt.title('DIMENSIONLESS GROUPS: R = %.2f' %dimlessFit[2])
+plt.title('DIMENSIONLESS RELATIONSHIP')
 plt.scatter(HStar,zStar,c=Phi,cmap=plt.cm.plasma)
 ax = plt.gca()
 for i, txt in enumerate(RunList):
     ax.annotate(txt, (HStar[i], zStar[i]),fontsize=6)
 plt.gca().set(xlabel = r'$\overline{H}$', ylabel=r'$\overline{z}$')
-plt.colorbar(label='fireline intensity [Km2/s]')
+plt.colorbar(label=r'fireline intensity [Km$^2$/s]')
 plt.savefig(plume.figdir + 'injectionModel/DimensionlessGroups.pdf')
 plt.show()
 
@@ -416,6 +419,7 @@ plt.show()
 
 
 zCLerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
+zCLerrorBiased = np.empty((runCnt)) * np.nan          #parameterization error [m]
 zCLcalc = np.empty((runCnt)) * np.nan          #parameterization error [m]
 
 from scipy.optimize import root
@@ -424,71 +428,151 @@ for nCase,Case in enumerate(RunList):
     BLidx = np.nanargmin(abs(interpZ - (BLfrac)*zi[nCase]))
 
     #
-    toSolveCase = lambda z : z - (wStarFit4[0]* (BLfrac*zi[nCase]) + wStarFit4[1]) - \
-                    wStarFit4[0] * 1/ np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaZI[nCase])/(thetaZI[nCase] * (z-zi[nCase]*(2/3.))))  * \
+    toSolveCase = lambda z : z - (wStarFit8[0]* (BLfrac*zi[nCase]) + wStarFit8[1]) - \
+                    wStarFit8[0] * 3/(4*np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaZI[nCase])/(thetaZI[nCase] * (z-zi[nCase]*(2/3.)))))  * \
                     (g*Phi[nCase]*(z-zi[nCase]*(2/3.))*(3/2.)/(thetaZI[nCase] * zi[nCase]))**(1/3.)
     #
-    #
-    # #NOT bias-corrected - will crash, unless multiplied by a factor slightly less then 1
-    # toSolveCase = lambda z : z - (BLfrac*zi[nCase])  - \
-    #                 0.98* 1/ np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaZI[nCase])/(thetaZI[nCase] * (z-zi[nCase]*(2/3.))))  * \
-    #                 (g*Phi[nCase]*(z-zi[nCase]*(2/3.))*(3/2.)/(thetaZI[nCase] * zi[nCase]))**(1/3.)
+
+    #NOT bias-corrected
+    toSolveCaseBiased = lambda z : z - (BLfrac*zi[nCase])  - \
+                    3./(4* np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaZI[nCase])/(thetaZI[nCase] * (z-zi[nCase]*(2/3.)))))  * \
+                    (g*Phi[nCase]*(z-zi[nCase]*(2/3.))*(3/2.)/(thetaZI[nCase] * zi[nCase]))**(1/3.)
 
     z_initial_guess = zi[nCase]                   #make initial guess BL height
     z_solution = fsolve(toSolveCase, z_initial_guess,factor=0.1)             #solve
+    z_solutionBiased = fsolve(toSolveCaseBiased, z_initial_guess,factor=0.1)             #solve
 
-    # zCLcalc[nCase] = (thetaZI[nCase]/g) * (((3/2.)* Phi[nCase]/zi[nCase])**2) * (thetaCL[nCase]-thetaZI[nCase])**(-3) + (2/3.)*zi[nCase]
+    zCLcalc[nCase] = (3/4)**6 * (thetaZI[nCase]/g) * (((3/2.)* Phi[nCase]/zi[nCase])**2) * (thetaCL[nCase]-thetaZI[nCase])**(-3) + (2/3.)*zi[nCase]
     # z_solution = root(toSolveCase,z_initial_guess,method='hybr')
     # print(z_solution.x)
     zCLerror[nCase] = z_solution - zCL[nCase]                                #store the solution
+    zCLerrorBiased[nCase] = z_solutionBiased - zCL[nCase]                                #store the solution
+
 #
 
 # plt.scatter(zCL,zCLcalc)
 
 
-plt.figure(figsize=(12,4))
-gs = gridspec.GridSpec(1, 2, width_ratios=[3,1])
-ax0 = plt.subplot(gs[0])
-plt.title('ERROR AS A FUNCTION OF zCL (ALL)')
-plt.scatter(zCL,zCLerror)
-plt.hlines(0,500,3000,colors='grey',linestyles='dashed')
-for i, txt in enumerate(RunList):
-    ax0.annotate(txt, (zCL[i], zCLerror[i]),fontsize=6)
-ax0.set(xlabel=r'$z_{CL}$ [m]', ylabel='error [m]',ylim =[-300,300])
+plt.figure(figsize=(9,6))
 
+plt.suptitle('ITERATIVE SOLUTION')
+gs = gridspec.GridSpec(2, 2, width_ratios=[3,1])
+
+
+ax0 = plt.subplot(gs[0])
+plt.title('Error as f($z_{CL})$: RAW')
+plt.scatter(zCL,zCLerrorBiased)
+plt.hlines(0,200,3200,colors='grey',linestyles='dashed')
+# for i, txt in enumerate(RunList):
+#     ax0.annotate(txt, (zCL[i], zCLerror[i]),fontsize=6)
+ax0.set(xlabel=r'$z_{CL}$ [m]', ylabel='error [m]',ylim =[-350,350],xlim=[400,3200])
 ax1 = plt.subplot(gs[1])
-plt.title('ERROR STATISTICS')
+plt.title('Error Statistics')
+plt.boxplot(zCLerrorBiased)
+plt.hlines(0,0.5,1.5,colors='grey',linestyles='dashed')
+ax1.set(xlabel=r'$z_{CL}$',ylabel='error [m]',ylim = [-350,350], xticklabels=[''])
+
+
+ax2 = plt.subplot(gs[2])
+plt.title('Error as f($z_{CL})$: BIAS CORRECTED')
+plt.scatter(zCL,zCLerror)
+plt.hlines(0,200,3200,colors='grey',linestyles='dashed')
+# for i, txt in enumerate(RunList):
+#     ax0.annotate(txt, (zCL[i], zCLerror[i]),fontsize=6)
+ax2.set(xlabel=r'$z_{CL}$ [m]', ylabel='error [m]',ylim =[-350,350],xlim=[400,3200])
+ax3 = plt.subplot(gs[3])
+plt.title('Error Statistics')
 plt.boxplot(zCLerror)
 plt.hlines(0,0.5,1.5,colors='grey',linestyles='dashed')
-ax1.set(xlabel=r'$z_{CL}$ [m]',ylabel='error [m]')
-plt.tight_layout()
-plt.savefig(plume.figdir + 'injectionModel/IterativeSolution_BiasCorrected.pdf')
+ax3.set(xlabel=r'$z_{CL}$',ylabel='error [m]',ylim = [-350,350], xticklabels=[''])
 plt.show()
 
-# plt.close()
+plt.subplots_adjust(top=0.85)
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.savefig(plume.figdir + 'injectionModel/IterativeSolution.pdf')
+plt.show()
+plt.close()
+
+
+# #========sensitivity test for zs values==========================
+
+plt.figure()
+ax1 = plt.gca()
+ax2 = plt.twinx()
+for BLfrac in np.arange(0.5, 0.78, 0.02):
+    omega = np.empty((len(RunList)))
+    thetas = np.empty((len(RunList)))
+
+    for nCase in range(len(RunList)):
+        sidx = np.nanargmin(abs(interpZ - BLfrac*zi[nCase]))
+        zCLidx = np.argmin(abs(interpZ - zCL[nCase]))
+        omega[nCase] = np.trapz(gradT0interp[nCase,sidx:zCLidx],dx=zstep)
+        thetas[nCase] = sounding[nCase,sidx]
+    tau = 1/ np.sqrt(g*omega/(thetas * (zCL-zi*BLfrac)))
+    wstar =  (3/4) *tau*(g*Phi*(zCL-zi*BLfrac)*(3/2.)/(thetas*zi))**(1/3.)       #attempt at zi_dependent threshold
+    wstarfit = linregress(wstar+zi*BLfrac,zCL)
+    print(wstarfit)
+#
+# ziCutoff = 900
+# for Zr in range(0,ziCutoff,10):
+#     wStartest = (g*Phi[zi>ziCutoff]* (zi[zi>ziCutoff]-Zr)/(Omega[zi>ziCutoff]))**(1/3.)
+#     c1, Zr_out, r,p,std = linregress(wStartest,zCL[zi>ziCutoff])
+#     print(r)
+#     ax1.scatter(Zr,Zr_out,c='C1')
+#     ax2.scatter(Zr,r,c='C2')
+# l1 = ax1.scatter(Zr,Zr_out,c='C1', label='Zr from fit')
+# l2 = ax2.scatter(Zr,r,c='C2', label='R of the fit')
+# ax1.set(xlabel='Zr_in [m]',aspect='equal',xlim = [100,ziCutoff],ylim=[100,ziCutoff])
+# ax1.set_ylabel('Zr_out [m]', color='C1')
+# ax2.set_ylabel('R value',color='C2')
+# plt.title('Zi CUTOFF: %s' %ziCutoff)
+# plt.legend(handles=[l1,l2])
+# plt.show()
+
+
 
 #===========gamma solution===============
+Gammaerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
+GammaerrorBiased = np.empty((runCnt)) * np.nan          #parameterization error [m]
 for nCase,Case in enumerate(RunList):
-    z_solution = wStarFit4[0]*((thetaE[nCase]/g)**(1/4.)) * (((3/2.)*Phi[nCase]/zi[nCase])**(0.5)) * (1/Gamma[nCase])**(3/4.) + wStarFit4[0]*zE[nCase] + wStarFit4[1]
-    zCLerror[nCase] = z_solution - zCL[nCase]                                #store the solution
+    Gamma_solution = wStarFit8[0]*((3./4)**(3/2.) *(thetaE[nCase]/g)**(1/4.)) * (((3/2.)*Phi[nCase]/zi[nCase])**(0.5)) * (1/Gamma[nCase])**(3/4.) + wStarFit8[0]*zE[nCase] + wStarFit8[1]
+    Gammaerror[nCase] = Gamma_solution - zCL[nCase]                                #store the solution
+    Gamma_solutionBiased = ((3./4)**(3/2.) *(thetaE[nCase]/g)**(1/4.)) * (((3/2.)*Phi[nCase]/zi[nCase])**(0.5)) * (1/Gamma[nCase])**(3/4.) +zE[nCase]
+    GammaerrorBiased[nCase] = Gamma_solutionBiased - zCL[nCase]                                #store the solution
 
-plt.figure(figsize=(10,5))
-gs = gridspec.GridSpec(1, 2, width_ratios=[3,1])
+
+plt.figure(figsize=(9,6))
+plt.suptitle('EXPLICIT SOLUTION')
+gs = gridspec.GridSpec(2, 2, width_ratios=[3,1])
 ax0 = plt.subplot(gs[0])
-plt.title('ERROR AS A FUNCTION OF zCL (ALL)')
-plt.scatter(zCL,zCLerror)
-plt.hlines(0,500,3000,colors='grey',linestyles='dashed')
-for i, txt in enumerate(RunList):
-    ax0.annotate(txt, (zCL[i], zCLerror[i]),fontsize=6)
-ax0.set(xlabel=r'$z_{CL}$ [m]', ylabel='error [m]',ylim =[-300,300])
-
+plt.title(r'Error as f($z_{CL})$: RAW')
+plt.scatter(zCL,GammaerrorBiased)
+plt.hlines(0,200,3200,colors='grey',linestyles='dashed')
+# for i, txt in enumerate(RunList):
+#     ax0.annotate(txt, (zCL[i], zCLerror[i]),fontsize=6)
+ax0.set(xlabel=r'$z_{CL}$ [m] ', ylabel='error [m]',ylim =[-350,350],xlim=[400,3200])
 ax1 = plt.subplot(gs[1])
-plt.title('ERROR STATISTICS')
-plt.boxplot(zCLerror)
+plt.title('Error Statistics')
+plt.boxplot(GammaerrorBiased)
 plt.hlines(0,0.5,1.5,colors='grey',linestyles='dashed')
-ax1.set(xlabel=r'$z_{CL}$ [m]',ylabel='error [m]')
-plt.tight_layout()
-plt.savefig(plume.figdir + 'injectionModel/GammaSolution_BiasCorrected.pdf')
+ax1.set(xlabel=r'$z_{CL}$',ylabel='error [m]',ylim = [-350,350], xticklabels=[''])
+
+ax2 = plt.subplot(gs[2])
+plt.title(r'Error as f($z_{CL})$: RAW')
+plt.scatter(zCL,Gammaerror)
+plt.hlines(0,200,3200,colors='grey',linestyles='dashed')
+# for i, txt in enumerate(RunList):
+#     ax0.annotate(txt, (zCL[i], zCLerror[i]),fontsize=6)
+ax2.set(xlabel=r'$z_{CL}$ [m] ', ylabel='error [m]',ylim =[-350,350],xlim=[400,3200])
+ax3 = plt.subplot(gs[3])
+plt.title('Error Statistics')
+plt.boxplot(Gammaerror)
+plt.hlines(0,0.5,1.5,colors='grey',linestyles='dashed')
+ax3.set(xlabel=r'$z_{CL}$',ylabel='error [m]',ylim = [-350,350], xticklabels=[''])
+
+plt.subplots_adjust(top=0.85)
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.savefig(plume.figdir + 'injectionModel/ExplicitSolution.pdf')
 
 plt.show()
 # plt.close()
