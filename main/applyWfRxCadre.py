@@ -25,16 +25,16 @@ from scipy.signal import savgol_filter
 import plume
 imp.reload(plume) 	             #force load each time
 g = 9.81                         #gravity
-mf, bf =  2.158, 438.878         #slope and intercept from LES regression model
+# mf, bf =  2.158, 438.878         #slope and intercept from LES regression model
+mf, bf = 0.99, 98.51
 zstep = 20.                      #vertical step to interpolate to
-zs = 200.                       #surface layer height
+# zs = 200.                       #surface layer height
+BLfrac = 0.75           #fraction of BL height to set zs at
 intFlux = [367, 254, 146, 108, 270, 90 ]    #RxCADRE HIP1 integral flux for HIP1 sensors [kW s /m2]
 rawROS = 0.23                    #RxCADRE ROS value for HIP1 (Butler 2016) [m/s]
 #=================end of input===============
 interpz =np.arange(0,2000,zstep)
-si = int(zs/zstep)                                          #skipping surface inversion
-
-
+# si = int(zs/zstep)                                          #skipping surface inversion
 
 #get "truth" solution using CWI LES smoke for rxcadre#load and rotate model smoke to mean wind
 print('.....extracting interpolated smoke data from %s' %plume.rxinterpCO2)
@@ -56,13 +56,15 @@ ctrXidx = cwiCO2.argmax(1)
 co2Ctr = np.array([cwiCO2[ctrZidx[nX],nX] for nX in range(dimY)])
 xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)
 centerline = ma.masked_where(plume.rxlvl[ctrZidx] == 0, plume.rxlvl[ctrZidx])
-smoothCenterline = savgol_filter(centerline, 51, 3) # window size 51, polynomial order 3
+
+# filter_window = max(int(plume.read_tag('W',[Case])*10+1),51)
+
+smoothCenterline = savgol_filter(centerline, 51, 3)
 stableCO2 = cwiCO2[:,120:200]                       #hardcoded based on smoothCenterline
 stableProfile = np.mean(stableCO2,1)
-rxzCL = np.mean(smoothCenterline[120:200])
-# rxzCLidx = int(np.mean(ctrZidx[120:200]))
-rxzCLidx = np.argmin(abs(interpz - rxzCL))
 
+rxzCL = np.mean(smoothCenterline[120:200])
+rxzCLidx = np.argmin(abs(interpz - rxzCL))
 
 #get stats and plot profile
 co2Q1 = np.percentile(stableCO2,25,axis = 1)
@@ -107,25 +109,34 @@ plt.close()
 #find boundary layer height
 T0 = np.mean(temperature,(1,2))
 interpfLES= interp1d(z0, T0,fill_value='extrapolate')
-interpT0LES = interpfLES(interpz)
+soundingLES = interpfLES(interpz)
 
-gradTLES = (interpT0LES[1:] - interpT0LES[:-1])/zstep
+gradTLES = (soundingLES[1:] - soundingLES[:-1])/zstep
 gradT2 = gradTLES[1:] - gradTLES[:-1]
-zi_idx = np.argmax(gradT2[si:]) + si
-zi = interpz[zi_idx]
+ziidx = np.argmax(gradT2[10:]) + 10
+zsidx = int(ziidx * BLfrac)
+zi = interpz[ziidx]
+
 
 plt.figure()
 plt.plot(T0,z0)
-plt.plot(interpT0LES,interpz)
+plt.plot(soundingLES,interpz)
 plt.show()
 plt.close()
 
+thetaS = soundingLES[zsidx]
+thetaCL = soundingLES[rxzCLidx]
+
 #use numerical solver
-toSolveLES = lambda z : z - bf - mf * (g*PhiLES*(zi-zs)/(np.trapz(gradTLES[si:int(z/zstep)], dx = zstep)))**(1/3.)           #using trapezoidal rule
-# toSolveLES = lambda z : z - bf - mf * (g*PhiLES*(zi-zs)/(interpT0LES[int(z/zstep)] - interpT0LES[si]))**(1/3.)           #using delta
+# toSolveLES = lambda z : z - bf - mf * (g*PhiLES*(zi-zs)/(np.trapz(gradTLES[si:int(z/zstep)], dx = zstep)))**(1/3.)           #using trapezoidal rule
+
+toSolveLES = lambda z : z - (mf*BLfrac*zi + bf) - \
+                    mf * 3/(4*np.sqrt(g*(soundingLES[int(z/zstep)] - thetaS)/(thetaS * (z-zi*BLfrac))))  * \
+                    (g*PhiLES*(z-zi*BLfrac)*(3/2.)/(thetaS * zi))**(1/3.)
+
 
 z_initial_guess = zi                                        #make initial guess BL height
-LESsolution = fsolve(toSolveLES, z_initial_guess)
+LESsolution = fsolve(toSolveLES, z_initial_guess,factor = 0.1)
 print('\033[93m' + 'Smoke injection based on modelled RxCADRE heat and sounding: %.2f' %LESsolution+ '\033[0m')
 
 #---------------------------------SOLUTION USING RAW DATA-----------------------
