@@ -30,7 +30,7 @@ mf, bf = 0.99, 98.51
 zstep = 20.                      #vertical step to interpolate to
 # zs = 200.                       #surface layer height
 BLfrac = 0.75           #fraction of BL height to set zs at
-intFlux = [367, 254, 146, 108, 270, 90 ]    #RxCADRE HIP1 integral flux for HIP1 sensors [kW s /m2]
+intFlux = [367, 254, 146, 348, 270, 90]    #RxCADRE HIP1 integral flux for HIP1 sensors [kW s /m2] FBP ID [22,2,20,3,14,19]
 rawROS = 0.23                    #RxCADRE ROS value for HIP1 (Butler 2016) [m/s]
 #=================end of input===============
 interpz =np.arange(0,2000,zstep)
@@ -139,44 +139,20 @@ z_initial_guess = zi                                        #make initial guess 
 LESsolution = fsolve(toSolveLES, z_initial_guess,factor = 0.1)
 print('\033[93m' + 'Smoke injection based on modelled RxCADRE heat and sounding: %.2f' %LESsolution+ '\033[0m')
 
-#---------------------------------SOLUTION USING RAW DATA-----------------------
-#import input sounding
-#load 10am profile
-print('.....extracting vertical profile data from %s' %plume.rxsounding)
-sounding = np.genfromtxt(plume.rxsounding, skip_header=1, usecols = [0,1,2,3,4])
-
-#interpolate temperature profile to a constant height step for integration
-interpfRAW= interp1d(sounding[:,0], sounding[:,1],fill_value='extrapolate')
-interpTRAW = interpfRAW(interpz)
-plt.figure()
-plt.plot(sounding[:,1],sounding[:,0])
-plt.plot(interpTRAW,interpz)
-plt.show()
-plt.close()
-
-gradTRAW = (interpTRAW[1:] - interpTRAW[:-1])/zstep
-
+#-----------------solve with RAW heat and LES T0 and CWI Smoke
 #get estimates of parameters based on raw data (Phi and zi)
 meanQt = np.mean(intFlux,0)
 PhiRAW = (meanQt / rawROS) * 4
-ziRAW = 1050                       #HARDCODED USING OBSERVATION!!!
-
-#use numerical solver on raw profile----------
-toSolveRAW = lambda z : z - bf - mf * (g*PhiRAW*(ziRAW-zs)/(np.trapz(gradTRAW[si+1:int(z/zstep)], dx = zstep)))**(1/3.)           #using trapezoidal rule
-# toSolveRAW = lambda z : z - bf - mf * (g*PhiRAW*(ziRAW-zs)/(interpTRAW[int(z/zstep)]-interpTRAW[si]))**(1/3.)           #using delta
-
-z_initial_guess = ziRAW                                        #make initial guess BL height
-RAWsolution = fsolve(toSolveRAW, z_initial_guess)
-print('\033[93m' + 'Smoke injection based on raw profile and raw heat: %.f' %RAWsolution + '\033[0m')
-
-
-#-----------------solve with RAW heat and LES T0 and CWI Smoke
 
 #use numerical solver
-toSolveLESRAW = lambda z : z - bf - mf * (g*PhiRAW*(zi-zs)/(np.trapz(gradTLES[si:int(z/zstep)], dx = zstep)))**(1/3.)           #using trapezoidal rule
+# toSolveLESRAW = lambda z : z - bf - mf * (g*PhiRAW*(zi-zs)/(np.trapz(gradTLES[si:int(z/zstep)], dx = zstep)))**(1/3.)           #using trapezoidal rule
+
+toSolveLESRAW = lambda z : z - (mf*BLfrac*zi + bf) - \
+                    mf * 3/(4*np.sqrt(g*(soundingLES[int(z/zstep)] - thetaS)/(thetaS * (z-zi*BLfrac))))  * \
+                    (g*PhiRAW*(z-zi*BLfrac)*(3/2.)/(thetaS * zi))**(1/3.)
 
 z_initial_guess = zi                                        #make initial guess BL height
-LESRAWsolution = fsolve(toSolveLESRAW, z_initial_guess)
+LESRAWsolution = fsolve(toSolveLESRAW, z_initial_guess,factor=0.1)
 print('\033[93m' + 'Smoke injection based on modelled RxCADRE heat and sounding: %.2f' %LESRAWsolution+ '\033[0m')
 
 #------------------PLOTTING COMPARISON---------------------
@@ -187,8 +163,7 @@ plt.plot(stableProfile, plume.rxlvl,label='vertical $CO_2$ profile')
 ax = plt.gca()
 ax.fill_betweenx(plume.rxlvl, co2Q1, co2Q3, alpha=0.35,label='IQR')
 plt.hlines(rxzCL,xmin=0, xmax = 3000, label='"true" injection height $z_{CL}$ = %.f m' %rxzCL)
-plt.hlines(RAWsolution,xmin=0, xmax = 3000,linestyle='--', colors='C1', label='RAW (heat and sounding) $z_{CL}$ = %.f m' %RAWsolution)
-plt.hlines(LESsolution,xmin=0, xmax = 3000,linestyle=':', colors='C2', label='LES (heat and sounding) $z_{CL}$ = %.f m' %LESsolution)
+plt.hlines(LESsolution,xmin=0, xmax = 3000,linestyle=':', colors='C2', label='LES (sounding and heat) $z_{CL}$ = %.f m' %LESsolution)
 plt.hlines(LESRAWsolution,xmin=0, xmax = 3000,linestyle='--', colors='C3', label='LES (sounding) and RAW (heat) $z_{CL}$ = %.f m' %LESRAWsolution)
 ax.set(xlabel='$CO_2$ concentration [ppm]',ylabel='height [m]')
 plt.legend(loc='lower right', fontsize=9.5)

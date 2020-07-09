@@ -200,23 +200,27 @@ for nCase,Case in enumerate(RunList):
 
 
 #======================compare model formulations========================
-
-Tau = 1/ np.sqrt(g*Omega/(thetaS * (zCL-zi*BLfrac)))
-wStar =  (3./4)*Tau*((g*Phi*(zCL-zi*BLfrac)*(3/2.))/(thetaS*zi))**(1/3.)       #attempt at zi_dependent threshold
-wStarFit = linregress(wStar+zi*BLfrac,zCL)
+zS = zi*BLfrac
+Tau = 1/ np.sqrt(g*Omega/(thetaS * (zCL-zS)))
+wStar =  (3./4)*Tau*((g*Phi*(zCL-zS)*(3/2.))/(thetaS*zi))**(1/3.)       #attempt at zi_dependent threshold
+wStarFit = linregress(wStar+zS,zCL)
 print(wStarFit)
 
+
+wStarC = Tau*((g*Phi*(zCL-zS))/(thetaS*zi))**(1/3.)
+wStarCFit = linregress(wStarC+zS,zCL)
+C = wStarCFit[0]
 
 plt.figure()
 plt.title('MODELLED SMOKE INJECTION HEIGHTS')
 ax = plt.gca()
-plt.scatter(wStar+zi*BLfrac,zCL,c=Phi,cmap =plt.cm.plasma)
-ax.set(ylabel = r'$z_{CL}$ [m]', xlabel = r'$\frac{3}{4}\tau_* w_{f*} + \frac{3}{4}z_i$ [m]',xlim = [400,3200], ylim = [400,3200])
+plt.scatter(wStarC+zS,zCL,c=Phi,cmap =plt.cm.plasma)
+ax.set(ylabel = r'$z_{CL}$ [m]', xlabel = r'$C\tau_* \widetilde{w_f} + \frac{3}{4}z_i$ [m]',xlim = [400,3200], ylim = [400,3200])
 # for i, txt in enumerate(RunList):
 #     ax.annotate(txt, (wStar4[i]+zi[i]*(2/3), zCL[i]),fontsize=6)
 plt.colorbar(label=r'fireline intensity [K m$^2$/s]')
-plt.plot(np.sort(wStar+zi*BLfrac),wStarFit[0]* np.sort(wStar+zi*BLfrac) + wStarFit[1], color='black', label='linear regression fit')
-plt.plot(np.sort(wStar+zi*BLfrac),np.sort(wStar+zi*BLfrac), linestyle = 'dashed', color='grey', label='unity line')
+plt.plot(np.sort(wStarC+zS),C*np.sort(wStarC+zS) + wStarCFit[1], color='black', label='linear regression fit')
+plt.plot(np.sort(C*wStarC+zS),np.sort(C*wStarC+zS), linestyle = 'dashed', color='grey', label='unity line')
 plt.legend()
 plt.savefig(plume.figdir + 'injectionModel/NewInjectionTheory.pdf')
 plt.show()
@@ -274,14 +278,22 @@ from scipy.optimize import root
 for nCase,Case in enumerate(RunList):
     BLidx = np.nanargmin(abs(interpZ - BLfrac*zi[nCase]))
 
-    toSolveCase = lambda z : z - (wStarFit[0]*BLfrac*zi[nCase] + wStarFit[1]) - \
-                    wStarFit[0] * 3/(4*np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaS[nCase])/(thetaS[nCase] * (z-zi[nCase]*BLfrac))))  * \
-                    (g*Phi[nCase]*(z-zi[nCase]*BLfrac)*(3/2.)/(thetaS[nCase] * zi[nCase]))**(1/3.)
+    # toSolveCase = lambda z : z - (wStarFit[0]*BLfrac*zi[nCase] + wStarFit[1]) - \
+    #                 wStarFit[0] * 3/(4*np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaS[nCase])/(thetaS[nCase] * (z-zi[nCase]*BLfrac))))  * \
+    #                 (g*Phi[nCase]*(z-zi[nCase]*BLfrac)*(3/2.)/(thetaS[nCase] * zi[nCase]))**(1/3.)
+
+    toSolveCase = lambda z : z - (C*BLfrac*zi[nCase] + wStarCFit[1]) - \
+                    C * 1/(np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaS[nCase])/(thetaS[nCase] * (z-zi[nCase]*BLfrac))))  * \
+                    (g*Phi[nCase]*(z-zi[nCase]*BLfrac)/(thetaS[nCase] * zi[nCase]))**(1/3.)
 
     #NOT bias-corrected
+    # toSolveCaseBiased = lambda z : z - (BLfrac*zi[nCase])  - \
+    #                 3./(4* np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaS[nCase])/(thetaS[nCase] * (z-zi[nCase]*BLfrac))))  * \
+    #                 (g*Phi[nCase]*(z-zi[nCase]*BLfrac)*(3/2.)/(thetaS[nCase] * zi[nCase]))**(1/3.)
+
     toSolveCaseBiased = lambda z : z - (BLfrac*zi[nCase])  - \
-                    3./(4* np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaS[nCase])/(thetaS[nCase] * (z-zi[nCase]*BLfrac))))  * \
-                    (g*Phi[nCase]*(z-zi[nCase]*BLfrac)*(3/2.)/(thetaS[nCase] * zi[nCase]))**(1/3.)
+                    C/(np.sqrt(g*(sounding[nCase,int(z/zstep)] - thetaS[nCase])/(thetaS[nCase] * (z-zi[nCase]*BLfrac))))  * \
+                    (g*Phi[nCase]*(z-zi[nCase]*BLfrac)/(thetaS[nCase] * zi[nCase]))**(1/3.)
 
     z_initial_guess = zi[nCase]                   #make initial guess BL height
     z_solution = fsolve(toSolveCase, z_initial_guess,factor=0.1)             #solve
@@ -336,9 +348,9 @@ plt.close()
 #         zCLidx = np.argmin(abs(interpZ - zCL[nCase]))
 #         omega[nCase] = np.trapz(gradT0interp[nCase,sidx:zCLidx],dx=zstep)
 #         thetas[nCase] = sounding[nCase,sidx]
-#     tau = 1/ np.sqrt(g*omega/(thetas * (zCL-zi*BLfrac)))
-#     wstar =  (3/4) *tau*(g*Phi*(zCL-zi*BLfrac)*(3/2.)/(thetas*zi))**(1/3.)       #attempt at zi_dependent threshold
-#     wstarfit = linregress(wstar+zi*BLfrac,zCL)
+#     tau = 1/ np.sqrt(g*omega/(thetas * (zCL-zS)))
+#     wstar =  (3/4) *tau*(g*Phi*(zCL-zS)*(3/2.)/(thetas*zi))**(1/3.)       #attempt at zi_dependent threshold
+#     wstarfit = linregress(wstar+zS,zCL)
 #     print(wstarfit)
 #     ax.scatter(BLfrac,wstarfit[2],c='C1')
 # ax.set(xlabel='BL fraction', ylabel='R value of the fit')
@@ -349,9 +361,12 @@ plt.close()
 Gammaerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
 GammaerrorBiased = np.empty((runCnt)) * np.nan          #parameterization error [m]
 for nCase,Case in enumerate(RunList):
-    Gamma_solution = wStarFit[0]*((3./4)**(3/2.) *(thetaE[nCase]/g)**(1/4.)) * (((3/2.)*Phi[nCase]/zi[nCase])**(0.5)) * (1/Gamma[nCase])**(3/4.) + wStarFit[0]*zE[nCase] + wStarFit[1]
+    # Gamma_solution = wStarFit[0]*((3./4)**(3/2.) *(thetaE[nCase]/g)**(1/4.)) * (((3/2.)*Phi[nCase]/zi[nCase])**(0.5)) * (1/Gamma[nCase])**(3/4.) + wStarFit[0]*zE[nCase] + wStarFit[1]
+    Gamma_solution = C*((thetaE[nCase]/g)**(1/4.)) * ((Phi[nCase]/zi[nCase])**(0.5)) * (1/Gamma[nCase])**(3/4.) + C*zE[nCase] + wStarCFit[1]
     Gammaerror[nCase] = Gamma_solution - zCL[nCase]                                #store the solution
-    Gamma_solutionBiased = ((3./4)**(3/2.) *(thetaE[nCase]/g)**(1/4.)) * (((3/2.)*Phi[nCase]/zi[nCase])**(0.5)) * (1/Gamma[nCase])**(3/4.) +zE[nCase]
+    # Gamma_solutionBiased = ((3./4)**(3/2.) *(thetaE[nCase]/g)**(1/4.)) * (((3/2.)*Phi[nCase]/zi[nCase])**(0.5)) * (1/Gamma[nCase])**(3/4.) +zE[nCase]
+    Gamma_solutionBiased = (C**(3/2.)*(thetaE[nCase]/g)**(1/4.)) * ((Phi[nCase]/zi[nCase])**(0.5)) * (1/Gamma[nCase])**(3/4.) +zE[nCase]
+
     GammaerrorBiased[nCase] = Gamma_solutionBiased - zCL[nCase]                                #store the solution
 
 plt.figure(figsize=(9,6))
@@ -403,18 +418,18 @@ for nTrial in range(trials):
     testCnt = sum(TestFlag)         #count how many runs ended up as test dataset
 
     #linear regression using training data subset only
-    trialFit = linregress(wStar[TestFlag==0]+zi[TestFlag==0]*BLfrac,zCL[TestFlag==0])
+    trialFit = linregress(wStarC[TestFlag==0]+zi[TestFlag==0]*BLfrac,zCL[TestFlag==0])
     print('Sum of residuals using TRAINING data: %0.2f' %trialFit[2])
     Rstore[nTrial] = trialFit[2]        #store trial value
 
     #plot individual trial results
     fig = plt.figure()
-    plt.suptitle('REGRESSION MODEL: ALL [R=%0.2f] vs TRAIN DATA [R=%0.2f]' %(wStarFit[2], trialFit[2]))
+    plt.suptitle('REGRESSION MODEL: ALL [R=%0.2f] vs TRAIN DATA [R=%0.2f]' %(wStarCFit[2], trialFit[2]))
     ax=plt.gca()
-    plt.scatter(wStar[TestFlag==0]+zi[TestFlag==0]*BLfrac, zCL[TestFlag==0], c='C2', label='training data')
-    plt.scatter(wStar[TestFlag==1]+zi[TestFlag==1]*BLfrac, zCL[TestFlag==1], c='C1', label='test data')
-    plt.plot(np.sort(wStar+zi*BLfrac),wStarFit[0]* np.sort(wStar+zi*BLfrac) + wStarFit[1],  c='grey', label='all data')
-    plt.plot(np.sort(wStar+zi*BLfrac),trialFit[0]* np.sort(wStar+zi*BLfrac) + trialFit[1], c='C2', label='training data regression fit')
+    plt.scatter(wStarC[TestFlag==0]+zi[TestFlag==0]*BLfrac, zCL[TestFlag==0], c='C2', label='training data')
+    plt.scatter(wStarC[TestFlag==1]+zi[TestFlag==1]*BLfrac, zCL[TestFlag==1], c='C1', label='test data')
+    plt.plot(np.sort(wStarC+zS),wStarCFit[0]* np.sort(wStarC+zS) + wStarCFit[1],  c='grey', label='all data')
+    plt.plot(np.sort(wStarC+zS),trialFit[0]* np.sort(wStarC+zS) + trialFit[1], c='C2', label='training data regression fit')
 
     ax.set(xlabel=r'$\frac{3}{4}\tau \widetilde{w_{f*}} + \frac{3}{4}z_i$ [m/s]',ylabel='zCL [m]')
     plt.legend()
@@ -428,9 +443,12 @@ for nTrial in range(trials):
     for nTest in range(testCnt):
         testIdx = np.where(TestFlag==1)[0][nTest]                   #get index of test run in the LES subset
 
-        toSolve = lambda z : z - (wStarFit[0]*BLfrac*zi[testIdx] + wStarFit[1]) - \
-                    trialFit[0] * 3/(4*np.sqrt(g*(sounding[testIdx,int(z/zstep)] - thetaS[testIdx])/(thetaS[testIdx] * (z-zi[testIdx]*BLfrac))))  * \
-                    (g*Phi[testIdx]*(z-zi[testIdx]*BLfrac)*(3/2.)/(thetaS[testIdx] * zi[testIdx]))**(1/3.)
+        # toSolve = lambda z : z - (wStarFit[0]*BLfrac*zi[testIdx] + wStarFit[1]) - \
+        #             trialFit[0] * 3/(4*np.sqrt(g*(sounding[testIdx,int(z/zstep)] - thetaS[testIdx])/(thetaS[testIdx] * (z-zi[testIdx]*BLfrac))))  * \
+        #             (g*Phi[testIdx]*(z-zi[testIdx]*BLfrac)*(3/2.)/(thetaS[testIdx] * zi[testIdx]))**(1/3.)
+        toSolve = lambda z : z - (trialFit[0]*BLfrac*zi[testIdx] + trialFit[1]) - \
+                    trialFit[0] * 1/(np.sqrt(g*(sounding[testIdx,int(z/zstep)] - thetaS[testIdx])/(thetaS[testIdx] * (z-zi[testIdx]*BLfrac))))  * \
+                    (g*Phi[testIdx]*(z-zi[testIdx]*BLfrac)/(thetaS[testIdx] * zi[testIdx]))**(1/3.)
 
         z_initial_guess = zi[testIdx]                    #make initial guess BL height
         z_solution = fsolve(toSolve, z_initial_guess,factor=0.1)               #solve
@@ -459,13 +477,13 @@ ax0 = plt.subplot(gs[0,0:])
 plt.title('(a) TRIAL ERROR')
 plt.boxplot(ModelError)
 plt.hlines(0,0,11,colors='grey',linestyles='dashed')
-ax0.set(xlabel='trial no.', ylabel='error in zCL [m]',ylim=[-100,150])
+ax0.set(xlabel='trial no.', ylabel='error in zCL [m]',ylim=[-200,200])
 
 ax1 = plt.subplot(gs[1,0])
 plt.title('(b) ALL TRIALS')
 plt.boxplot(flatModelError)
 plt.hlines(0,0.5,1.5,colors='grey',linestyles='dashed')
-ax1.set(xlabel='all runs', ylabel='error in zCL [m]',ylim=[-100,150])
+ax1.set(xlabel='all runs', ylabel='error in zCL [m]',ylim=[-200,200])
 
 ax2 = plt.subplot(gs[1,1])
 ax2.set(xlabel='R-value',ylabel='count' )
@@ -490,3 +508,31 @@ plt.colorbar().set_label('$z_{CL} - z_s$ [m]')
 plt.savefig(plume.figdir + 'injectionModel/FuelvsErrorHeight_TRIALS.pdf')
 plt.show()
 plt.close()
+
+
+#plot rearranged SOLUTION
+LHS = (zCL - zS) * (g*Omega/thetaS)
+RHS = (C**6) * ((Phi/(zi * Omega))**2)
+plt.figure()
+plt.title('REARRANGED FORM RS')
+plt.scatter(RHS, LHS)
+plt.gca().set(xlabel=r'$C^6\left(\frac{I}{z_i(\theta_{CL}-\theta_s)}\right)^2$',ylabel=r'$z\prime g\prime$')
+plt.savefig(plume.figdir + 'injectionModel/RearrangedGroupsRS.pdf')
+plt.show()
+
+#plot rearranged SOLUTION-with Tau
+zCLrearranged = C**6 * (thetaS/g) * (Phi/zi)**2 * Omega**(-3.)+ zS
+plt.figure()
+plt.title('REARRANGED FORM NM')
+plt.scatter(zCLrearranged, zCL)
+plt.gca().set(xlabel=r'$C^6\left[\frac{\theta_s}{g}\right] \left[\frac{I}{z_i}\right]^2 \left[\theta_{CL}-\theta_s\right]+z_s$',ylabel=r'$z_{CL}$')
+plt.savefig(plume.figdir + 'injectionModel/RearrangedGroupsNM.pdf')
+plt.show()
+
+#plot velocity comparison
+plt.figure()
+plt.title('COMARE VELOCITIES')
+plt.scatter(wStarC/(Tau*C),(Phi/(zi * Omega)) )
+plt.gca().set(xlabel=r'$\widetilde{w_f}$',ylabel=r'$\frac{I}{z_i(\theta_{CL}-\theta_s)}$',aspect='equal',xlim = [0,20],ylim = [0,20])
+plt.savefig(plume.figdir + 'injectionModel/CompareWs.pdf')
+plt.show()
