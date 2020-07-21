@@ -41,6 +41,9 @@ Omega = np.empty((runCnt)) * np.nan             #cumulative vertical temperature
 sounding = np.empty((runCnt,len(interpZ))) * np.nan         #storage for interpolated soundings
 gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for temperature gradient
 zCLerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
+profile = np.empty((runCnt,len(interpZ))) * np.nan
+quartiles = np.empty((runCnt,len(interpZ),2)) * np.nan
+maxI = np.empty((runCnt)) * np.nan
 
 #======================repeat main analysis for all runs first===================
 #loop through all LES cases
@@ -118,8 +121,14 @@ for nCase,Case in enumerate(RunList):
     stablePM = pm[:,1:][:,stablePMmask]
     stableProfile = np.mean(stablePM,1)
 
+    interpT= interp1d(levels,T0,fill_value='extrapolate')
+    T0interp = interpT(interpZ)
+
+    profile[nCase,:] = interp1d(levels,stableProfile,fill_value='extrapolate')(interpZ)
     pmQ1 = np.percentile(stablePM,25,axis = 1)
     pmQ3 = np.percentile(stablePM,75,axis = 1)
+    quartiles[nCase,:,0] = interp1d(levels,pmQ1,fill_value='extrapolate')(interpZ)
+    quartiles[nCase,:,1] = interp1d(levels,pmQ3,fill_value='extrapolate')(interpZ)
 
     #define heat source ------------------------
     masked_flux = ma.masked_less_equal(csdict['ghfx2D'],1)    #mask empty fire heat flux cells
@@ -134,7 +143,7 @@ for nCase,Case in enumerate(RunList):
     ignited = np.array([i for i in meanFire if i > 0.5])        #consider only cells that have heat flux about 500 W/m2
 
     Phi[nCase] = np.trapz(ignited, dx = plume.dx) * 1000 / ( 1.2 * 1005)    #calculate Phi by integrating kinematic heat flux along x (Km2/s)
-
+    maxI[nCase] = np.max(ignited) * plume.dx*len(ignited)
 
     #calculate injection height variables ---------------------------
     zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])    #injection height is where the centerline is stable and concentration doesn't change
@@ -213,6 +222,34 @@ for nCase,Case in enumerate(RunList):
 
     plt.close()
     print('.....saved in: %s' %(plume.figdir + 'CWIzCL/zcl%s.pdf' %Case))
+
+
+BLfrac = 0.75           #fraction of BL height to set zs at
+mf, bf = 0.99, 98.51
+thetaS = np.empty((runCnt)) * np.nan               #smoke injection height (m)
+thetaCL = np.empty((runCnt)) * np.nan               #smoke injection height (m)
+
+for nCase,Case in enumerate(RunList):
+    zS = zi[nCase]*BLfrac
+    zsidx = np.argmin(abs(interpZ - zS))
+    thetaS[nCase] = sounding[nCase,zsidx]
+    thetaCL[nCase] = sounding[nCase,zCLidx]
+    Tau = 1/ np.sqrt(g*Omega[nCase]/(thetaS[nCase] * (zCL[nCase]-zS)))
+    wStar = (3./4)*Tau*((g*Phi[nCase]*(zCL[nCase]-zS)*(3/2.))/(thetaS[nCase]*zi[nCase]))**(1/3.)
+    wStarMax = (3./4)*Tau*((g*maxI[nCase]*(zCL[nCase]-zS)*(3/2.))/(thetaS[nCase]*zi[nCase]))**(1/3.)
+
+    plt.figure()
+    plt.title('%s' %Case)
+    plt.plot(profile[nCase,:]/1000,interpZ,label=' PM profile')
+    ax = plt.gca()
+    ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
+    ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.35,label='IQR')
+    ax.axhline(y = zCL[nCase], ls='--', c='black', label='z$_{CL}$')
+    ax.axhline(y = mf*(wStar + zS) + bf, ls='--', c='red',label='z$_{CL} model$' )
+    ax.axhline(y = mf*(wStarMax + zS) + bf, ls=':', c='red',label='z$_{CL} max$' )
+    plt.legend()
+    plt.savefig(plume.figdir + 'distribution/pmProf%s.pdf' %Case)
+    plt.close()
 
 # np.savetxt('profiles.csv',sounding.T,fmt='%.2f',delimiter=',', header = str(plume.read_tag('R',RunList)))
 # plt.figure(figsize=(12,12))

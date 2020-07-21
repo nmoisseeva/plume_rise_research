@@ -211,14 +211,17 @@ wStarC = Tau*((g*Phi*(zCL-zS))/(thetaS*zi))**(1/3.)
 wStarCFit = linregress(wStarC+zS,zCL)
 C = wStarCFit[0]
 
+
 plt.figure()
 plt.title('MODELLED SMOKE INJECTION HEIGHTS')
 ax = plt.gca()
+# plt.scatter(wStarC+zS,zCL,c=plume.read_tag('R',RunList),cmap =plt.cm.tab10)
 plt.scatter(wStarC+zS,zCL,c=Phi,cmap =plt.cm.plasma)
 ax.set(ylabel = r'$z_{CL}$ [m]', xlabel = r'$C\tau_* \widetilde{w_f} + \frac{3}{4}z_i$ [m]',xlim = [400,3200], ylim = [400,3200])
 # for i, txt in enumerate(RunList):
 #     ax.annotate(txt, (wStar4[i]+zi[i]*(2/3), zCL[i]),fontsize=6)
 plt.colorbar(label=r'fireline intensity [K m$^2$/s]')
+# plt.colorbar(label=r'atmospheric profile number')
 plt.plot(np.sort(wStarC+zS),C*np.sort(wStarC+zS) + wStarCFit[1], color='black', label='linear regression fit')
 plt.plot(np.sort(C*wStarC+zS),np.sort(C*wStarC+zS), linestyle = 'dashed', color='grey', label='unity line')
 plt.legend()
