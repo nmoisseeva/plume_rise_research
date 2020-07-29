@@ -177,7 +177,7 @@ for nCase,Case in enumerate(RunList):
     cbari.set_label('CWI smoke $[ppm]$')
     ax1.plot(haxis,centerline[:cropX],ls='--', c='dimgrey',label='plume centerline' )
     ax1.axhline(y = zi[nCase], ls=':', c='darkgrey', label='BL height at ignition')
-    ax1.set(ylabel='height AGL [m]')
+    ax1.set(ylabel='height [m]')
     ax1.set(xlim=[0,axMax],ylim=[0,levels[-1]],aspect='equal')
     ax1.legend()
     # ---heat flux
@@ -197,15 +197,17 @@ for nCase,Case in enumerate(RunList):
 
 
     ax3=fig.add_subplot(gs[2])
-    l1, = plt.plot(haxis, pmCtr[:cropX]/1000, label='concentration gradient', color='C1')
-    l2 = ax3.fill_between(haxis, 0, 1, where=stablePMmask[:cropX], color='grey', alpha=0.4, transform=ax3.get_xaxis_transform(), label='averaging window')
-    ax3.set(xlim=[0,axMax],xlabel='horizontal distance [m]',ylabel='concentration gradient [ppm]' )
+    l1 = ax3.fill_between(haxis, 0, 1, where=stablePMmask[:cropX], color='grey', alpha=0.4, transform=ax3.get_xaxis_transform(), label='averaging window')
+    ax3.set(xlim=[0,axMax],ylim=[0,3200], ylabel='height [m]',xlabel='distance [m]')
+    l3, = ax3.plot(haxis,smoothCenterline[:cropX], label='smoothed centerline height ', color='C2')
+    l2, = ax3.plot(haxis,centerline[:cropX], label='raw centerline height', color='C4',linestyle=':')
     ax32 = ax3.twinx()
-    l3, = plt.plot(haxis,smoothCenterline[:cropX], label='smoothed centerline height ', color='C2',linewidth=1)
-    l4, = plt.plot(haxis,centerline[:cropX], label='centerline height', color='C4',linestyle=':')
-    ax32.set(xlim=[0,axMax],ylim=[0,3200], ylabel='height [m]' )
+    ax32.set(xlim=[0,axMax],xlabel='distance [m]')
+    l4, = plt.plot(haxis, pmCtr[:cropX]/1000, label='concentration gradient', color='C1',linewidth=1)
     plt.legend(handles = [l1,l2,l3,l4])
     ax3.text(0.02, 0.93, '(c)', horizontalalignment='center', verticalalignment='center', transform=ax3.transAxes, weight='bold')
+    ax32.tick_params(axis='y',colors='C1')
+    ax32.set_ylabel('concentration gradient [ppm]', color='C1')
 
     ax4=fig.add_subplot(gs[3])
     plt.plot(stableProfile/1000, levels,label=' PM profile')
@@ -215,11 +217,9 @@ for nCase,Case in enumerate(RunList):
     ax4.text(0.1, 0.93, '(d)', horizontalalignment='center', verticalalignment='center', transform=ax4.transAxes, weight='bold')
 
     plt.legend()
-
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     # plt.show()
     plt.savefig(plume.figdir + 'CWIzCL/zcl%s.pdf' %Case)
-
     plt.close()
     print('.....saved in: %s' %(plume.figdir + 'CWIzCL/zcl%s.pdf' %Case))
 
