@@ -43,7 +43,6 @@ gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for tempera
 zCLerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
 profile = np.empty((runCnt,len(interpZ))) * np.nan
 quartiles = np.empty((runCnt,len(interpZ),2)) * np.nan
-maxI = np.empty((runCnt)) * np.nan
 
 #======================repeat main analysis for all runs first===================
 #loop through all LES cases
@@ -119,12 +118,13 @@ for nCase,Case in enumerate(RunList):
         x[:int(6000/plume.dx)] = False
         stablePMmask = list(x)
     stablePM = pm[:,1:][:,stablePMmask]
-    stableProfile = np.mean(stablePM,1)
+    stableProfile = np.median(stablePM,1)
 
     interpT= interp1d(levels,T0,fill_value='extrapolate')
     T0interp = interpT(interpZ)
 
     profile[nCase,:] = interp1d(levels,stableProfile,fill_value='extrapolate')(interpZ)
+
     pmQ1 = np.percentile(stablePM,25,axis = 1)
     pmQ3 = np.percentile(stablePM,75,axis = 1)
     quartiles[nCase,:,0] = interp1d(levels,pmQ1,fill_value='extrapolate')(interpZ)
@@ -143,7 +143,6 @@ for nCase,Case in enumerate(RunList):
     ignited = np.array([i for i in meanFire if i > 0.5])        #consider only cells that have heat flux about 500 W/m2
 
     Phi[nCase] = np.trapz(ignited, dx = plume.dx) * 1000 / ( 1.2 * 1005)    #calculate Phi by integrating kinematic heat flux along x (Km2/s)
-    maxI[nCase] = np.max(ignited) * plume.dx*len(ignited)
 
     #calculate injection height variables ---------------------------
     zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])    #injection height is where the centerline is stable and concentration doesn't change
@@ -225,31 +224,102 @@ for nCase,Case in enumerate(RunList):
 
 
 BLfrac = 0.75           #fraction of BL height to set zs at
-mf, bf = 0.99, 98.51
+mf, bf = 0.9243, 115.059
+C = 1.0087
 thetaS = np.empty((runCnt)) * np.nan               #smoke injection height (m)
 thetaCL = np.empty((runCnt)) * np.nan               #smoke injection height (m)
+OmegaOver = np.empty((runCnt)) * np.nan               #smoke injection height (m)
+OmegaUnder = np.empty((runCnt)) * np.nan               #smoke injection height (m)
+zCLP = np.empty((runCnt)) * np.nan
+Gamma = np.empty((runCnt)) * np.nan
+zCLGuess = np.empty((runCnt)) * np.nan
+zMax = np.empty((runCnt)) * np.nan
+zMaxGuess = np.empty((runCnt)) * np.nan
+
+exclude = ['W5F4R6TE','W5F13R6TE','W5F12R5TE','W5F4R5TE','W5F1R1','W5F13R7T','W5F7R8T','W5F13R5TE']
 
 for nCase,Case in enumerate(RunList):
-    zS = zi[nCase]*BLfrac
-    zsidx = np.argmin(abs(interpZ - zS))
-    thetaS[nCase] = sounding[nCase,zsidx]
-    thetaCL[nCase] = sounding[nCase,zCLidx]
-    Tau = 1/ np.sqrt(g*Omega[nCase]/(thetaS[nCase] * (zCL[nCase]-zS)))
-    wStar = (3./4)*Tau*((g*Phi[nCase]*(zCL[nCase]-zS)*(3/2.))/(thetaS[nCase]*zi[nCase]))**(1/3.)
-    wStarMax = (3./4)*Tau*((g*maxI[nCase]*(zCL[nCase]-zS)*(3/2.))/(thetaS[nCase]*zi[nCase]))**(1/3.)
+    if Case in exclude:
+        continue
+    else:
+        zS = zi[nCase]*BLfrac
+        zsidx = np.argmin(abs(interpZ - zS))
+        ziidx = np.argmin(abs(interpZ - zi[nCase]))
+        zCLidx = np.argmin(abs(interpZ - zCL[nCase]))
+        zCLidxP = np.argmax(profile[nCase])
+        thetaS[nCase] = sounding[nCase,zsidx]
+        thetaCL[nCase] = sounding[nCase,zCLidx]
 
-    plt.figure()
-    plt.title('%s' %Case)
-    plt.plot(profile[nCase,:]/1000,interpZ,label=' PM profile')
-    ax = plt.gca()
-    ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
-    ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.35,label='IQR')
-    ax.axhline(y = zCL[nCase], ls='--', c='black', label='z$_{CL}$')
-    ax.axhline(y = mf*(wStar + zS) + bf, ls='--', c='red',label='z$_{CL} model$' )
-    ax.axhline(y = mf*(wStarMax + zS) + bf, ls=':', c='red',label='z$_{CL} max$' )
-    plt.legend()
-    plt.savefig(plume.figdir + 'distribution/pmProf%s.pdf' %Case)
-    plt.close()
+        #far zCL estimate
+        Tau = 1/ np.sqrt(g*Omega[nCase]/(thetaS[nCase] * (zCL[nCase]-zS)))
+        wStar = C*Tau*((g*Phi[nCase]*(zCL[nCase]-zS))/(thetaS[nCase]*zi[nCase]))**(1/3.)
+        zCLGuess[nCase] = mf*(wStar+zS) + bf
+
+        dPM = profile[nCase,1:] - profile[nCase,:-1]
+        cutoff = dPM[zCLidxP+5:][abs(dPM[zCLidxP+5:])<np.max(dPM)*0.05][0]
+        pmTopFind = np.where(dPM==cutoff)
+        if len(pmTopFind)==0:
+            pmTopidx = len(interpZ)
+        else:
+            pmTopidx = pmTopFind[0][0]
+        OmegaUnder[nCase] = sounding[nCase,zCLidxP] - sounding[nCase,zsidx]
+        OmegaOver[nCase] = sounding[nCase,pmTopidx] - sounding[nCase,zCLidxP]
+        zMax[nCase] = interpZ[pmTopidx]
+        zCLP[nCase] = interpZ[zCLidxP]
+
+        #gamma fit
+        # fittopidx = np.nanargmin(abs(interpZ - 2700))
+        baselinedTheta = sounding[nCase,zCLidxP:zCLidxP+50] - sounding[nCase,zsidx]
+        GammaFit = linregress(interpZ[zCLidxP:zCLidxP+50],baselinedTheta)
+        Gamma[nCase] = GammaFit[0]
+
+        #get top prediction
+        overshoot = (zCLP[nCase] - zS)*Gamma[nCase]
+        dTabove = sounding[nCase,zCLidxP+1:] - sounding[nCase,zCLidxP:-1]
+        OmegaOverGuess = np.cumsum(dTabove)
+        zMaxidx= np.argmin(abs(OmegaOverGuess - overshoot)) + zCLidxP
+        zMaxGuess[nCase] = interpZ[zMaxidx]
+
+        plt.figure()
+        plt.title('%s' %Case)
+        plt.plot(profile[nCase,:]/1000,interpZ,label=' PM median profile')
+        ax = plt.gca()
+        ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
+        ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.35,label='IQR')
+        ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
+        # ax.axhline(y = zCLGuess[nCase], ls='--', c='red', label='z$_{CL} LES$')
+        ax.axhline(y = zMax, ls=':', c='purple',label='$z_{max}$ true' )
+        ax.axhline(y = zMaxGuess, ls=':', c='red',label='$z_{max}$ true' )
+
+        plt.legend()
+        plt.savefig(plume.figdir + 'distribution/pmProf%s.pdf' %Case)
+        plt.close()
+
+
+
+TauP = C*1/ np.sqrt(g*OmegaUnder/(thetaS * (zCLP-zi*BLfrac)))
+wStarArray = ((g*Phi*(zCLP-zi*BLfrac))/(thetaS*zi))**(1/3.)
+predictor = OmegaUnder*Gamma*zi/(wStarArray)
+errorMax = zMax-zMaxGuess
+# plt.scatter(predictor,OmegaOver,c=Phi)
+
+plt.figure(figsize=(10,5))
+plt.subplot(121)
+plt.title('PREDICTING DISTRIBUTION TOP')
+plt.scatter((zCLP-zi*BLfrac)*Gamma,OmegaOver)
+plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal',xlim=[0,20],ylim=[0,20])
+
+plt.subplot(122)
+plt.title('ERROR BOXPLOT: true - modelled')
+plt.boxplot(errorMax[np.isfinite(errorMax)])
+plt.tight_layout()
+plt.savefig(plume.figdir + 'distribution/OmegaOver.pdf' )
+plt.close()
+
+# plt.xlim([0,0.0002])
+
+# for i, txt in enumerate(RunList):
+#     plt.gca().annotate(txt, (predictor[i], OmegaOver[i]),fontsize=6)
 
 # np.savetxt('profiles.csv',sounding.T,fmt='%.2f',delimiter=',', header = str(plume.read_tag('R',RunList)))
 # plt.figure(figsize=(12,12))

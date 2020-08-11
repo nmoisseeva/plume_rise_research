@@ -26,8 +26,8 @@ import plume
 imp.reload(plume) 	             #force load each time
 g = 9.81                         #gravity
 # mf, bf =  2.158, 438.878         #slope and intercept from LES regression model
-mf, bf = 0.9243, 115.059
-C = 1.0087
+mf, bf = 0.9240, 116.4168
+C = 1.0054
 zstep = 20.                      #vertical step to interpolate to
 # zs = 200.                       #surface layer height
 BLfrac = 0.75           #fraction of BL height to set zs at
