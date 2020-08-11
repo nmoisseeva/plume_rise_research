@@ -295,22 +295,18 @@ for nCase,Case in enumerate(RunList):
         plt.savefig(plume.figdir + 'distribution/pmProf%s.pdf' %Case)
         plt.close()
 
-
-
-TauP = C*1/ np.sqrt(g*OmegaUnder/(thetaS * (zCLP-zi*BLfrac)))
-wStarArray = ((g*Phi*(zCLP-zi*BLfrac))/(thetaS*zi))**(1/3.)
-predictor = OmegaUnder*Gamma*zi/(wStarArray)
 errorMax = zMax-zMaxGuess
-# plt.scatter(predictor,OmegaOver,c=Phi)
+predictor = (zCLP-zi*BLfrac)*Gamma
+topFit = linregress(predictor[np.isfinite(predictor)],OmegaOver[np.isfinite(OmegaOver)])
 
 plt.figure(figsize=(10,5))
 plt.subplot(121)
-plt.title('PREDICTING DISTRIBUTION TOP')
+plt.title('PREDICTING DISTRIBUTION TOP: R=%.2f' %topFit[0])
 plt.scatter((zCLP-zi*BLfrac)*Gamma,OmegaOver)
 plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal',xlim=[0,20],ylim=[0,20])
 
 plt.subplot(122)
-plt.title('ERROR BOXPLOT: true - modelled')
+plt.title(r'ERROR BOXPLOT: (true - model)')
 plt.boxplot(errorMax[np.isfinite(errorMax)])
 plt.tight_layout()
 plt.savefig(plume.figdir + 'distribution/OmegaOver.pdf' )
