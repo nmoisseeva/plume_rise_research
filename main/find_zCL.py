@@ -11,8 +11,7 @@ from matplotlib import ticker
 from scipy.signal import savgol_filter
 from scipy.stats import linregress
 from scipy.interpolate import interp1d
-
-
+from scipy.optimize import curve_fit
 
 
 #====================INPUT===================
@@ -235,6 +234,8 @@ Gamma = np.empty((runCnt)) * np.nan
 zCLGuess = np.empty((runCnt)) * np.nan
 zMax = np.empty((runCnt)) * np.nan
 zMaxGuess = np.empty((runCnt)) * np.nan
+pcnt = np.empty((runCnt)) * np.nan
+
 
 exclude = ['W5F4R6TE','W5F13R6TE','W5F12R5TE','W5F4R5TE','W5F1R1','W5F13R7T','W5F7R8T','W5F13R5TE']
 
@@ -262,10 +263,17 @@ for nCase,Case in enumerate(RunList):
             pmTopidx = len(interpZ)
         else:
             pmTopidx = pmTopFind[0][0]
+
+
+        # cutoff = profile[nCase,zCLidxP] * 0.01
+        # pmTopidx = np.argmin(abs(profile[nCase,zCLidxP:] - cutoff)) + zCLidxP
+
+
         OmegaUnder[nCase] = sounding[nCase,zCLidxP] - sounding[nCase,zsidx]
         OmegaOver[nCase] = sounding[nCase,pmTopidx] - sounding[nCase,zCLidxP]
         zMax[nCase] = interpZ[pmTopidx]
         zCLP[nCase] = interpZ[zCLidxP]
+        pcnt[nCase] = profile[nCase,pmTopidx]/np.max(profile[nCase,:])
 
         #gamma fit
         # fittopidx = np.nanargmin(abs(interpZ - 2700))
@@ -280,19 +288,53 @@ for nCase,Case in enumerate(RunList):
         zMaxidx= np.argmin(abs(OmegaOverGuess - overshoot)) + zCLidxP
         zMaxGuess[nCase] = interpZ[zMaxidx]
 
+        #fit a gamma distribution to the top, middle and bottom
+        xin = np.array([0, zCLP[nCase], zMaxGuess[nCase], zMaxGuess[nCase]+500,zMaxGuess[nCase]+1000])
+        yin = np.array([0, 1, 0.01, 0,0])
+        # from scipy.stats import invgauss
+        # from scipy.stats import gamma
+        # popt, pcov = curve_fit(invgauss, xin, yin)
+        # fit = np.polyfit(xin, yin, 4)
+        # poly = np.poly1d(fit)
+        # plt.plot(xin, poly(xin))
+
+        from scipy.stats import norm
+        y_pdf = norm.pdf(interpZ, zCLP[nCase], (zMax[nCase] - zCLP[nCase])/3.) # the normal pdf
+
+        plt.plot(interpZ, y_pdf, label='pdf')
+        plt.legend();
+
+        # normPM = np.max(profile[nCase,:])
+        # plt.figure()
+        # plt.title('%s' %Case)
+        # plt.plot(profile[nCase,:]/normPM,interpZ,label=' PM median profile')
+        # ax = plt.gca()
+        # ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
+        # ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/normPM,quartiles[nCase,:,1]/normPM, alpha=0.2,label='IQR')
+        # plt.plot(y_pdf/np.max(y_pdf),interpZ,label=' Gaussian fit')
+        # ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
+        # ax.axhline(y = zi[nCase], ls=':', c='grey', label='z$_{i}$')
+        # # ax.axhline(y = zCLGuess[nCase], ls='--', c='red', label='z$_{CL} LES$')
+        # ax.axhline(y = zMax[nCase], ls=':', c='purple',label='$z_{max}$ true' )
+        # ax.axhline(y = zMaxGuess[nCase], ls=':', c='red',label='$z_{max}$ model' )
+        # plt.legend()
+        # plt.savefig(plume.figdir + 'distribution/normalized/normProf%s.pdf' %Case)
+        # plt.close()
+
+        convert_to_ugm3 = 1.1225
         plt.figure()
         plt.title('%s' %Case)
-        plt.plot(profile[nCase,:]/1000,interpZ,label=' PM median profile')
+        plt.plot(profile[nCase,:]/convert_to_ugm3,interpZ,label=' PM median profile')
         ax = plt.gca()
         ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
-        ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.35,label='IQR')
+        ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/convert_to_ugm3,quartiles[nCase,:,1]/convert_to_ugm3, alpha=0.35,label='IQR')
         ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
+        plt.plot(y_pdf/(np.max(y_pdf)*np.max(profile[nCase,:])/convert_to_ugm3),interpZ,label=' Gaussian fit')
         # ax.axhline(y = zCLGuess[nCase], ls='--', c='red', label='z$_{CL} LES$')
-        ax.axhline(y = zMax, ls=':', c='purple',label='$z_{max}$ true' )
-        ax.axhline(y = zMaxGuess, ls=':', c='red',label='$z_{max}$ true' )
-
+        ax.axhline(y = zMax[nCase], ls=':', c='purple',label='$z_{max}$ true' )
+        ax.axhline(y = zMaxGuess[nCase], ls=':', c='red',label='$z_{max}$ model' )
         plt.legend()
-        plt.savefig(plume.figdir + 'distribution/pmProf%s.pdf' %Case)
+        plt.savefig(plume.figdir + 'distribution/raw/pmProf%s.pdf' %Case)
         plt.close()
 
 errorMax = zMax-zMaxGuess
@@ -303,7 +345,8 @@ plt.figure(figsize=(10,5))
 plt.subplot(121)
 plt.title('PREDICTING DISTRIBUTION TOP: R=%.2f' %topFit[0])
 plt.scatter((zCLP-zi*BLfrac)*Gamma,OmegaOver)
-plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal',xlim=[0,20],ylim=[0,20])
+# plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal',xlim=[0,20],ylim=[0,20])
+plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal')
 
 plt.subplot(122)
 plt.title(r'ERROR BOXPLOT: (true - model)')
@@ -311,21 +354,3 @@ plt.boxplot(errorMax[np.isfinite(errorMax)])
 plt.tight_layout()
 plt.savefig(plume.figdir + 'distribution/OmegaOver.pdf' )
 plt.close()
-
-# plt.xlim([0,0.0002])
-
-# for i, txt in enumerate(RunList):
-#     plt.gca().annotate(txt, (predictor[i], OmegaOver[i]),fontsize=6)
-
-# np.savetxt('profiles.csv',sounding.T,fmt='%.2f',delimiter=',', header = str(plume.read_tag('R',RunList)))
-# plt.figure(figsize=(12,12))
-# for nCase,Case in enumerate(RunList):
-#     plt.subplot(3,3,nCase+1)
-#     plt.plot(sounding[nCase,:],interpZ)
-#     plt.axhline(y=zi[nCase], ls='--',label='zi=%d' %zi[nCase])
-#     plt.title('%s: PHI=%.2f' %(Case,Phi[nCase]))
-#     plt.gca().set(xlabel='Theta [K]',ylabel='z [m]',ylim =[0,2500])
-#     plt.legend()
-# plt.tight_layout()
-# # plt.show()
-# plt.savefig(plume.figdir + 'CWIzCL/ziTEST.pdf')
