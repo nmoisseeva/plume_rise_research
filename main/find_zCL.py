@@ -235,7 +235,7 @@ zCLGuess = np.empty((runCnt)) * np.nan
 zMax = np.empty((runCnt)) * np.nan
 zMaxGuess = np.empty((runCnt)) * np.nan
 pcnt = np.empty((runCnt)) * np.nan
-
+profileModelled = np.empty_like(profile) * np.nan
 
 exclude = ['W5F4R6TE','W5F13R6TE','W5F12R5TE','W5F4R5TE','W5F1R1','W5F13R7T','W5F7R8T','W5F13R5TE']
 
@@ -301,9 +301,7 @@ for nCase,Case in enumerate(RunList):
         from scipy.stats import norm
         y_pdf = norm.pdf(interpZ, zCLP[nCase], (zMax[nCase] - zCLP[nCase])/3.) # the normal pdf
 
-        plt.plot(interpZ, y_pdf, label='pdf')
-        plt.legend();
-
+        profileModelled[nCase,:] = y_pdf*np.max(profile[nCase,:])/(np.max(y_pdf)*1000)
         # normPM = np.max(profile[nCase,:])
         # plt.figure()
         # plt.title('%s' %Case)
@@ -321,15 +319,14 @@ for nCase,Case in enumerate(RunList):
         # plt.savefig(plume.figdir + 'distribution/normalized/normProf%s.pdf' %Case)
         # plt.close()
 
-        convert_to_ugm3 = 1.1225
         plt.figure()
         plt.title('%s' %Case)
-        plt.plot(profile[nCase,:]/convert_to_ugm3,interpZ,label=' PM median profile')
+        plt.plot(profile[nCase,:]/1000,interpZ,label=' PM median profile')
         ax = plt.gca()
         ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
-        ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/convert_to_ugm3,quartiles[nCase,:,1]/convert_to_ugm3, alpha=0.35,label='IQR')
+        ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.35,label='IQR')
         ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
-        plt.plot(y_pdf/(np.max(y_pdf)*np.max(profile[nCase,:])/convert_to_ugm3),interpZ,label=' Gaussian fit')
+        plt.plot(profileModelled[nCase,:],interpZ,label=' Gaussian fit')
         # ax.axhline(y = zCLGuess[nCase], ls='--', c='red', label='z$_{CL} LES$')
         ax.axhline(y = zMax[nCase], ls=':', c='purple',label='$z_{max}$ true' )
         ax.axhline(y = zMaxGuess[nCase], ls=':', c='red',label='$z_{max}$ model' )
@@ -354,3 +351,27 @@ plt.boxplot(errorMax[np.isfinite(errorMax)])
 plt.tight_layout()
 plt.savefig(plume.figdir + 'distribution/OmegaOver.pdf' )
 plt.close()
+
+normprofile = np.empty_like(profile) * np.nan
+normprofileModelled = np.empty_like(profile) * np.nan
+MAE = np.empty_like(zCL) * np.nan
+MAE_BL = np.empty_like(zCL) * np.nan
+MAE_FA = np.empty_like(zCL) * np.nan
+
+
+for nCase,Case in enumerate(RunList):
+    ziidx = np.argmin(abs(interpZ - zi[nCase]))
+    normtruth = profile[nCase,:]/np.nanmax(profile[nCase,:])
+    normmodel = profileModelled[nCase,:]/np.nanmax(profileModelled[nCase,:])
+    normprofile[nCase,:] = normtruth
+    normprofileModelled[nCase,:] = normmodel
+    mae_subset = np.where((normtruth > 0.001) & (normmodel > 0.001))[0]
+    MAE[nCase] = np.nanmean(abs(normtruth[mae_subset] - normmodel[mae_subset]))
+    MAE_BL[nCase] = np.nanmean(abs(normtruth[mae_subset][mae_subset < ziidx] - normmodel[mae_subset][mae_subset < ziidx]))
+    MAE_FA[nCase] = np.nanmean(abs(normtruth[mae_subset][mae_subset >= ziidx] - normmodel[mae_subset][mae_subset >= ziidx]))
+
+plt.figure()
+plt.title('NORMALIZED DISTRIBUTION MAE')
+plt.boxplot([MAE_BL[np.isfinite(MAE_BL)],MAE_FA[np.isfinite(MAE_FA)],MAE[np.isfinite(MAE)]], labels = ('ABL','FREE ATM','TOTAL'))
+plt.gca().set(ylabel='MAE (normalized concentration)')
+plt.savefig(plume.figdir + 'distribution/MAEdistribution.pdf')
