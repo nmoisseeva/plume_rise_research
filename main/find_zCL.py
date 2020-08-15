@@ -236,6 +236,8 @@ zMax = np.empty((runCnt)) * np.nan
 zMaxGuess = np.empty((runCnt)) * np.nan
 pcnt = np.empty((runCnt)) * np.nan
 profileModelled = np.empty_like(profile) * np.nan
+profileHalfModelled = np.empty_like(profile) * np.nan
+
 
 exclude = ['W5F4R6TE','W5F13R6TE','W5F12R5TE','W5F4R5TE','W5F1R1','W5F13R7T','W5F7R8T','W5F13R5TE']
 
@@ -256,17 +258,17 @@ for nCase,Case in enumerate(RunList):
         wStar = C*Tau*((g*Phi[nCase]*(zCL[nCase]-zS))/(thetaS[nCase]*zi[nCase]))**(1/3.)
         zCLGuess[nCase] = mf*(wStar+zS) + bf
 
-        dPM = profile[nCase,1:] - profile[nCase,:-1]
-        cutoff = dPM[zCLidxP+5:][abs(dPM[zCLidxP+5:])<np.max(dPM)*0.05][0]
-        pmTopFind = np.where(dPM==cutoff)
-        if len(pmTopFind)==0:
-            pmTopidx = len(interpZ)
-        else:
-            pmTopidx = pmTopFind[0][0]
+        # dPM = profile[nCase,1:] - profile[nCase,:-1]
+        # cutoff = dPM[zCLidxP+5:][abs(dPM[zCLidxP+5:])<np.max(dPM)*0.05][0]
+        # pmTopFind = np.where(dPM==cutoff)
+        # if len(pmTopFind)==0:
+        #     pmTopidx = len(interpZ)
+        # else:
+        #     pmTopidx = pmTopFind[0][0]
 
 
-        # cutoff = profile[nCase,zCLidxP] * 0.01
-        # pmTopidx = np.argmin(abs(profile[nCase,zCLidxP:] - cutoff)) + zCLidxP
+        cutoff = profile[nCase,zCLidxP] * 0.0015
+        pmTopidx = np.argmin(abs(profile[nCase,zCLidxP:] - cutoff)) + zCLidxP
 
 
         OmegaUnder[nCase] = sounding[nCase,zCLidxP] - sounding[nCase,zsidx]
@@ -288,20 +290,11 @@ for nCase,Case in enumerate(RunList):
         zMaxidx= np.argmin(abs(OmegaOverGuess - overshoot)) + zCLidxP
         zMaxGuess[nCase] = interpZ[zMaxidx]
 
-        #fit a gamma distribution to the top, middle and bottom
-        xin = np.array([0, zCLP[nCase], zMaxGuess[nCase], zMaxGuess[nCase]+500,zMaxGuess[nCase]+1000])
-        yin = np.array([0, 1, 0.01, 0,0])
-        # from scipy.stats import invgauss
-        # from scipy.stats import gamma
-        # popt, pcov = curve_fit(invgauss, xin, yin)
-        # fit = np.polyfit(xin, yin, 4)
-        # poly = np.poly1d(fit)
-        # plt.plot(xin, poly(xin))
-
         from scipy.stats import norm
-        y_pdf = norm.pdf(interpZ, zCLP[nCase], (zMax[nCase] - zCLP[nCase])/3.) # the normal pdf
-
-        profileModelled[nCase,:] = y_pdf*np.max(profile[nCase,:])/(np.max(y_pdf)*1000)
+        y_pdf_Fair = norm.pdf(interpZ, zCLP[nCase], (zMaxGuess[nCase] - zCLP[nCase])/3.) # the normal pdf
+        profileModelled[nCase,:] = y_pdf_Fair*np.max(profile[nCase,:])/(np.max(y_pdf_Fair)*1000)
+        y_pdf_zMax = norm.pdf(interpZ, zCLP[nCase], (zMax[nCase] - zCLP[nCase])/3.) # the normal pdf
+        profileHalfModelled[nCase,:] = y_pdf_zMax*np.max(profile[nCase,:])/(np.max(y_pdf_zMax)*1000)
         # normPM = np.max(profile[nCase,:])
         # plt.figure()
         # plt.title('%s' %Case)
@@ -324,11 +317,12 @@ for nCase,Case in enumerate(RunList):
         plt.plot(profile[nCase,:]/1000,interpZ,label=' PM median profile')
         ax = plt.gca()
         ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
-        ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.35,label='IQR')
+        ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.2,label='IQR')
         ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
-        plt.plot(profileModelled[nCase,:],interpZ,label=' Gaussian fit')
+        plt.plot(profileHalfModelled[nCase,:],interpZ,c='C1', linewidth='0.5',label=' Gaussian fit, with true $z_{max}$')
+        plt.plot(profileModelled[nCase,:],interpZ,c='C1',label=' Gaussian fit')
         # ax.axhline(y = zCLGuess[nCase], ls='--', c='red', label='z$_{CL} LES$')
-        ax.axhline(y = zMax[nCase], ls=':', c='purple',label='$z_{max}$ true' )
+        ax.axhline(y = zMax[nCase], ls='--', c='C2',label='$z_{max}$ true' )
         ax.axhline(y = zMaxGuess[nCase], ls=':', c='red',label='$z_{max}$ model' )
         plt.legend()
         plt.savefig(plume.figdir + 'distribution/raw/pmProf%s.pdf' %Case)
@@ -340,7 +334,7 @@ topFit = linregress(predictor[np.isfinite(predictor)],OmegaOver[np.isfinite(Omeg
 
 plt.figure(figsize=(10,5))
 plt.subplot(121)
-plt.title('PREDICTING DISTRIBUTION TOP: R=%.2f' %topFit[0])
+plt.title('PREDICTING DISTRIBUTION TOP: R=%.2f' %topFit[2])
 plt.scatter((zCLP-zi*BLfrac)*Gamma,OmegaOver)
 # plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal',xlim=[0,20],ylim=[0,20])
 plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal')
@@ -375,3 +369,12 @@ plt.title('NORMALIZED DISTRIBUTION MAE')
 plt.boxplot([MAE_BL[np.isfinite(MAE_BL)],MAE_FA[np.isfinite(MAE_FA)],MAE[np.isfinite(MAE)]], labels = ('ABL','FREE ATM','TOTAL'))
 plt.gca().set(ylabel='MAE (normalized concentration)')
 plt.savefig(plume.figdir + 'distribution/MAEdistribution.pdf')
+plt.close()
+
+plt.figure()
+plt.title('WIND DEPENDANCE OF ABL MAE')
+plt.scatter(plume.read_tag('W', RunList),MAE_BL,c=zi)
+plt.colorbar(label=r'$z_i$ [m]')
+plt.gca().set(xlabel='wind [m/s]',ylabel='ABL MAE (normalized concentration)')
+plt.savefig(plume.figdir + 'distribution/ABL_MAEvsWind.pdf')
+plt.close()
