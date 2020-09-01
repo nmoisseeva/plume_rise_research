@@ -23,7 +23,6 @@ imp.reload(plume) 	#force load each time
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-RunList = ['W5F4R6T']
 
 runCnt = len(RunList)
 g = 9.81
@@ -54,6 +53,12 @@ for nCase,Case in enumerate(RunList):
     T0 = np.load(plume.wrfdir + 'interp/profT0' + Case + '.npy')
     U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
 
+    #create an interpolated profile of temperature
+    if Case[-1:]=='T' or Case[-1:]=='E':
+        levels = plume.lvltall
+    else:
+        levels=plume.lvl
+
     #mask plume with cutoff value---------------------------------
     dimT, dimZ, dimX = np.shape(csdict['temp'])
     pm = ma.masked_where(csdict['pm25'][-1,:,:] <= plume.PMcutoff, csdict['pm25'][-1,:,:] )
@@ -70,7 +75,7 @@ for nCase,Case in enumerate(RunList):
 
 
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)
-    centerline = ma.masked_where(plume.lvl[ctrZidx] == 0, plume.lvl[ctrZidx])
+    centerline = ma.masked_where(levels[ctrZidx] == 0, levels[ctrZidx])
     # centerline.mask[0:np.nanargmax(ctrZidx)] = True
     tilt = ymax/xmax                #tilt is calculated based on max centerline height
     # smoothCenterline = savgol_filter(centerline, 31, 3) # window size 101, polynomial order 3
@@ -132,26 +137,26 @@ for nCase,Case in enumerate(RunList):
     Phi[nCase] = np.trapz(ignited, dx = plume.dx) * 1000 / ( 1.2 * 1005)
     FI[nCase] = np.mean(burning)*  1000 / ( 1.2 * 1005)
 
-    #compare with center average only
-    avepath = plume.wrfdir + 'interp/wrfave_' + Case + '.npy'
-    avedict = np.load(avepath,allow_pickle=True).item()   # load here the above pickle
-    ignitedCtr = np.array([i for i in avedict['ghfx'] if i > 0.5])
-    HCtr = np.mean(ignitedCtr) * 1000 / ( 1.2 * 1005)         #get heat flux
-    rCtr = len(ignitedCtr) * plume.dx
-
-    #plot for reference
-    whaxis = np.arange(len(meanFire))*plume.dx
-    plt.title('SLAB vs. CENTER AVERAGE: %s' %Case)
-    ax = plt.gca()
-    plt.plot(whaxis[:150],meanFire[:150], label='slab average: r = %s, H = %2d' %(r[nCase],H))
-    # ax.fill_between(whaxis[:150], 0, 1, where=meanFire[:150]>0.5, color='red', alpha=0.1, transform=ax.get_xaxis_transform(), label='averaging window')
-    plt.plot(whaxis[:150],avedict['ghfx'][:150],color='C1',linestyle='--',label='center average:r = %s, H = %2d' %(rCtr,HCtr))
-    # ax.fill_between(whaxis[:150], 0, 1, where=avedict['ghfx'][:150]>0.5, color='grey', alpha=0.1, transform=ax.get_xaxis_transform(), label='averaging window')
-    ax.set(ylabel='heat flux [kW/m2]')
-    plt.legend()
-    plt.savefig(plume.figdir + 'fireDiagnostics/fire%s.pdf' %Case)
-    plt.close()
-    # plt.show()
+    # #compare with center average only
+    # avepath = plume.wrfdir + 'interp/wrfave_' + Case + '.npy'
+    # avedict = np.load(avepath,allow_pickle=True).item()   # load here the above pickle
+    # ignitedCtr = np.array([i for i in avedict['ghfx'] if i > 0.5])
+    # HCtr = np.mean(ignitedCtr) * 1000 / ( 1.2 * 1005)         #get heat flux
+    # rCtr = len(ignitedCtr) * plume.dx
+    #
+    # #plot for reference
+    # whaxis = np.arange(len(meanFire))*plume.dx
+    # plt.title('SLAB vs. CENTER AVERAGE: %s' %Case)
+    # ax = plt.gca()
+    # plt.plot(whaxis[:150],meanFire[:150], label='slab average: r = %s, H = %2d' %(r[nCase],H))
+    # # ax.fill_between(whaxis[:150], 0, 1, where=meanFire[:150]>0.5, color='red', alpha=0.1, transform=ax.get_xaxis_transform(), label='averaging window')
+    # plt.plot(whaxis[:150],avedict['ghfx'][:150],color='C1',linestyle='--',label='center average:r = %s, H = %2d' %(rCtr,HCtr))
+    # # ax.fill_between(whaxis[:150], 0, 1, where=avedict['ghfx'][:150]>0.5, color='grey', alpha=0.1, transform=ax.get_xaxis_transform(), label='averaging window')
+    # ax.set(ylabel='heat flux [kW/m2]')
+    # plt.legend()
+    # plt.savefig(plume.figdir + 'fireDiagnostics/fire%s.pdf' %Case)
+    # plt.close()
+    # # plt.show()
 
     #dimensional analysis variables ---------------------------
     # zCL[nCase] = np.mean(centerline[1:][stablePMmask])
@@ -160,7 +165,7 @@ for nCase,Case in enumerate(RunList):
 
 
     # zCLidx = int(np.mean(ctrZidx[1:][stablePMmask]))
-    zCLidx = np.argmin(abs(plume.lvl - zCL[nCase]))
+    zCLidx = np.argmin(abs(levels - zCL[nCase]))
     dT = T0[1:]-T0[0:-1]
     Ti[nCase] = T0[si+1]                                        #characteristic BL temperature
 
@@ -170,7 +175,7 @@ for nCase,Case in enumerate(RunList):
     if Omega[nCase] < 0 :
         print('\033[93m' + '$\Omega$: %0.2f ' %Omega[nCase] + '\033[0m')
         print('\033[93m' + 'Hard overwrite: Omega = Omega[zi]' + '\033[0m')
-        ziIdx = np.where(plume.lvl==zi[nCase])[0][0]
+        ziIdx = np.where(levels==zi[nCase])[0][0]
         Omega[nCase] = np.trapz(dT[si+1:ziIdx], dx = plume.dz)
         FlaggedCases.append(nCase)
     Ua[nCase] = np.mean(U0[si:zCLidx])
@@ -189,15 +194,15 @@ for nCase,Case in enumerate(RunList):
     ax1=fig.add_subplot(gs[0])
     axh1=ax1.twinx()
     # ---u contours and colorbar
-    im = ax1.imshow((csdict['u'][-1,:,:].T - U0).T, origin='lower', extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.RdBu_r,vmin=-4, vmax=4)
+    im = ax1.imshow((csdict['u'][-1,:,:].T - U0).T, origin='lower', extent=[0,dimX*plume.dx,0,levels[-1]],cmap=plt.cm.RdBu_r,vmin=-4, vmax=4)
     cbari = fig.colorbar(im, orientation='horizontal',aspect=60, shrink=0.5)
     cbari.set_label('ralative horizontal velocity $[m s^{-1}]$')
     # ---non-filled vapor contours and colorbar
-    cntr = ax1.contour(PMcontours[-1,:,:],extent=[0,dimX*plume.dx,0,plume.lvl[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.6)
+    cntr = ax1.contour(PMcontours[-1,:,:],extent=[0,dimX*plume.dx,0,levels[-1]],levels=pmLevels,locator=ticker.LogLocator(),cmap=plt.cm.Greys,linewidths=0.6)
     ax1.plot(haxis,centerline,ls='--', c='darkgrey',label='plume centerline' )
     ax1.axhline(y = zi[nCase], ls=':', c='darkgrey', label='BL height at ignition')
     ax1.set(ylabel='height AGL [m]')
-    ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,plume.lvl[-1]],aspect='equal')
+    ax1.set(xlim=[0,dimX*plume.dx],ylim=[0,levels[-1]],aspect='equal')
     ax1.legend()
     # ---heat flux
     ln = axh1.plot(np.arange(dimX)*plume.dx, csdict['ghfx'][-1,:], 'r-')
@@ -227,9 +232,9 @@ for nCase,Case in enumerate(RunList):
     plt.legend(handles = [l1,l2,l3,l4])
 
     ax4=fig.add_subplot(gs[3])
-    plt.plot(stableProfile, plume.lvl,label='vertical PM profile')
+    plt.plot(stableProfile, levels,label='vertical PM profile')
     ax4.set(xlabel='concentration [ug/kg]',ylabel='height [m]')
-    ax4.fill_betweenx(plume.lvl, pmQ1, pmQ3, alpha=0.35,label='IQR')
+    ax4.fill_betweenx(levels, pmQ1, pmQ3, alpha=0.35,label='IQR')
     plt.legend()
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
@@ -325,9 +330,9 @@ plt.close()
 # #------------Profile Comparison-----------
 # plt.figure(figsize=(12,4))
 # plt.title('DONWDIND CONCENTRATIONS')
-# plt.plot(FirelineProfiles[0]/np.max(FirelineProfiles[0]),plume.lvl)
-# plt.plot(FirelineProfiles[1]/np.max(FirelineProfiles[1]),plume.lvl)
-# plt.plot(FirelineProfiles[2]/np.max(FirelineProfiles[2]),plume.lvl)
+# plt.plot(FirelineProfiles[0]/np.max(FirelineProfiles[0]),levels)
+# plt.plot(FirelineProfiles[1]/np.max(FirelineProfiles[1]),levels)
+# plt.plot(FirelineProfiles[2]/np.max(FirelineProfiles[2]),levels)
 # plt.gca().set(xlabel='normalized concentration', ylabel='height [m]')
 # plt.tight_layout(rect=[0, 0, 1, 0.95])
 # plt.legend()

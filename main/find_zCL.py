@@ -42,6 +42,7 @@ gradT0interp = np.empty((runCnt,len(interpZ)-1)) * np.nan   #storage for tempera
 zCLerror = np.empty((runCnt)) * np.nan          #parameterization error [m]
 profile = np.empty((runCnt,len(interpZ))) * np.nan
 quartiles = np.empty((runCnt,len(interpZ),2)) * np.nan
+Cp= 1005
 
 #======================repeat main analysis for all runs first===================
 #loop through all LES cases
@@ -72,7 +73,7 @@ for nCase,Case in enumerate(RunList):
     ctrZidx = pm.argmax(0)                          #locate maxima along height
     ctrXidx = pm.argmax(1)                          #locate maxima downwind
     pmCtr = np.array([pm[ctrZidx[nX],nX] for nX in range(dimX)])    #get concentration along the centerline
-
+    tCtr = np.array([csdict['temp'][-1,ctrZidx[nX],nX] for nX in range(dimX)])
 
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)           #get location of maximum centerline height
     centerline = ma.masked_where(plume.lvltall[ctrZidx] == 0, plume.lvltall[ctrZidx])               #make sure centerline is only calculated inside the plume
@@ -221,6 +222,16 @@ for nCase,Case in enumerate(RunList):
     plt.close()
     print('.....saved in: %s' %(plume.figdir + 'CWIzCL/zcl%s.pdf' %Case))
 
+    #conserved variable plot along CENTERLINE
+    plt.figure()
+    plt.title('CONSERVED VARIABLE PLOT: %s' %Case)
+    plt.scatter(Cp*tCtr/1000,pmCtr/1000,c=centerline/zi[nCase], cmap = plt.cm.coolwarm,vmin=0,vmax=2,s=6)
+    plt.gca().set(xlabel=r'dry static energy ($\theta \cdot C_p$) [kJ/kg]', ylabel='PM mixing ratio [mg/kg]')
+    plt.colorbar(label=r'$z/z_i$')
+    #plt.show()
+    plt.savefig(plume.figdir + 'mixing/CTRmixing_%s.pdf' %Case)
+    plt.close()
+
 
 BLfrac = 0.75           #fraction of BL height to set zs at
 mf, bf = 0.9243, 115.059
@@ -231,10 +242,10 @@ OmegaOver = np.empty((runCnt)) * np.nan               #smoke injection height (m
 OmegaUnder = np.empty((runCnt)) * np.nan               #smoke injection height (m)
 zCLP = np.empty((runCnt)) * np.nan
 Gamma = np.empty((runCnt)) * np.nan
-zCLGuess = np.empty((runCnt)) * np.nan
 zMax = np.empty((runCnt)) * np.nan
 zMaxGuess = np.empty((runCnt)) * np.nan
-pcnt = np.empty((runCnt)) * np.nan
+zMin = np.empty((runCnt)) * np.nan
+zMinGuess = np.empty((runCnt)) * np.nan
 profileModelled = np.empty_like(profile) * np.nan
 profileHalfModelled = np.empty_like(profile) * np.nan
 
@@ -250,35 +261,27 @@ for nCase,Case in enumerate(RunList):
         ziidx = np.argmin(abs(interpZ - zi[nCase]))
         zCLidx = np.argmin(abs(interpZ - zCL[nCase]))
         zCLidxP = np.argmax(profile[nCase])
+        zCLP[nCase] = interpZ[zCLidxP]
         thetaS[nCase] = sounding[nCase,zsidx]
         thetaCL[nCase] = sounding[nCase,zCLidx]
+        #create an interpolated profile of velocity
+        if Case[-1:]=='T' or Case[-1:]=='E':
+            levels = plume.lvltall
+        else:
+            levels=plume.lvl
+        U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
 
-        #far zCL estimate
-        Tau = 1/ np.sqrt(g*Omega[nCase]/(thetaS[nCase] * (zCL[nCase]-zS)))
-        wStar = C*Tau*((g*Phi[nCase]*(zCL[nCase]-zS))/(thetaS[nCase]*zi[nCase]))**(1/3.)
-        zCLGuess[nCase] = mf*(wStar+zS) + bf
-
-        # dPM = profile[nCase,1:] - profile[nCase,:-1]
-        # cutoff = dPM[zCLidxP+5:][abs(dPM[zCLidxP+5:])<np.max(dPM)*0.05][0]
-        # pmTopFind = np.where(dPM==cutoff)
-        # if len(pmTopFind)==0:
-        #     pmTopidx = len(interpZ)
-        # else:
-        #     pmTopidx = pmTopFind[0][0]
-
-
+        #find maximum
         cutoff = profile[nCase,zCLidxP] * 0.0015
         pmTopidx = np.argmin(abs(profile[nCase,zCLidxP:] - cutoff)) + zCLidxP
+        zMax[nCase] = interpZ[pmTopidx]
+        sigmaTop = (zMax[nCase] - zCLP[nCase])/3.
 
-
+        #other measures over and under the mean
         OmegaUnder[nCase] = sounding[nCase,zCLidxP] - sounding[nCase,zsidx]
         OmegaOver[nCase] = sounding[nCase,pmTopidx] - sounding[nCase,zCLidxP]
-        zMax[nCase] = interpZ[pmTopidx]
-        zCLP[nCase] = interpZ[zCLidxP]
-        pcnt[nCase] = profile[nCase,pmTopidx]/np.max(profile[nCase,:])
 
         #gamma fit
-        # fittopidx = np.nanargmin(abs(interpZ - 2700))
         baselinedTheta = sounding[nCase,zCLidxP:zCLidxP+50] - sounding[nCase,zsidx]
         GammaFit = linregress(interpZ[zCLidxP:zCLidxP+50],baselinedTheta)
         Gamma[nCase] = GammaFit[0]
@@ -289,47 +292,56 @@ for nCase,Case in enumerate(RunList):
         OmegaOverGuess = np.cumsum(dTabove)
         zMaxidx= np.argmin(abs(OmegaOverGuess - overshoot)) + zCLidxP
         zMaxGuess[nCase] = interpZ[zMaxidx]
+        sigmaTopModel = (zMaxGuess[nCase] - zCLP[nCase])/3.
+
+        #find minimum
+        B  = g*0.2/thetaS[nCase]
+        interpU= interp1d(levels,U0,fill_value='extrapolate')
+        U0interp = interpU(interpZ)
+        S = U0[2]*0.00002
+        sigmaBottom = (B*10 + S)/(B + S)
+        zMinGuess[nCase] = sigmaBottom * 3
+
 
         from scipy.stats import norm
         from scipy.stats import skewnorm
 
-        y_pdf_Fair = norm.pdf(interpZ, zCLP[nCase], (zMaxGuess[nCase] - zCLP[nCase])/3.) # the normal pdf
+        y_pdf_Fair = norm.pdf(interpZ, zCLP[nCase], sigmaTopModel) # the normal pdf
         profileModelled[nCase,:] = y_pdf_Fair*np.max(profile[nCase,:])/(np.max(y_pdf_Fair)*1000)
-        y_pdf_zMax = norm.pdf(interpZ, zCLP[nCase], (zMax[nCase] - zCLP[nCase])/3.) # the normal pdf
+        y_pdf_zMax = norm.pdf(interpZ, zCLP[nCase], sigmaTop) # the normal pdf
         profileHalfModelled[nCase,:] = y_pdf_zMax*np.max(profile[nCase,:])/(np.max(y_pdf_zMax)*1000)
         normPM = np.max(profile[nCase,:])
 
-        plt.figure()
-        plt.title('%s' %Case)
-        plt.plot(profile[nCase,:]/normPM,interpZ,label=' PM median profile')
-        ax = plt.gca()
-        ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
-        ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/normPM,quartiles[nCase,:,1]/normPM, alpha=0.2,label='IQR')
-        plt.plot(y_pdf/np.max(y_pdf),interpZ,label=' Gaussian fit')
-        ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
-        ax.axhline(y = zi[nCase], ls=':', c='grey', label='z$_{i}$')
-        # ax.axhline(y = zCLGuess[nCase], ls='--', c='red', label='z$_{CL} LES$')
-        ax.axhline(y = zMax[nCase], ls=':', c='purple',label='$z_{max}$ true' )
-        ax.axhline(y = zMaxGuess[nCase], ls=':', c='red',label='$z_{max}$ model' )
-        plt.legend()
-        plt.savefig(plume.figdir + 'distribution/normalized/normProf%s.pdf' %Case)
-        plt.close()
-
         # plt.figure()
         # plt.title('%s' %Case)
-        # plt.plot(profile[nCase,:]/1000,interpZ,label=' PM median profile')
+        # plt.plot(profile[nCase,:]/normPM,interpZ,label=' PM median profile')
         # ax = plt.gca()
         # ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
-        # ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.2,label='IQR')
+        # ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/normPM,quartiles[nCase,:,1]/normPM, alpha=0.2,label='IQR')
+        # plt.plot(y_pdf/np.max(y_pdf),interpZ,label=' Gaussian fit')
         # ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
-        # plt.plot(profileHalfModelled[nCase,:],interpZ,c='C1', linewidth='0.5',label=' Gaussian fit, with true $z_{max}$')
-        # plt.plot(profileModelled[nCase,:],interpZ,c='C1',label=' Gaussian fit')
-        # # ax.axhline(y = zCLGuess[nCase], ls='--', c='red', label='z$_{CL} LES$')
-        # ax.axhline(y = zMax[nCase], ls='--', c='C2',label='$z_{max}$ true' )
+        # ax.axhline(y = zi[nCase], ls=':', c='grey', label='z$_{i}$')
+        # ax.axhline(y = zMax[nCase], ls=':', c='purple',label='$z_{max}$ true' )
         # ax.axhline(y = zMaxGuess[nCase], ls=':', c='red',label='$z_{max}$ model' )
+        # ax.axhline(y = zMin[nCase], ls=':', c='purple',label='$z_{max}$ true' )
         # plt.legend()
-        # plt.savefig(plume.figdir + 'distribution/raw/pmProf%s.pdf' %Case)
+        # plt.savefig(plume.figdir + 'distribution/normalized/normProf%s.pdf' %Case)
         # plt.close()
+
+        plt.figure()
+        plt.title('%s' %Case)
+        plt.plot(profile[nCase,:]/1000,interpZ,label=' PM median profile')
+        ax = plt.gca()
+        ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
+        ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.2,label='IQR')
+        ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
+        plt.plot(profileModelled[nCase,:],interpZ,c='C1',label=' Gaussian fit')
+        # ax.axhline(y = zCLGuess[nCase], ls='--', c='red', label='z$_{CL} LES$')
+        ax.axhline(y = zMax[nCase], ls='--', c='C2',label='$z_{max}$ true' )
+        ax.axhline(y = zMaxGuess[nCase], ls=':', c='red',label='$z_{max}$ model' )
+        plt.legend()
+        plt.savefig(plume.figdir + 'distribution/raw/pmProf%s.pdf' %Case)
+        plt.close()
 
 errorMax = zMax-zMaxGuess
 predictor = (zCLP-zi*BLfrac)*Gamma
@@ -381,3 +393,5 @@ plt.colorbar(label=r'$z_i$ [m]')
 plt.gca().set(xlabel='wind [m/s]',ylabel='ABL MAE (normalized concentration)')
 plt.savefig(plume.figdir + 'distribution/ABL_MAEvsWind.pdf')
 plt.close()
+
+# np.save(plume.figdir + 'NameZiZcl.npy',np.array([RunList,zi,zCL]))
