@@ -77,5 +77,3 @@ for nCase,Case in enumerate(RunList):
 	# plt.show()
 	plt.savefig(plume.figdir + 'mixing/mixing_%s.pdf' %Case)
 	plt.close()
-
-	#CENTERLINE SAMPLING---------------------------------

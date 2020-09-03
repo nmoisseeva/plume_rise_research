@@ -44,9 +44,17 @@ profile = np.empty((runCnt,len(interpZ))) * np.nan
 quartiles = np.empty((runCnt,len(interpZ),2)) * np.nan
 Cp= 1005
 
+#wf vs "ros" test
+r_test =  np.empty((runCnt)) * np.nan
+t_test =  np.empty((runCnt)) * np.nan
 #======================repeat main analysis for all runs first===================
 #loop through all LES cases
 for nCase,Case in enumerate(RunList):
+    if Case[-1:]=='E':
+        t_test[nCase] = 30*60.
+    else:
+        t_test[nCase] = 20*60.
+
     #exclude outlier runs that are undealt with
     if Case in plume.exclude_runs:
         continue
@@ -61,6 +69,7 @@ for nCase,Case in enumerate(RunList):
         levels = plume.lvltall
     else:
         levels=plume.lvl
+
     interpT= interp1d(levels,T0,fill_value='extrapolate')
     T0interp = interpT(interpZ)
 
@@ -143,6 +152,7 @@ for nCase,Case in enumerate(RunList):
     ignited = np.array([i for i in meanFire if i > 0.5])        #consider only cells that have heat flux about 500 W/m2
 
     Phi[nCase] = np.trapz(ignited, dx = plume.dx) * 1000 / ( 1.2 * 1005)    #calculate Phi by integrating kinematic heat flux along x (Km2/s)
+    r_test[nCase] = len(ignited)*plume.dx
 
     #calculate injection height variables ---------------------------
     zCL[nCase] = np.mean(smoothCenterline[1:][stablePMmask])    #injection height is where the centerline is stable and concentration doesn't change
@@ -180,7 +190,7 @@ for nCase,Case in enumerate(RunList):
     ax1.set(xlim=[0,axMax],ylim=[0,levels[-1]],aspect='equal')
     ax1.legend()
     # ---heat flux
-    ln = axh1.plot(haxis, csdict['ghfx'][-1,:cropX], 'r-')
+    ln = axh1.plot(haxis, csdict['ghfx'][-1,:cropX], 'r-') #this plots heat flux on last frame not the mean used for Phi
     axh1.set_ylabel('fire heat flux $[kW m^{-2}]$', color='r')
     axh1.set(xlim=[0,axMax],ylim=[0,150])
     axh1.tick_params(axis='y', colors='red')
@@ -250,7 +260,7 @@ profileModelled = np.empty_like(profile) * np.nan
 profileHalfModelled = np.empty_like(profile) * np.nan
 
 
-exclude = ['W5F4R6TE','W5F13R6TE','W5F12R5TE','W5F4R5TE','W5F1R1','W5F13R7T','W5F7R8T','W5F13R5TE']
+# exclude = ['W5F4R6TE','W5F13R6TE','W5F12R5TE','W5F4R5TE','W5F1R1','W5F13R7T','W5F7R8T','W5F13R5TE']
 
 for nCase,Case in enumerate(RunList):
     if Case in exclude:
