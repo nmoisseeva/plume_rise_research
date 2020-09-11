@@ -12,7 +12,7 @@ from scipy.signal import savgol_filter
 from scipy.stats import linregress
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
-
+from scipy.stats import norm
 
 #====================INPUT===================
 
@@ -285,12 +285,13 @@ windRatio = np.empty((runCnt)) * np.nan
 exclude = ['W5F4R6TE','W5F13R6TE','W5F12R5TE','W5F4R5TE','W5F1R1','W5F13R7T','W5F7R8T','W5F13R5TE']
 wF = ((g*Phi*(zCL-BLfrac*zi))/(thetaS*zi))**(1/3.)
 wD = (g * zi * 0.13 / thetaS)**(1/3.)
+zS = zi*BLfrac
+
 for nCase,Case in enumerate(RunList):
     if Case in exclude:
         continue
     else:
-        zS = zi[nCase]*BLfrac
-        zsidx = np.argmin(abs(interpZ - zS))
+        zsidx = np.argmin(abs(interpZ - zS[nCase]))
         ziidx = np.argmin(abs(interpZ - zi[nCase]))
         zCLidx = np.argmin(abs(interpZ - zCL[nCase]))
         zCLidxP = np.argmax(profile[nCase])
@@ -310,22 +311,25 @@ for nCase,Case in enumerate(RunList):
         zMax[nCase] = interpZ[pmTopidx]
         sigmaTop = (zMax[nCase] - zCLP[nCase])/3.
 
-        #other measures over and under the mean
-        OmegaUnder[nCase] = sounding[nCase,zCLidxP] - sounding[nCase,zsidx]
-        OmegaOver[nCase] = sounding[nCase,pmTopidx] - sounding[nCase,zCLidxP]
-
-        #gamma fit
-        baselinedTheta = sounding[nCase,zCLidxP:zCLidxP+50] - sounding[nCase,zsidx]
-        GammaFit = linregress(interpZ[zCLidxP:zCLidxP+50],baselinedTheta)
-        Gamma[nCase] = GammaFit[0]
-
-        #get top prediction
-        overshoot = (zCLP[nCase] - zS)*Gamma[nCase]
-        dTabove = sounding[nCase,zCLidxP+1:] - sounding[nCase,zCLidxP:-1]
-        OmegaOverGuess = np.cumsum(dTabove)
-        zMaxidx= np.argmin(abs(OmegaOverGuess - overshoot)) + zCLidxP
-        zMaxGuess[nCase] = interpZ[zMaxidx]
+        zMaxGuess[nCase] = 2*zCLP[nCase] - zS[nCase]
         sigmaTopModel = (zMaxGuess[nCase] - zCLP[nCase])/3.
+
+        # #other measures over and under the mean
+        # OmegaUnder[nCase] = sounding[nCase,zCLidxP] - sounding[nCase,zsidx]
+        # OmegaOver[nCase] = sounding[nCase,pmTopidx] - sounding[nCase,zCLidxP]
+        #
+        # #gamma fit
+        # baselinedTheta = sounding[nCase,zCLidxP:zCLidxP+50] - sounding[nCase,zsidx]
+        # GammaFit = linregress(interpZ[zCLidxP:zCLidxP+50],baselinedTheta)
+        # Gamma[nCase] = GammaFit[0]
+        #
+        # #get top prediction
+        # overshoot = (zCLP[nCase] - zS)*Gamma[nCase]
+        # dTabove = sounding[nCase,zCLidxP+1:] - sounding[nCase,zCLidxP:-1]
+        # OmegaOverGuess = np.cumsum(dTabove)
+        # zMaxidx= np.argmin(abs(OmegaOverGuess - overshoot)) + zCLidxP
+        # zMaxGuess[nCase] = interpZ[zMaxidx]
+        # sigmaTopModel = (zMaxGuess[nCase] - zCLP[nCase])/3.
 
         #find minimum
         interpU= interp1d(levels,U0,fill_value='extrapolate')
@@ -342,14 +346,10 @@ for nCase,Case in enumerate(RunList):
         zMinGuess[nCase] = sigmaBottom * 3
 
 
-        from scipy.stats import norm
-
         y_pdf_Fair = norm.pdf(interpZ, zCLP[nCase], sigmaTopModel) # the normal pdf
         y_pdf_zMax = norm.pdf(interpZ, zCLP[nCase], sigmaTop) # the normal pdf
         y_pdf_Bottom_Fair = norm.pdf(interpZ, zCLP[nCase], sigmaBottomModel) # the normal pdf
         y_pdf_Bottom = norm.pdf(interpZ, zCLP[nCase], sigmaBottom) # the normal pdf
-
-
 
         profileModelled[nCase,zCLidxP:] = y_pdf_Fair[zCLidxP:]*np.max(profile[nCase,zCLidxP:])/(np.max(y_pdf_Fair[zCLidxP:])*1000)
         profileHalfModelled[nCase,zCLidxP:] = y_pdf_zMax[zCLidxP:]*np.max(profile[nCase,zCLidxP:])/(np.max(y_pdf_zMax[zCLidxP:])*1000)
@@ -392,22 +392,33 @@ for nCase,Case in enumerate(RunList):
         plt.close()
 
 errorMax = zMax-zMaxGuess
-predictor = (zCLP-zi*BLfrac)*Gamma
-topFit = linregress(predictor[np.isfinite(predictor)],OmegaOver[np.isfinite(OmegaOver)])
+# predictor = (zCLP-zi*BLfrac)*Gamma
+# topFit = linregress(predictor[np.isfinite(predictor)],OmegaOver[np.isfinite(OmegaOver)])
+#
+# plt.figure(figsize=(10,5))
+# plt.subplot(121)
+# plt.title('PREDICTING DISTRIBUTION TOP: R=%.2f' %topFit[2])
+# plt.scatter((zCLP-zi*BLfrac)*Gamma,OmegaOver)
+# # plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal',xlim=[0,20],ylim=[0,20])
+# plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal')
+#
+# plt.subplot(122)
+# plt.title(r'ERROR BOXPLOT: (true - model)')
+# plt.boxplot(errorMax[np.isfinite(errorMax)])
+# plt.tight_layout()
+# plt.savefig(plume.figdir + 'distribution/OmegaOver.pdf' )
+# plt.close()
 
-plt.figure(figsize=(10,5))
-plt.subplot(121)
+topFit = linregress(zMaxGuess[np.isfinite(zMaxGuess)],zMax[np.isfinite(zMax)])
+plt.figure()
 plt.title('PREDICTING DISTRIBUTION TOP: R=%.2f' %topFit[2])
-plt.scatter((zCLP-zi*BLfrac)*Gamma,OmegaOver)
-# plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal',xlim=[0,20],ylim=[0,20])
-plt.gca().set(xlabel='$z^\prime \gamma$ [K]', ylabel='$\\theta_{top} - \\theta_{CL}$ [K]',aspect='equal')
-
-plt.subplot(122)
-plt.title(r'ERROR BOXPLOT: (true - model)')
-plt.boxplot(errorMax[np.isfinite(errorMax)])
+plt.scatter(zMaxGuess,zMax,c=zMax-zCLP)
+plt.gca().set(aspect='equal' , xlabel=r'$z_{CL} + z^\prime$ [m]', ylabel=r'$z_{top}$ from LES [m]')
+plt.colorbar(label=r'$z^\prime$ [m]')
 plt.tight_layout()
-plt.savefig(plume.figdir + 'distribution/OmegaOver.pdf' )
-plt.close()
+plt.savefig(plume.figdir + 'distribution/TopPredictor.pdf' )
+plt.show()
+
 
 normprofile = np.empty_like(profile) * np.nan
 normprofileModelled = np.empty_like(profile) * np.nan
