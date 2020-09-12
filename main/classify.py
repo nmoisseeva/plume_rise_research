@@ -230,7 +230,7 @@ for nCase,Case in enumerate(penetrative_plumes):
 
         #figure out the bottom half of the distribution
         windRatio[nCase] = uBL[nCase]/(wF[nCase] - wD[nCase])
-        if wF[nCase]/wD[nCase] < 1.2:
+        if wF[nCase]/wD[nCase] < 1.5:
             windFactor = uBL[nCase]/wF[nCase]
         else:
             windFactor = windRatio[nCase]
@@ -267,7 +267,7 @@ for nCase,Case in enumerate(penetrative_plumes):
         plt.legend()
         plt.savefig(plume.figdir + 'distribution/raw/pmProf%s.pdf' %Case)
         plt.close()
-    #
+
 errorMax = zMax-zMaxGuess
 topFit = linregress(zMaxGuess[np.isfinite(zMaxGuess)],zMax[np.isfinite(zMax)])
 plt.figure()
