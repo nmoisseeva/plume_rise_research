@@ -230,9 +230,14 @@ for nCase,Case in enumerate(penetrative_plumes):
 
         #figure out the bottom half of the distribution
         windRatio[nCase] = uBL[nCase]/(wF[nCase] - wD[nCase])
-        if windRatio[nCase] > 1:
-            sigmaBottom = sigmaTop*windRatio[nCase]
-            sigmaBottomFair = sigmaTopFair * windRatio[nCase]
+        if wF[nCase]/wD[nCase] < 1.2:
+            windFactor = uBL[nCase]/wF[nCase]
+        else:
+            windFactor = windRatio[nCase]
+
+        if windFactor > 1:
+            sigmaBottom = sigmaTop*windFactor
+            sigmaBottomFair = sigmaTopFair * windFactor
         else:
             sigmaBottom = sigmaTop
             sigmaBottomFair = sigmaTopFair
@@ -250,16 +255,15 @@ for nCase,Case in enumerate(penetrative_plumes):
 
         plt.figure()
         plt.title('%s' %Case)
-        plt.plot(distribP/1000,interpZ,label=' PM median profile')
+        plt.plot(distribP/1000,interpZ,label='smoke profile')
         ax = plt.gca()
-        ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
-        ax.fill_betweenx(interpZ, quartiles[PENidx][nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.2,label='IQR')
-        # ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
-        ax.axhline(y = interpZ[zclidx], ls='--', c='black', label='z$_{CL}$ profile')
+        ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]',ylim=[0,3200])
+        ax.fill_betweenx(interpZ, quartiles[PENidx][nCase,:,0]/1000,quartiles[PENidx][nCase,:,1]/1000, alpha=0.2,label='IQR')
+        ax.axhline(y = interpZ[zclidx], ls='-.',c='C0',linewidth=1, label='z$_{CL}$')
+        ax.axhline(y = zMax[nCase], ls='--', c='grey',label='$z_{top}$ LES' )
+        ax.axhline(y = zMaxGuess[nCase],ls='--',c='C1',label='$z_{max}$ modelled' )
+        plt.plot(profileHalfModelled[nCase,:],interpZ,c='grey',ls=':',label=r'based on LES z$_{top}$')
         plt.plot(profileModelled[nCase,:],interpZ,c='C1',label=r'based on modelled z$_{top}$')
-        plt.plot(profileHalfModelled[nCase,:],interpZ,c='C1',ls=':',label=r'based on LES z$_{top}$')
-        ax.axhline(y = zMax[nCase], ls='--', c='C2',label='$z_{max}$ true' )
-        ax.axhline(y = zMaxGuess[nCase], ls=':', c='red',label='$z_{max}$ model' )
         plt.legend()
         plt.savefig(plume.figdir + 'distribution/raw/pmProf%s.pdf' %Case)
         plt.close()
@@ -307,16 +311,16 @@ for nCase,Case in enumerate(penetrative_plumes):
     MAE_BL_half[nCase] = np.nanmean(abs(normtruth[mae_subset_half][mae_subset_half < ziidx] - normhalfmodel[mae_subset_half][mae_subset_half < ziidx]))
     MAE_FA_half[nCase] = np.nanmean(abs(normtruth[mae_subset_half][mae_subset_half >= ziidx] - normhalfmodel[mae_subset_half][mae_subset_half >= ziidx]))
 
-plt.figure(figsize=(12,6))
+plt.figure(figsize=(10,5))
 plt.suptitle('NORMALIZED DISTRIBUTION MAE')
 plt.subplot(121)
 plt.title(r'LES-derived z$_{top}$')
 plt.boxplot([MAE_BL_half[np.isfinite(MAE_BL_half)],MAE_FA_half[np.isfinite(MAE_FA_half)],MAE_half[np.isfinite(MAE_half)]], labels = ('ABL','FREE ATM','TOTAL'))
-plt.gca().set(ylabel='MAE (normalized concentration)',ylim=[0,0.7])
+plt.gca().set(ylabel='MAE (normalized concentration)',ylim=[0,0.4])
 plt.subplot(122)
 plt.title(r'Modelled z$_{top}$')
 plt.boxplot([MAE_BL[np.isfinite(MAE_BL)],MAE_FA[np.isfinite(MAE_FA)],MAE[np.isfinite(MAE)]], labels = ('ABL','FREE ATM','TOTAL'))
-plt.gca().set(ylabel='MAE (normalized concentration)',ylim=[0,0.7])
+plt.gca().set(ylabel='MAE (normalized concentration)',ylim=[0,0.4])
 plt.tight_layout()
 plt.savefig(plume.figdir + 'distribution/MAEdistribution.pdf')
 plt.close()
