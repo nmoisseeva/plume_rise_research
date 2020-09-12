@@ -15,6 +15,8 @@ from scipy.stats import linregress
 from scipy.optimize import fsolve
 from matplotlib import gridspec
 from scipy.interpolate import interp1d
+from scipy.stats import norm
+
 
 #====================INPUT===================
 #import all common project variables
@@ -40,6 +42,7 @@ Omega = np.empty((runCnt)) * np.nan             #cumulative vertical temperature
 thetaS = np.empty((runCnt)) * np.nan
 thetaCL = np.empty((runCnt)) * np.nan
 profile = np.empty((runCnt,len(interpZ))) * np.nan
+quartiles = np.empty((runCnt,len(interpZ),2)) * np.nan
 
 
 sounding = np.empty((runCnt,len(interpZ))) * np.nan         #storage for interpolated soundings
@@ -64,28 +67,34 @@ for nCase,Case in enumerate(RunList):
     #mask plume with cutoff value---------------------------------
     dimT, dimZ, dimX = np.shape(csdict['temp'])     #get shape of data
     zi[nCase] = plume.get_zi(T0)                    #calculate BL height
-
     pm = ma.masked_where(csdict['pm25'][-1,:,:] <= plume.PMcutoff, csdict['pm25'][-1,:,:] ) #mask all non-plume cells
 
     #locate centerline
     ctrZidx = pm.argmax(0)                          #locate maxima along height
     ctrXidx = pm.argmax(1)                          #locate maxima downwind
     pmCtr = np.array([pm[ctrZidx[nX],nX] for nX in range(dimX)])    #get concentration along the centerline
+    tCtr = np.array([csdict['temp'][-1,ctrZidx[nX],nX] for nX in range(dimX)])
 
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)           #get location of maximum centerline height
     centerline = ma.masked_where(plume.lvltall[ctrZidx] == 0, plume.lvltall[ctrZidx])               #make sure centerline is only calculated inside the plume
+    centerline.mask[:int(1000/plume.dx)] = True
+    # smoothCenterline = savgol_filter(centerline, 51, 3)             # smooth centerline height (window size 31, polynomial order 3)
+
     filter_window = max(int(plume.read_tag('W',[Case])*10+1),51)
     smoothCenterline = savgol_filter(centerline, filter_window, 3)             # smooth centerline height (window size 31, polynomial order 3)
 
+
     #calculate concentration changes along the centerline
     dPMdX = pmCtr[1:]-pmCtr[0:-1]
+    # smoothPM = savgol_filter(dPMdX, 101, 3) # window size 101, polynomial order 3
     smoothPM = savgol_filter(dPMdX, filter_window, 3) # window size 101, polynomial order 3
 
+    # stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.05 and nX > np.nanargmax(smoothPM) else False for nX in range(dimX-1) ]
     stablePMmask = [True if abs(smoothPM[nX])< np.nanmax(smoothPM)*0.1 and \
                             abs(smoothCenterline[nX+1]-smoothCenterline[nX]) < 5 and \
                             nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
                             nX > np.nanargmax(smoothPM) and\
-                            nX > np.nanargmax(centerline) +10 and
+                            nX > np.nanargmax(centerline) +10 and\
                             centerline[nX] < plume.lvltall[-1]-200 and \
                             nX > np.nanargmax(smoothCenterline)+10 else \
                             False for nX in range(dimX-1) ]
@@ -106,24 +115,14 @@ for nCase,Case in enumerate(RunList):
                                 False for nX in range(dimX-1) ]
 
     stablePM = pm[:,1:][:,stablePMmask]
-    stableProfile = np.mean(stablePM,1)
+    stableProfile = np.median(stablePM,1)
+
     profile[nCase,:] = interp1d(levels,stableProfile,fill_value='extrapolate')(interpZ)
 
     pmQ1 = np.percentile(stablePM,25,axis = 1)
     pmQ3 = np.percentile(stablePM,75,axis = 1)
-
-    # #define heat source ------------------------
-    # masked_flux = ma.masked_less_equal(csdict['ghfx2D'],1)    #mask empty fire heat flux cells
-    # cs_flux = np.nanmean(masked_flux,1)                         #get mean cross section for each timestep
-    # fire = []                                                   #create storage arrage
-    # fxmax = np.argmax(cs_flux,axis=1)                           #get location of max heat for each timestep
-    # for nP, pt in enumerate(fxmax[plume.ign_over:]):            #excludes steps containing ignition
-    #     subset = cs_flux[plume.ign_over+nP,pt-plume.wi:pt+plume.wf]     #set averaging window around a maximum
-    #     fire.append(subset)
-    #
-    # meanFire = np.nanmean(fire,0)                               #calculate mean fire cross section
-    # ignited = np.array([i for i in meanFire if i > 0.5])        #consider only cells that have heat flux about 500 W/m2
-    # Phi[nCase] = np.trapz(ignited, dx = plume.dx) * 1000 / ( 1.2 * 1005)    #calculate Phi by integrating kinematic heat flux along x (Km2/s)
+    quartiles[nCase,:,0] = interp1d(levels,pmQ1,fill_value='extrapolate')(interpZ)
+    quartiles[nCase,:,1] = interp1d(levels,pmQ3,fill_value='extrapolate')(interpZ)
 
     #define heat source * to include larger fires use padding ------------------------
     masked_flux_padded = ma.masked_less_equal(np.pad(csdict['ghfx2D'],((0,0),(0,0),(100,0)), 'constant',constant_values=0),1)
@@ -152,6 +151,10 @@ for nCase,Case in enumerate(RunList):
     thetaS[nCase] = sounding[nCase,zsidx]
     thetaCL[nCase] = sounding[nCase,zCLidx]
 
+#================save data to avoid rerunning=======
+plume_dict = {'RunList':RunList, 'zCL':zCL, 'zi':zi, 'profile':profile, 'sounding':sounding, \
+                        'Phi':Phi, 'thetaS':thetaS, 'thetaCL':thetaCL, 'Omega':Omega}
+np.save('plumeData.npy', plume_dict)
 
 #===========iterative solution===============
 zS = zi*BLfrac
@@ -170,6 +173,8 @@ for nCase,Case in enumerate(RunList):
     zCLmodel[nCase] = fsolve(toSolveCase, zi[nCase],factor=0.1)             #solve
     zCLerror[nCase] =  zCL[nCase]  - zCLmodel[nCase]
 
+plt.scatter(zCLmodel,zCL)
+plt.gca().set(aspect='equal')
 #=============find penetrative plumes========
 ABLidx = np.where(zi+zstep > zCL)[0]
 PENidx = np.where(zi+zstep <= zCL)[0]
@@ -191,81 +196,135 @@ profileHalfModelled = np.empty((prunCnt,len(interpZ))) * np.nan
 wF = ((g*Phi[PENidx]*(zCL[PENidx]-BLfrac*zi[PENidx]))/(thetaS[PENidx]*zi[PENidx]))**(1/3.)
 wD = (g * zi[PENidx] * 0.13 / thetaS[PENidx])**(1/3.)
 
+exclude = ['W5F4R6TE','W5F13R6TE','W5F12R5TE','W5F4R5TE','W5F13R7T','W5F7R8T','W5F13R5TE']
 
 for nCase,Case in enumerate(penetrative_plumes):
-    zsidx = np.argmin(abs(interpZ - zS[PENidx][nCase]))
-    ziidx = np.argmin(abs(interpZ - zi[PENidx][nCase]))
-    zCLidxP = np.argmax(profile[PENidx][nCase])
-    zCLP[nCase] = interpZ[zCLidxP]
-
-    #create an interpolated profile of velocity
-    if Case[-1:]=='T' or Case[-1:]=='E':
-        levels = plume.lvltall
+    if Case in exclude:
+        continue
     else:
-        levels=plume.lvl
-    U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
+        zsidx = np.argmin(abs(interpZ - zS[PENidx][nCase]))
+        ziidx = np.argmin(abs(interpZ - zi[PENidx][nCase]))
+        zclidx = np.argmin(abs(interpZ - zCL[PENidx][nCase]))
 
-    interpU= interp1d(levels,U0,fill_value='extrapolate')
-    U0interp = interpU(interpZ)
-    uBL[nCase] = np.mean(U0interp[int(ziidx/2):ziidx])
+        distribP = profile[PENidx][nCase,:]
 
-    #find maximum
-    cutoff = profile[PENidx][nCase,zCLidxP] * 0.0015
-    pmTopidx = np.argmin(abs(profile[PENidx][nCase,zCLidxP:] - cutoff)) + zCLidxP
-    zMax[nCase] = interpZ[pmTopidx]
-    sigmaTop = (zMax[nCase] - zCLP[nCase])/3.
+        #create an interpolated profile of velocity
+        if Case[-1:]=='T' or Case[-1:]=='E':
+            levels = plume.lvltall
+        else:
+            levels=plume.lvl
+        U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
 
-    zMaxGuess[nCase] = 2*zCLP[nCase] - zS[PENidx][nCase]
-    sigmaTopFair = (zMaxGuess[nCase] - zCLP[nCase])/3.
-#
-#     #figure out the bottom half of the distribution
-#     windRatio[nCase] = uBL[nCase]/(wF[nCase] - wD[nCase])
-#     if windRatio[nCase] > 1:
-#         sigmaBottom = sigmaTop*windRatio[nCase]
-#         sigmaBottomFair = sigmaTopFair * windRatio[nCase]
-#     else:
-#         sigmaBottom = sigmaTop
-#         sigmaBottomFair = sigmaTopFair
-#     zMinGuess[nCase] = sigmaBottom * 3
-#
-#
-#     y_pdf_Fair = norm.pdf(interpZ, zCLP[nCase], sigmaTopFair) # the normal pdf
-#     y_pdf_zMax = norm.pdf(interpZ, zCLP[nCase], sigmaTop) # the normal pdf
-#     y_pdf_Bottom_Fair = norm.pdf(interpZ, zCLP[nCase], sigmaBottomFair) # the normal pdf
-#     y_pdf_Bottom = norm.pdf(interpZ, zCLP[nCase], sigmaBottom) # the normal pdf
-#
-#     profileModelled[nCase,zCLidxP:] = y_pdf_Fair[zCLidxP:]*np.max(profile[nCase,zCLidxP:])/(np.max(y_pdf_Fair[zCLidxP:])*1000)
-#     profileHalfModelled[nCase,zCLidxP:] = y_pdf_zMax[zCLidxP:]*np.max(profile[nCase,zCLidxP:])/(np.max(y_pdf_zMax[zCLidxP:])*1000)
-#     profileModelled[nCase,:zCLidxP+1] = y_pdf_Bottom_Fair[:zCLidxP+1]*np.max(profile[nCase,:zCLidxP+1])/(np.max(y_pdf_Bottom_Fair[:zCLidxP+1])*1000)
-#     profileHalfModelled[nCase,:zCLidxP+1] = y_pdf_Bottom[:zCLidxP+1]*np.max(profile[nCase,:zCLidxP+1])/(np.max(y_pdf_Bottom[:zCLidxP+1])*1000)
-#
-#     normPM = np.max(profile[nCase,:])
-#
-#
-#     plt.figure()
-#     plt.title('%s' %Case)
-#     plt.plot(profile[nCase,:]/1000,interpZ,label=' PM median profile')
-#     ax = plt.gca()
-#     ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
-#     ax.fill_betweenx(interpZ, quartiles[nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.2,label='IQR')
-#     ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
-#     plt.plot(profileModelled[nCase,:],interpZ,c='C1',label=r'based on modelled z$_{top}$')
-#     plt.plot(profileHalfModelled[nCase,:],interpZ,c='C1',ls=':',label=r'based on LES z$_{top}$')
-#
-#     # ax.axhline(y = zCLGuess[nCase], ls='--', c='red', label='z$_{CL} LES$')
-#     ax.axhline(y = zMax[nCase], ls='--', c='C2',label='$z_{max}$ true' )
-#     ax.axhline(y = zMaxGuess[nCase], ls=':', c='red',label='$z_{max}$ model' )
-#     plt.legend()
-#     plt.savefig(plume.figdir + 'distribution/raw/pmProf%s.pdf' %Case)
-#     plt.close()
-#
+        interpU= interp1d(levels,U0,fill_value='extrapolate')
+        U0interp = interpU(interpZ)
+        uBL[nCase] = np.mean(U0interp[int(ziidx/2):ziidx])
+
+        #find maximum
+        cutoff = np.max(distribP) * 0.0015
+        pmTopidx = np.argmin(abs(distribP[zclidx:] - cutoff)) + zclidx
+        zMax[nCase] = interpZ[pmTopidx]
+        sigmaTop = (zMax[nCase] - zCL[PENidx][nCase])/3.
+
+        zMaxGuess[nCase] = 2*zCL[PENidx][nCase] - zS[PENidx][nCase]
+        sigmaTopFair = (zMaxGuess[nCase] - zCL[PENidx][nCase])/3.
+
+        #figure out the bottom half of the distribution
+        windRatio[nCase] = uBL[nCase]/(wF[nCase] - wD[nCase])
+        if windRatio[nCase] > 1:
+            sigmaBottom = sigmaTop*windRatio[nCase]
+            sigmaBottomFair = sigmaTopFair * windRatio[nCase]
+        else:
+            sigmaBottom = sigmaTop
+            sigmaBottomFair = sigmaTopFair
+
+        #make a fit with two gaussians
+        y_pdf_Fair = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaTopFair) # the normal pdf
+        y_pdf_zMax = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaTop) # the normal pdf
+        y_pdf_Bottom_Fair = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaBottomFair) # the normal pdf
+        y_pdf_Bottom = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaBottom) # the normal pdf
+
+        profileModelled[nCase,zclidx:] = y_pdf_Fair[zclidx:]*np.max(distribP[zclidx:])/(np.max(y_pdf_Fair[zclidx:])*1000)
+        profileHalfModelled[nCase,zclidx:] = y_pdf_zMax[zclidx:]*np.max(distribP[zclidx:])/(np.max(y_pdf_zMax[zclidx:])*1000)
+        profileModelled[nCase,:zclidx+1] = y_pdf_Bottom_Fair[:zclidx+1]*np.max(distribP[:zclidx+1])/(np.max(y_pdf_Bottom_Fair[:zclidx+1])*1000)
+        profileHalfModelled[nCase,:zclidx+1] = y_pdf_Bottom[:zclidx+1]*np.max(distribP[:zclidx+1])/(np.max(y_pdf_Bottom[:zclidx+1])*1000)
+
+        plt.figure()
+        plt.title('%s' %Case)
+        plt.plot(distribP/1000,interpZ,label=' PM median profile')
+        ax = plt.gca()
+        ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]')
+        ax.fill_betweenx(interpZ, quartiles[PENidx][nCase,:,0]/1000,quartiles[nCase,:,1]/1000, alpha=0.2,label='IQR')
+        # ax.axhline(y = interpZ[zCLidxP], ls='--', c='black', label='z$_{CL}$ profile')
+        ax.axhline(y = interpZ[zclidx], ls='--', c='black', label='z$_{CL}$ profile')
+        plt.plot(profileModelled[nCase,:],interpZ,c='C1',label=r'based on modelled z$_{top}$')
+        plt.plot(profileHalfModelled[nCase,:],interpZ,c='C1',ls=':',label=r'based on LES z$_{top}$')
+        ax.axhline(y = zMax[nCase], ls='--', c='C2',label='$z_{max}$ true' )
+        ax.axhline(y = zMaxGuess[nCase], ls=':', c='red',label='$z_{max}$ model' )
+        plt.legend()
+        plt.savefig(plume.figdir + 'distribution/raw/pmProf%s.pdf' %Case)
+        plt.close()
+    #
 errorMax = zMax-zMaxGuess
 topFit = linregress(zMaxGuess[np.isfinite(zMaxGuess)],zMax[np.isfinite(zMax)])
 plt.figure()
 plt.title('PREDICTING DISTRIBUTION TOP: R=%.2f' %topFit[2])
-plt.scatter(zMaxGuess,zMax,c=zMax-zCLP)
+plt.scatter(zMaxGuess,zMax,c=zMax-zCL[PENidx])
 plt.gca().set(aspect='equal' , xlabel=r'$z_{CL} + z^\prime$ [m]', ylabel=r'$z_{top}$ from LES [m]')
 plt.colorbar(label=r'$z^\prime$ [m]')
 plt.tight_layout()
+# plt.show()
 plt.savefig(plume.figdir + 'distribution/TopPredictor.pdf' )
+plt.close()
+
+#error analysis
+normprofile = np.empty((prunCnt,len(interpZ))) * np.nan
+normprofileModelled = np.empty_like(normprofile) * np.nan
+MAE = np.empty_like(zMax) * np.nan
+MAE_BL = np.empty_like(zMax) * np.nan
+MAE_FA = np.empty_like(zMax) * np.nan
+
+normprofileHalfModelled = np.empty((prunCnt,len(interpZ))) * np.nan
+MAE_half = np.empty_like(zMax) * np.nan
+MAE_BL_half = np.empty_like(zMax) * np.nan
+MAE_FA_half = np.empty_like(zMax) * np.nan
+
+for nCase,Case in enumerate(penetrative_plumes):
+    ziidx = np.argmin(abs(interpZ - zi[PENidx][nCase]))
+    distribP = profile[PENidx][nCase,:]
+    normtruth = distribP/np.nanmax(distribP)
+    normmodel = profileModelled[nCase,:]/np.nanmax(profileModelled[nCase,:])
+    normprofile[nCase,:] = normtruth
+    normprofileModelled[nCase,:] = normmodel
+    mae_subset = np.where((normtruth > 0.001) & (normmodel > 0.001))[0]
+    MAE[nCase] = np.nanmean(abs(normtruth[mae_subset] - normmodel[mae_subset]))
+    MAE_BL[nCase] = np.nanmean(abs(normtruth[mae_subset][mae_subset < ziidx] - normmodel[mae_subset][mae_subset < ziidx]))
+    MAE_FA[nCase] = np.nanmean(abs(normtruth[mae_subset][mae_subset >= ziidx] - normmodel[mae_subset][mae_subset >= ziidx]))
+
+    normhalfmodel = profileHalfModelled[nCase,:]/np.nanmax(profileHalfModelled[nCase,:])
+    normprofileHalfModelled[nCase,:] = normhalfmodel
+    mae_subset_half = np.where((normtruth > 0.001) & (normhalfmodel > 0.001))[0]
+    MAE_half[nCase] = np.nanmean(abs(normtruth[mae_subset] - normmodel[mae_subset]))
+    MAE_BL_half[nCase] = np.nanmean(abs(normtruth[mae_subset_half][mae_subset_half < ziidx] - normhalfmodel[mae_subset_half][mae_subset_half < ziidx]))
+    MAE_FA_half[nCase] = np.nanmean(abs(normtruth[mae_subset_half][mae_subset_half >= ziidx] - normhalfmodel[mae_subset_half][mae_subset_half >= ziidx]))
+
+plt.figure(figsize=(12,6))
+plt.suptitle('NORMALIZED DISTRIBUTION MAE')
+plt.subplot(121)
+plt.title(r'LES-derived z$_{top}$')
+plt.boxplot([MAE_BL_half[np.isfinite(MAE_BL_half)],MAE_FA_half[np.isfinite(MAE_FA_half)],MAE_half[np.isfinite(MAE_half)]], labels = ('ABL','FREE ATM','TOTAL'))
+plt.gca().set(ylabel='MAE (normalized concentration)',ylim=[0,0.7])
+plt.subplot(122)
+plt.title(r'Modelled z$_{top}$')
+plt.boxplot([MAE_BL[np.isfinite(MAE_BL)],MAE_FA[np.isfinite(MAE_FA)],MAE[np.isfinite(MAE)]], labels = ('ABL','FREE ATM','TOTAL'))
+plt.gca().set(ylabel='MAE (normalized concentration)',ylim=[0,0.7])
+plt.tight_layout()
+plt.savefig(plume.figdir + 'distribution/MAEdistribution.pdf')
+plt.close()
+
+plt.figure()
+plt.suptitle('ABL MAE')
+plt.scatter(plume.read_tag('W', RunList)[PENidx],MAE_BL,c=uBL/(wF-wD))
+plt.colorbar(label=r'$z_i$ [m]')
+plt.gca().set(xlabel='wind [m/s]',ylabel='ABL MAE (normalized concentration)')
+plt.savefig(plume.figdir + 'distribution/ABL_MAEvsWind.pdf')
 plt.close()
