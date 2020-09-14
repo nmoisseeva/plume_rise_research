@@ -267,7 +267,7 @@ for nCase,Case in enumerate(penetrative_plumes):
         plt.title('%s' %Case)
         plt.plot(distribP/1000,interpZ,label='smoke profile')
         ax = plt.gca()
-        ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]',ylim=[0,3200])
+        ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]',ylim=[0,3600])
         ax.fill_betweenx(interpZ, quartiles[PENidx][nCase,:,0]/1000,quartiles[PENidx][nCase,:,1]/1000, alpha=0.2,label='IQR')
         ax.axhline(y = interpZ[zclidx], ls='-.',c='C0',linewidth=1, label='z$_{CL}$')
         ax.axhline(y = zMax[nCase], ls='--', c='grey',label='$z_{top}$ LES' )
