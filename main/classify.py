@@ -32,7 +32,7 @@ RunList =   [i for i in plume.tag if i not in plume.exclude_bad]
 runCnt = len(RunList)                           #count number of cases
 
 #set up interpolated vertical profile with 5m vertical step
-interpZ = np.arange(0, plume.lvltall[-1], zstep)
+interpZ = np.arange(0, 4001, zstep)
 
 #storage for variables
 zi = np.empty((runCnt)) * np.nan                #BL height (m)
@@ -58,8 +58,13 @@ for nCase,Case in enumerate(RunList):
     #create an interpolated profile of temperature
     if Case[-1:]=='T' or Case[-1:]=='E':
         levels = plume.lvltall
+        if Case[-1:]=='E':
+            pmlvl = np.arange(0,4001,40)        #extra tall domain for the concentrations only
+        else:
+            pmlvl=levels
     else:
         levels=plume.lvl
+        pmlvl=levels
 
     interpT= interp1d(levels,T0,fill_value='extrapolate')
     T0interp = interpT(interpZ)
@@ -73,10 +78,9 @@ for nCase,Case in enumerate(RunList):
     ctrZidx = pm.argmax(0)                          #locate maxima along height
     ctrXidx = pm.argmax(1)                          #locate maxima downwind
     pmCtr = np.array([pm[ctrZidx[nX],nX] for nX in range(dimX)])    #get concentration along the centerline
-    tCtr = np.array([csdict['temp'][-1,ctrZidx[nX],nX] for nX in range(dimX)])
 
     xmax,ymax = np.nanargmax(ctrZidx), np.nanmax(ctrZidx)           #get location of maximum centerline height
-    centerline = ma.masked_where(plume.lvltall[ctrZidx] == 0, plume.lvltall[ctrZidx])               #make sure centerline is only calculated inside the plume
+    centerline = ma.masked_where(pmlvl[ctrZidx] == 0, pmlvl[ctrZidx])               #make sure centerline is only calculated inside the plume
     centerline.mask[:int(1000/plume.dx)] = True
     # smoothCenterline = savgol_filter(centerline, 51, 3)             # smooth centerline height (window size 31, polynomial order 3)
 
@@ -95,7 +99,7 @@ for nCase,Case in enumerate(RunList):
                             nX > np.nanargmax(centerline[~centerline.mask][:-50]) and\
                             nX > np.nanargmax(smoothPM) and\
                             nX > np.nanargmax(centerline) +10 and\
-                            centerline[nX] < plume.lvltall[-1]-200 and \
+                            centerline[nX] < pmlvl[-1]-200 and \
                             nX > np.nanargmax(smoothCenterline)+10 else \
                             False for nX in range(dimX-1) ]
     if sum(stablePMmask) == 0:
@@ -117,12 +121,12 @@ for nCase,Case in enumerate(RunList):
     stablePM = pm[:,1:][:,stablePMmask]
     stableProfile = np.median(stablePM,1)
 
-    profile[nCase,:] = interp1d(levels,stableProfile,fill_value='extrapolate')(interpZ)
+    profile[nCase,:] = interp1d(pmlvl,stableProfile,fill_value='extrapolate')(interpZ)
 
     pmQ1 = np.percentile(stablePM,25,axis = 1)
     pmQ3 = np.percentile(stablePM,75,axis = 1)
-    quartiles[nCase,:,0] = interp1d(levels,pmQ1,fill_value='extrapolate')(interpZ)
-    quartiles[nCase,:,1] = interp1d(levels,pmQ3,fill_value='extrapolate')(interpZ)
+    quartiles[nCase,:,0] = interp1d(pmlvl,pmQ1,fill_value='extrapolate')(interpZ)
+    quartiles[nCase,:,1] = interp1d(pmlvl,pmQ3,fill_value='extrapolate')(interpZ)
 
     #define heat source * to include larger fires use padding ------------------------
     masked_flux_padded = ma.masked_less_equal(np.pad(csdict['ghfx2D'],((0,0),(0,0),(100,0)), 'constant',constant_values=0),1)
@@ -196,7 +200,8 @@ profileHalfModelled = np.empty((prunCnt,len(interpZ))) * np.nan
 wF = ((g*Phi[PENidx]*(zCL[PENidx]-BLfrac*zi[PENidx]))/(thetaS[PENidx]*zi[PENidx]))**(1/3.)
 wD = (g * zi[PENidx] * 0.13 / thetaS[PENidx])**(1/3.)
 
-exclude = ['W5F4R6TE','W5F13R6TE','W5F12R5TE','W5F4R5TE','W5F13R7T','W5F7R8T','W5F13R5TE']
+# exclude = ['W5F4R5TE','W5F4R6TE','W5F12R5TE','W5F13R5TE','W5F13R6TE']
+exclude = []
 
 for nCase,Case in enumerate(penetrative_plumes):
     if Case in exclude:
@@ -211,8 +216,13 @@ for nCase,Case in enumerate(penetrative_plumes):
         #create an interpolated profile of velocity
         if Case[-1:]=='T' or Case[-1:]=='E':
             levels = plume.lvltall
+            if Case[-1:]=='E':
+                pmlvl = np.arange(0,4001,40)        #extra tall domain for the concentrations only
+            else:
+                pmlvl=levels
         else:
             levels=plume.lvl
+
         U0 = np.load(plume.wrfdir + 'interp/profU0' + Case + '.npy')
 
         interpU= interp1d(levels,U0,fill_value='extrapolate')
@@ -273,7 +283,8 @@ topFit = linregress(zMaxGuess[np.isfinite(zMaxGuess)],zMax[np.isfinite(zMax)])
 plt.figure()
 plt.title('PREDICTING DISTRIBUTION TOP: R=%.2f' %topFit[2])
 plt.scatter(zMaxGuess,zMax,c=zMax-zCL[PENidx])
-plt.gca().set(aspect='equal' , xlabel=r'$z_{CL} + z^\prime$ [m]', ylabel=r'$z_{top}$ from LES [m]')
+plt.plot(np.arange(4500), np.arange(4500), c='grey',ls=':')
+plt.gca().set(aspect='equal' , xlabel=r'$z_{CL} + z^\prime$ [m]', ylabel=r'$z_{top}$ from LES [m]',xlim=[700,4500],ylim=[700,4500])
 plt.colorbar(label=r'$z^\prime$ [m]')
 plt.tight_layout()
 # plt.show()
