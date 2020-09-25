@@ -251,27 +251,38 @@ for nCase,Case in enumerate(penetrative_plumes):
         else:
             sigmaBottom = sigmaTop
             sigmaBottomFair = sigmaTopFair
+        #
+        # #make a fit with two gaussians
+        # y_pdf_Fair = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaTopFair) # the normal pdf
+        # y_pdf_zMax = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaTop) # the normal pdf
+        # y_pdf_Bottom_Fair = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaBottomFair) # the normal pdf
+        # y_pdf_Bottom = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaBottom) # the normal pdf
+        #
+        # profileModelled[nCase,zclidx:] = y_pdf_Fair[zclidx:]*np.max(distribP[zclidx:])/(np.max(y_pdf_Fair[zclidx:])*1000)
+        # profileHalfModelled[nCase,zclidx:] = y_pdf_zMax[zclidx:]*np.max(distribP[zclidx:])/(np.max(y_pdf_zMax[zclidx:])*1000)
+        # profileModelled[nCase,:zclidx+1] = y_pdf_Bottom_Fair[:zclidx+1]*np.max(distribP[:zclidx+1])/(np.max(y_pdf_Bottom_Fair[:zclidx+1])*1000)
+        # profileHalfModelled[nCase,:zclidx+1] = y_pdf_Bottom[:zclidx+1]*np.max(distribP[:zclidx+1])/(np.max(y_pdf_Bottom[:zclidx+1])*1000)
 
         #make a fit with two gaussians
-        y_pdf_Fair = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaTopFair) # the normal pdf
-        y_pdf_zMax = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaTop) # the normal pdf
-        y_pdf_Bottom_Fair = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaBottomFair) # the normal pdf
-        y_pdf_Bottom = norm.pdf(interpZ, zCL[PENidx][nCase], sigmaBottom) # the normal pdf
+        y_pdf_Fair = np.exp(-0.5*((interpZ - zCL[PENidx][nCase])/sigmaTopFair)**2) # the normal pdf
+        y_pdf_zMax = np.exp(-0.5*((interpZ - zCL[PENidx][nCase])/sigmaTop)**2) # the normal pdf
+        y_pdf_Bottom_Fair = np.exp(-0.5*((interpZ - zCL[PENidx][nCase])/sigmaBottomFair)**2) # the normal pdf
+        y_pdf_Bottom = np.exp(-0.5*((interpZ - zCL[PENidx][nCase])/sigmaBottom)**2) # the normal pdf
 
-        profileModelled[nCase,zclidx:] = y_pdf_Fair[zclidx:]*np.max(distribP[zclidx:])/(np.max(y_pdf_Fair[zclidx:])*1000)
-        profileHalfModelled[nCase,zclidx:] = y_pdf_zMax[zclidx:]*np.max(distribP[zclidx:])/(np.max(y_pdf_zMax[zclidx:])*1000)
-        profileModelled[nCase,:zclidx+1] = y_pdf_Bottom_Fair[:zclidx+1]*np.max(distribP[:zclidx+1])/(np.max(y_pdf_Bottom_Fair[:zclidx+1])*1000)
-        profileHalfModelled[nCase,:zclidx+1] = y_pdf_Bottom[:zclidx+1]*np.max(distribP[:zclidx+1])/(np.max(y_pdf_Bottom[:zclidx+1])*1000)
+        profileModelled[nCase,zclidx:] = y_pdf_Fair[zclidx:]*np.max(distribP)/1000
+        profileHalfModelled[nCase,zclidx:] = y_pdf_zMax[zclidx:]*np.max(distribP)/1000
+        profileModelled[nCase,:zclidx+1] = y_pdf_Bottom_Fair[:zclidx+1]*np.max(distribP)/1000
+        profileHalfModelled[nCase,:zclidx+1] = y_pdf_Bottom[:zclidx+1]*np.max(distribP)/1000
 
         plt.figure()
         plt.title('%s' %Case)
         plt.plot(distribP/1000,interpZ,label='smoke profile')
         ax = plt.gca()
-        ax.set(xlabel='CWI concentration [ppm]',ylabel='height [m]',ylim=[0,3600])
+        ax.set(xlabel=r'CWI concentration [$\mu$g kg$^{-3}$]',ylabel='height [m]',ylim=[0,3600])
         ax.fill_betweenx(interpZ, quartiles[PENidx][nCase,:,0]/1000,quartiles[PENidx][nCase,:,1]/1000, alpha=0.2,label='IQR')
         ax.axhline(y = interpZ[zclidx], ls='-.',c='C0',linewidth=1, label='z$_{CL}$')
         ax.axhline(y = zMax[nCase], ls='--', c='grey',label='$z_{top}$ LES' )
-        ax.axhline(y = zMaxGuess[nCase],ls='--',c='C1',label='$z_{max}$ modelled' )
+        ax.axhline(y = zMaxGuess[nCase],ls='--',c='C1',label='$z_{top}$ modelled' )
         plt.plot(profileHalfModelled[nCase,:],interpZ,c='grey',ls=':',label=r'based on LES z$_{top}$')
         plt.plot(profileModelled[nCase,:],interpZ,c='C1',label=r'based on modelled z$_{top}$')
         plt.legend()
@@ -318,7 +329,7 @@ for nCase,Case in enumerate(penetrative_plumes):
     normhalfmodel = profileHalfModelled[nCase,:]/np.nanmax(profileHalfModelled[nCase,:])
     normprofileHalfModelled[nCase,:] = normhalfmodel
     mae_subset_half = np.where((normtruth > 0.001) & (normhalfmodel > 0.001))[0]
-    MAE_half[nCase] = np.nanmean(abs(normtruth[mae_subset] - normmodel[mae_subset]))
+    MAE_half[nCase] = np.nanmean(abs(normtruth[mae_subset_half] - normhalfmodel[mae_subset_half]))
     MAE_BL_half[nCase] = np.nanmean(abs(normtruth[mae_subset_half][mae_subset_half < ziidx] - normhalfmodel[mae_subset_half][mae_subset_half < ziidx]))
     MAE_FA_half[nCase] = np.nanmean(abs(normtruth[mae_subset_half][mae_subset_half >= ziidx] - normhalfmodel[mae_subset_half][mae_subset_half >= ziidx]))
 
@@ -326,11 +337,11 @@ plt.figure(figsize=(10,5))
 plt.suptitle('NORMALIZED DISTRIBUTION MAE')
 plt.subplot(121)
 plt.title(r'LES-derived z$_{top}$')
-plt.boxplot([MAE_BL_half[np.isfinite(MAE_BL_half)],MAE_FA_half[np.isfinite(MAE_FA_half)],MAE_half[np.isfinite(MAE_half)]], labels = ('ABL','FREE ATM','TOTAL'))
+plt.boxplot([MAE_BL_half[np.isfinite(MAE_BL_half)],MAE_FA_half[np.isfinite(MAE_FA_half)],MAE_half[np.isfinite(MAE_half)]], labels = ('ABL','FREE ATM','TOTAL'), notch=True)
 plt.gca().set(ylabel='MAE (normalized concentration)',ylim=[0,0.4])
 plt.subplot(122)
 plt.title(r'Modelled z$_{top}$')
-plt.boxplot([MAE_BL[np.isfinite(MAE_BL)],MAE_FA[np.isfinite(MAE_FA)],MAE[np.isfinite(MAE)]], labels = ('ABL','FREE ATM','TOTAL'))
+plt.boxplot([MAE_BL[np.isfinite(MAE_BL)],MAE_FA[np.isfinite(MAE_FA)],MAE[np.isfinite(MAE)]], labels = ('ABL','FREE ATM','TOTAL'), notch=True)
 plt.gca().set(ylabel='MAE (normalized concentration)',ylim=[0,0.4])
 plt.tight_layout()
 plt.savefig(plume.figdir + 'distribution/MAEdistribution.pdf')
