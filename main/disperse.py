@@ -25,6 +25,8 @@ runCnt = len(RunList)                           #count number of cases
 
 dropoff = np.empty((runCnt)) * np.nan                #BL height (m)
 Phi = np.empty((runCnt)) * np.nan
+wf = np.empty((runCnt)) * np.nan
+span = np.empty((runCnt)) * np.nan
 #======================repeat main analysis for all runs first===================
 #loop through all LES cases
 plumes = np.load('plumeData.npy',allow_pickle=True).item()
@@ -86,7 +88,10 @@ for nCase,Case in enumerate(RunList):
         dist2 = edge2 - 6000
         dropoff[nCase] = np.mean([dist1,dist2])
         Phi[nCase] = plumes['Phi'][runNumber]
+        # wf[nCase] = Phi[nCase]/(plumes['zi'][runNumber] * plumes['Omega'][runNumber])
+        wf[nCase] = (9.81 * Phi[nCase] * (plumes['zCL'][runNumber] - 0.75 * plumes['zi'][runNumber] )/ (plumes['zi'][runNumber] * plumes['thetaS'][runNumber]))**(1/3.)
 
+        span[nCase] = np.mean([edge2, edge1])
 plt.figure()
 xaxis = np.arange(0,np.nanmax(Phi))
 plt.title('PLUME WIDENING')
@@ -96,6 +101,15 @@ plt.gca().set(xlabel=r'fireline intensity [K m$^2$s$^{-1}$]',ylabel='plume widen
 plt.legend()
 plt.savefig(plume.figdir + 'lateral/Widening.pdf')
 plt.show()
+
+plt.figure()
+xaxis = np.arange(0,np.nanmax(Phi))
+plt.title('PLUME WIDENING')
+plt.scatter(wf,span,c=plume.read_tag('F',RunList))
+plt.gca().set(xlabel=r'$w_f$',ylabel='plume span [m]')
+plt.legend()
+fitWf = linregress(wf[np.isfinite(wf)], span[np.isfinite(span)])
+
 #======================compare conditions:Legth===================
 clr = ['C0','C1']
 #length tests
@@ -141,14 +155,17 @@ for nCase,Case in enumerate(RunList):
 
     #modelling class
     sigma = 1000+PhiLoc*(2500)/(140000)
+    sigmaG = (500*wf[runNumber] + 2000)
     modelledCS = np.empty_like(NcrosszCL) * np.nan
     s, f = edgeDist[nCase], (dimY-edgeDist[nCase])
     modelledCS[s:f] =0.9
     modelledCS[:s] =0.9* np.exp(-0.5*((yaxis[:s] - s*plume.dy)/sigma)**2)
     modelledCS[f:] =0.9* np.exp(-0.5*((yaxis[f:] - f*plume.dy)/sigma)**2)
+    GaussianCS = np.exp((-0.5*((yaxis - 5000)/sigmaG)**2))
+    plt.plot(yaxis,GaussianCS, ls='--',c=clr[nCase])
 
     plt.plot(yaxis,NcrosszCL,label=RunLbl[nCase])
-    plt.plot(yaxis,modelledCS, ls=':',c=clr[nCase])
+    # plt.plot(yaxis,modelledCS, ls=':',c=clr[nCase])
     plt.gca().set(ylabel=r'normalized concentration',xlabel='distance [m]')
     plt.legend()
 
@@ -196,14 +213,19 @@ for nCase,Case in enumerate(RunList):
 
     #modelling class
     sigma = 1000+PhiLoc*(2500)/(140000)
+    sigmaG = (500*wf[runNumber] + 2000)
     modelledCS = np.empty_like(NcrosszCL) * np.nan
     s, f = edgeDist, (dimY-edgeDist)
     modelledCS[s:f] = 0.9
     modelledCS[:s] = 0.9*np.exp(-0.5*((yaxis[:s] - s*plume.dy)/sigma)**2)
     modelledCS[f:] = 0.9*np.exp(-0.5*((yaxis[f:] - f*plume.dy)/sigma)**2)
+    GaussianCS = np.exp((-0.5*((yaxis - 5000)/sigmaG)**2))
+    plt.plot(yaxis,GaussianCS, ls='--',c=clr[nCase])
 
+    # plt.plot(yaxis,modelledCS, ls=':',c=clr[nCase])
     plt.plot(yaxis,NcrosszCL,label=RunLbl[nCase])
-    plt.plot(yaxis,modelledCS, ls=':',c=clr[nCase])
+
+
     plt.gca().set(ylabel=r'normalized concentration',xlabel='distance [m]')
     plt.legend()
 
@@ -250,14 +272,17 @@ for nCase,Case in enumerate(RunList):
 
     #modelling class
     sigma = 1000+PhiLoc*(2500)/(140000)
+    sigmaG = (500*wf[runNumber] + 2000)
     modelledCS = np.empty_like(NcrosszCL) * np.nan
     s, f = edgeDist, (dimY-edgeDist)
     modelledCS[s:f] = 0.9
     modelledCS[:s] = 0.9*np.exp(-0.5*((yaxis[:s] - s*plume.dy)/sigma)**2)
     modelledCS[f:] = 0.9*np.exp(-0.5*((yaxis[f:] - f*plume.dy)/sigma)**2)
+    GaussianCS = np.exp((-0.5*((yaxis - 5000)/sigmaG)**2))
+    plt.plot(yaxis,GaussianCS, ls='--',c=clr[nCase])
 
     plt.plot(yaxis,NcrosszCL,label=RunLbl[nCase])
-    plt.plot(yaxis,modelledCS, ls=':',c=clr[nCase])
+    # plt.plot(yaxis,modelledCS, ls=':',c=clr[nCase])
     plt.gca().set(ylabel=r'normalized concentration',xlabel='distance [m]')
     plt.legend()
 
