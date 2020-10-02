@@ -14,6 +14,7 @@ from scipy.stats import linregress
 from scipy.optimize import fsolve
 from scipy.interpolate import interp1d
 import re
+import config
 
 # find zi
 def get_zi(T0,dz):
@@ -79,12 +80,12 @@ def prepCS(Case):
     $csdict$ (dict): dictionary containing cross-sectional plume data
     '''
     #load cross section
-    cspath = wrfdir + 'wrfcs_' + Case + '.npy'
+    cspath = config.wrfdir + 'wrfcs_' + Case + '.npy'
     print('Opening data: %s' %cspath)
     csdict = np.load(cspath, allow_pickle=True).item()
 
     #create a subfolder in the data folder to store profiles
-    profilespath = cspath + 'profiles/'
+    profilespath = config.wrfdir + 'profiles/'
     if not os.path.exists(profilespath):
         os.makedirs(profilespath)
 
