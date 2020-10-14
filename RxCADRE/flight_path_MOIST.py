@@ -134,7 +134,7 @@ disp_dict['meta']= 'time: min since restart run | \
 # pre_burn_qv = np.genfromtxt(rx.pre_moisture, skip_header=1, delimiter=',')
 
 #define timing of events
-model_datetime = [basetime + dt.timedelta(hours=int(rx.runstart[:2]),minutes=t) for t in ncdict['XTIME']]
+model_datetime = [basetime + dt.timedelta(hours=int(rx.runstart[:2]),minutes=float(t)) for t in ncdict['XTIME']]
 cs_start, cs_end = dt.datetime.combine(basetime,dt.datetime.strptime(rx.corkscrew[0], '%H:%M:%S').time()),dt.datetime.combine(basetime,dt.datetime.strptime(rx.corkscrew[1], '%H:%M:%S').time())
 gg_start, gg_end = dt.datetime.combine(basetime,dt.datetime.strptime(rx.garage[0], '%H:%M:%S').time()),dt.datetime.combine(basetime,dt.datetime.strptime(rx.garage[1], '%H:%M:%S').time())
 
@@ -257,15 +257,19 @@ ROT_profile_mukg = tracerinterp[258,:,ROTidxy,ROTidxx]
 ROT_profile = 1e-3 * ROT_profile_mukg * molar_mass['air'] / molar_mass['CO2']    #convert to ppmv, assuming model is in mug/kg
 #------end hardcoding
 
+plt.figure(figsize=(5.5,5))
 cs_lon =  np.mean(disp_dict['lcn'][tidx][ics:fcs,1])
 cs_lat = np.mean(disp_dict['lcn'][tidx][ics:fcs,0])
 tot_column_mukg = np.sum(ncdict['CO2'][258,:,:,:],0)
+ax = plt.gca()
+bm.ax = ax
 smokeim = 1e-3 * tot_column_mukg * molar_mass['air']/molar_mass['CO2']   #convert to ppmv
-im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower',vmin=0,vmax=801)
+im = bm.imshow(smokeim, cmap = plt.cm.bone_r, origin='lower',vmin=0,vmax=801, extent=[0,nY*40,0,nX*40])
 bm.scatter(cs_lon,cs_lat,40,marker='*',color='r',label='average location of corkscrew profile')
 bm.scatter(rotCS_lcn[1],rotCS_lcn[0],20,marker='o',color='k',label='wind-corrected profile location')
 plt.colorbar(im, label='total column CO$_2$ (ppmv)')
 plt.legend()
+ax.set(xlabel='distance [km]', ylabel='distance [km]')
 plt.tight_layout()
 plt.savefig(rx.fig_dir + 'CSLocation.pdf')
 plt.show()

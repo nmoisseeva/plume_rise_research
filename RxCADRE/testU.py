@@ -38,7 +38,7 @@ nc_data = netcdf.netcdf_file(rx.wrfdata, mode ='r')
 UTMx = nc_data.variables['XLONG'][0,:,:] + rx.ll_utm[0]
 UTMy = nc_data.variables['XLAT'][0,:,:] + rx.ll_utm[1]
 
-ncdict = wrf.extract_vars(nc_data, None, ('PHB','PH','U','V'))
+ncdict = wrf.extract_vars(nc_data, None, ('PHB','PH','U','V'),meta=False)
 
 #get height and destagger vars
 print('...destaggering data')
@@ -121,13 +121,15 @@ fit = b + m * xaxis
 
 plt.title('CSU (30.7m) WIND DIRECTION')
 plt.scatter(xaxis,np.array(dirCSU)[-122:])
-plt.plot(xaxis,fit,'r--')
+plt.plot(xaxis,fit,'r--',label=r'linear trend 15$\degree$/hour')
 plt.xlabel('time (CST)')
 plt.ylabel('wind direction (deg)')
 plt.ylim([40,220])
 ax = plt.gca()
 ax.set_xticks(np.arange(0,121,30))
 ax.set_xticklabels(['11:10','11:40','12:10','12:40','13:10'])
+ax.fill_between(xaxis[85:],40,220,facecolor='red', alpha=0.3,label='active burn time')
+plt.legend(loc=2)
 plt.savefig(rx.fig_dir + 'WindDir.pdf')
 plt.show()
 plt.close()
