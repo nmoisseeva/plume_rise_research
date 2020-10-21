@@ -10,6 +10,8 @@ import imp
 from matplotlib import gridspec
 from scipy.interpolate import interp1d
 from scipy.stats import linregress
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
 
 #====================INPUT===================
 #import all common project variables
@@ -20,7 +22,7 @@ zstep = 20              #height interpolation step
 #=================end of input===============
 
 RunList =   [i for i in plume.tag if i not in plume.exclude_bad]
-# RunList =   ['W5F4R5TE','W3F7R7T','W4F4R1']
+RunList =   ['W8F7R7T']
 runCnt = len(RunList)                           #count number of cases
 
 dropoff = np.empty((runCnt)) * np.nan                #BL height (m)
@@ -67,11 +69,13 @@ for nCase,Case in enumerate(RunList):
         fig = plt.figure(figsize=(6,5))
         plt.subplot(211)
         plt.title('(a) AWI SMOKE')
+        ax = plt.gca()
         im = plt.imshow(NlateralPM, origin='lower', extent=[0,yaxis[-1],0,pmlvl[-1]],cmap=plt.cm.cubehelix_r,vmin=0,vmax = 1)
-        plt.colorbar(im, label=r'normalized concentration')
-        plt.axhline(y = zCL,ls='--', c='dimgrey',label=r'$z_{CL}$' )
-        plt.gca().set(ylim=[0,pmlvl[-1]],aspect='equal',ylabel='height [m]',xlabel='cross-wind distance [m]')
-        plt.legend()
+        cbaxes = inset_axes(ax, width="30%", height="4%",loc=2, bbox_to_anchor=(0.02, 0, 1, 1), bbox_transform=ax.transAxes)
+        cbari = fig.colorbar(im, cax=cbaxes,orientation='horizontal',label='normalized concentration')
+        ax.axhline(y = zCL,ls='--', c='dimgrey',label=r'$z_{CL}$' )
+        ax.set(ylim=[0,pmlvl[-1]],aspect='equal',ylabel='height [m]',xlabel='cross-wind distance [m]')
+        ax.legend(loc='upper right')
         plt.subplot(212)
         plt.title(r'(b) CROSSSECTION AT $z_{CL}$')
         plt.plot(yaxis,NcrosszCL)

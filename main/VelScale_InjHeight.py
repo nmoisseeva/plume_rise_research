@@ -23,7 +23,7 @@ imp.reload(plume) 	#force load each time
 #=================end of input===============
 
 RunList = [i for i in plume.tag if i not in plume.exclude_runs]
-
+RunList = ['W4F7R4L1','W4F7R4','W4F7R4L4']
 runCnt = len(RunList)
 g = 9.81
 
@@ -239,7 +239,7 @@ for nCase,Case in enumerate(RunList):
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     # plt.show()
-    plt.savefig(plume.figdir + 'downwindAve/%s.pdf' %Case)
+    # plt.savefig(plume.figdir + 'downwindAve/%s.pdf' %Case)
 
     plt.close()
     print('.....saved in: %s' %(plume.figdir + 'downwindAve/%s.pdf' %Case))
@@ -302,30 +302,30 @@ for i, txt in enumerate(RunList):
 ax2.set(xlabel='$w_{f*}$ [m/s]',ylabel='zCL [m]')
 plt.subplots_adjust(top=0.85)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.savefig(plume.figdir + 'zCl_wStar.pdf' )
+# plt.savefig(plume.figdir + 'zCl_wStar.pdf' )
 # plt.show()
 plt.close()
 
-#
-# #Fireline length ANALYSIS
-# #------------Velocity Enhancement-----------
-# firelineSmoke = np.mean(FirelineProfiles)
-# plt.figure()
-# haxis = np.arange(dimX)*plume.dx
-# ax = plt.gca()
-# plt.title('FIRE-INDUCED WIND DYNAMCIS at 400 m AGL')
-# plt.plot(haxis, FirelineUprime400m[0], label='1 km')
-# plt.plot(haxis, FirelineUprime400m[1], label='2 km')
-# plt.plot(haxis, FirelineUprime400m[2], label='4 km')
-# # plt.axhline(y=0,xmin=0,xmax=16000,color='grey')
-# plt.xlabel('horizontal distance [m]')
-# plt.ylabel('Uprime [m/s]' )
-# plt.xlim([0,max(haxis)])
-# plt.tight_layout()
-# plt.legend()
-# # plt.savefig(plume.figdir + 'fireline/Uprime400m.pdf')
-# plt.show()
-# plt.close()
+
+#Fireline length ANALYSIS
+#------------Velocity Enhancement-----------
+firelineSmoke = np.mean(FirelineProfiles)
+plt.figure()
+haxis = np.arange(dimX)*plume.dx
+ax = plt.gca()
+plt.title('FIRE-INDUCED WIND DYNAMCIS at 400 m AGL')
+plt.plot(haxis, FirelineUprime400m[0], label='1 km')
+plt.plot(haxis, FirelineUprime400m[1], label='2 km')
+plt.plot(haxis, FirelineUprime400m[2], label='4 km')
+plt.axhline(y=0,xmin=0,xmax=16000,color='grey', s=':')
+plt.xlabel('horizontal distance [m]')
+plt.ylabel(r'U$^\prime$ [m/s]' )
+plt.xlim([0,max(haxis)])
+plt.tight_layout()
+plt.legend()
+# plt.savefig(plume.figdir + 'fireline/Uprime400m.pdf')
+plt.show()
+plt.close()
 #
 # #------------Profile Comparison-----------
 # plt.figure(figsize=(12,4))
