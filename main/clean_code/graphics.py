@@ -92,7 +92,7 @@ def plot_zcl(plume,pm,fireCS,flux2D,stablePMmask,smoothCenterline):
     cropX = int(dimX*0.75)
     axMax = cropX * config.dx
     haxis = np.arange(cropX)*config.dx
-    PMmg = pm/1000.                                        #smoke concentration in ppm
+    PMmg = pm/1000.
     maxPM = int(np.max(PMmg))
     PMctr = np.array([pm[plume.ctr_idx[nX],nX] for nX in range(dimX)])
 
@@ -142,11 +142,11 @@ def plot_zcl(plume,pm,fireCS,flux2D,stablePMmask,smoothCenterline):
     l2, = ax3.plot(haxis,plume.centerline[:cropX], label='raw centerline height', color='C4',linestyle=':')
     ax32 = ax3.twinx()
     ax32.set(xlim=[0,axMax],xlabel='distance [m]')
-    l4, = plt.plot(haxis, PMctr[:cropX]/1000, label='concentration gradient', color='C1',linewidth=1)
+    l4, = plt.plot(haxis, PMctr[:cropX]/1000, label='centerline concentration', color='C1',linewidth=1)
     plt.legend(handles = [l1,l2,l3,l4])
     ax3.text(0.02, 0.93, '(c)', horizontalalignment='center', verticalalignment='center', transform=ax3.transAxes, weight='bold')
     ax32.tick_params(axis='y',colors='C1')
-    ax32.set_ylabel('concentration gradient [ppm]', color='C1')
+    ax32.set_ylabel('concentration [mg/kg]', color='C1')
 
     ax4=fig.add_subplot(gs[3])
     plt.plot(plume.profile/1000, config.interpZ,label=' PM profile')
@@ -184,7 +184,10 @@ def plot_soundings(all_plumes):
             lR = plt.plot(Case, config.interpZ, color='C%s' %R, linewidth=1, label='R%s' %R)
         leg_handles.extend(lR)
     plt.gca().set(xlabel='potential temperature [K]',ylabel='height [m]',xlim=[280,330],ylim=[0,2800])
-    plt.legend(handles=leg_handles)
+    leg = plt.legend(handles=leg_handles)
+    for line in leg.get_lines():
+        line.set_linewidth(3)
+
     plt.savefig(figpath + 'T0profiles.pdf')
     plt.close()
 
