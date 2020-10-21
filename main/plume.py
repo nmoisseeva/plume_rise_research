@@ -30,7 +30,7 @@ dirlist = glob.glob(dirpath)                        #get all  interp files in di
 tag = [i[len(dirpath)-1:-4] for i in dirlist]       #W*F*R0
 # tag = ['W8S400F7R0']
 exclude_runs = ['W5F4R0','W5F9R1','W5F8R3','W5F9R3','W5F1R3','W5F13R0','W5F1R7T','W5F8R7T','W5F9R7T']
-exclude_bad = ['W5F4R0','W5F13R0']
+exclude_bad = ['W5F4R0','W5F13R0','W5F7R7TM']
 
 
 # exclude_runs = []
