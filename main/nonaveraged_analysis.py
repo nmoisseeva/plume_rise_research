@@ -149,6 +149,8 @@ for nCase,Case in enumerate(plume.tag):
         ax2.set_ylabel('y distance [m]')
         plt.tight_layout(rect=[0, 0, 1, 0.95])
 
+
+        #THIS IS WRONG IT PLOTS U INSTEAD OF W!!!!!!!!!!
         def update_plot(n,csdict,cntrf,cntr):
             ax1.clear()
             im = ax1.imshow((csdict['u'][n,:,:].T - U0).T,origin='lower',extent=[0,dimX*plume.dx,0,plume.lvl[-1]],cmap=plt.cm.PRGn_r, vmin=-5, vmax=5)

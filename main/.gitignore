@@ -2,3 +2,4 @@
 ./figs/*
 ../figs/*
 *.pdf
+*__pycache__*
