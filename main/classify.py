@@ -276,7 +276,9 @@ for nCase,Case in enumerate(penetrative_plumes):
 
         plt.figure()
         plt.title('%s' %Case)
-        plt.plot(distribP/1000,interpZ,label='smoke profile')
+        plt.plot(distribP/1000,interpZ,label='smoke profile (target)')
+        # plt.plot(profileModelled[nCase,:],interpZ,c='C1',label=r'smoke profile (parameterized)')
+
         ax = plt.gca()
         ax.set(xlabel=r'CWI concentration [$\mu$g kg$^{-3}$]',ylabel='height [m]',ylim=[0,3600])
         ax.fill_betweenx(interpZ, quartiles[PENidx][nCase,:,0]/1000,quartiles[PENidx][nCase,:,1]/1000, alpha=0.2,label='IQR')
